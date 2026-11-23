@@ -29,7 +29,8 @@ gates:
 Design phase. Nothing is implemented; field names and commands are proposals.
 
 - [vision.md](vision.md): what Ratchet is for
-- [docs/design.md](docs/design.md): the design proposal
+- [docs/design.md](docs/design.md): the design proposal, revised from survey 1
+- [research/synthesis.md](research/synthesis.md): what 26 projects said about tracking quality
 
 ## What it will ship
 
