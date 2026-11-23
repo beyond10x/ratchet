@@ -27,15 +27,17 @@ The repository is in the design phase.
 |---|---|
 | `vision.md` | why Ratchet exists, its outcomes and what it does not do |
 | `docs/design.md` | the design proposal: domain language, YAML shapes, CLI, records, ESS integration |
-| `research/` | surveys and their answers; confidentiality rules in `research/README.md` |
+| `research/` | surveys and their answers, `synthesis.md`, `candidate-presets.md`, consumer input; confidentiality rules in `research/README.md` |
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`), no artifacts yet |
 | `Taskfile.yml` | `task check`: the repository gate |
 
 ## Domain language
 
 Use the terms of `docs/design.md` § 1 with those meanings: subject, audience, quality
-specification, quality requirement, measurement, assessment plan, assessor, target, protected
-reference, gate, ratchet policy. A gate verdict is one of pass, fail, insufficient evidence.
+specification, quality requirement, measurement, measurement kind (exact, sampled), scope,
+identity set, assessment plan, assessor, target, evidence coverage, protected reference
+(generated, accepted value), gate, ratchet policy, exception, trade-off. A gate verdict is one of
+pass, fail, insufficient evidence.
 
 ## Boundary
 

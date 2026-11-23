@@ -38,9 +38,10 @@ project's own checks, so a custom measurement joins gates and history from its f
 ## First milestone
 
 A project that starts in observe mode, adopts a gate, rejects a regression with actionable
-evidence, and records an improvement as a new protected reference, across three integrations:
-ESS UI behavior, CI turnaround, and no new findings from an existing analyzer
-([docs/design.md](docs/design.md) § 7).
+evidence, and records an improvement as a new protected reference, across four integrations:
+ESS UI behavior, CI turnaround, no new findings from an existing analyzer, and a generated
+artifact compared by digest ([docs/design.md](docs/design.md) § 7). It returns insufficient
+evidence, not a fail, when the host and not the candidate caused a limit to be crossed.
 
 ## Not in scope
 
