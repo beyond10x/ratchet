@@ -1,0 +1,11 @@
+version: aep.project/5
+protocol: adp/1
+profile: development.standard
+protocols: git+https://github.com/beyond10x/aep#af11af152de1732383a5edee0da723bb72d9acb4
+planning_scope: "ratchet"
+store:
+  git: {}
+
+summary: >-
+  Specify software quality: a versioned YAML format, a CLI, a preset catalog and assessors that
+  keep quality from regressing.

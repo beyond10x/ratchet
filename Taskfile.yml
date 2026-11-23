@@ -1,0 +1,7 @@
+version: '3'
+
+tasks:
+  check:
+    desc: Run the repository gate.
+    cmds:
+      - aep plan artifact validate
