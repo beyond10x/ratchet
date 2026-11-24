@@ -176,6 +176,9 @@ files, docs numbers rendered from records. It is the first place the UI shows re
 
 ## 10. Open questions
 
+Options, a recommended default and what would change it, per question:
+[open-questions.md](open-questions.md). Recommendations only; they await Timo.
+
 1. TOML for the local config, YAML for the specification: two formats, or TOML for both?
 2. Can a local TOML ever affect a gate, for example on a developer's pre-push?
 3. Record store: git ref, CI artifacts, or both?
