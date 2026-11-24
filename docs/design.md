@@ -193,7 +193,7 @@ Ratchet defines some values. An assessor or the author defines the others. Value
 | Value type | `number`, `identity_set`, `digest`, `assertion` | Ratchet, closed |
 | Observation kind | `snapshot`, `controlled_run`, `time_window` | Ratchet, closed |
 | Target class (`environments`) | `local`, `ci`, `ephemeral`, `staging`, `production` | Ratchet, closed |
-| Target kind | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population` | Ratchet, closed |
+| Target kind | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, `document` (one file, identified by its byte digest; evidence format E1) | Ratchet, closed |
 | Selection | `candidate`, `merge_result` | Ratchet, closed |
 | Operator | `lt`, `lte`, `gt`, `gte`, `eq`, `no_new_items`, `no_lost_items`, `holds` | Ratchet, closed |
 | Aggregation kind | `sum`, `median`, `percentile`, `best_of_n`, `pass_rate` | Ratchet, closed |
@@ -733,7 +733,7 @@ An exception is an entry of the specification and not a record of its own. A gat
 
 An authored entry has the id its author gave it: the key of its map. A record gets its id from the CLI when it is written, as its type and a digest of its content, such as `run:<digest>`. Two writers then need no coordination.
 
-The file form of an assessment run is drafted as `ratchet-evidence/1` in [`docs/evidence-format.md`](https://github.com/beyond10x/ratchet/blob/main/docs/evidence-format.md), which lists its fields, decides the first assessor’s gaps U1 to U9, and leaves six questions to the owner.
+The file form of an assessment run is drafted as `ratchet-evidence/1` in [`docs/evidence-format.md`](https://github.com/beyond10x/ratchet/blob/main/docs/evidence-format.md), which lists its fields, decides the first assessor’s gaps U1 to U9 (E1 to E6 decided, all A, 2026-11-24), answers the first implementation’s questions, and defines the assessor contract: invocation, exit status and the declaration `ratchet-assessor/1` (E7 to E9 open, written under default A).
 
 **The record store** has two parts with one role each (open questions Q3). Records are versioned JSON.
 

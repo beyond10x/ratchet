@@ -1,17 +1,19 @@
 # Evidence format `ratchet-evidence/1`
 
-**Status:** Design proposal, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)). Field names and shapes are proposals, as in the design. The six questions E1 to E6 are decided, all A (the owner's delegate, 2026-11-24).
+**Status:** Design proposal, revision 2, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)); § 10 and items 18 to 25 of § 8 are against revision 4. Field names and shapes are proposals, as in the design. The six questions E1 to E6 are decided, all A (the owner's delegate, 2026-11-24). The three questions E7 to E9 are open, and the document is written under their defaults.
 
-An assessment run is an entity of the specification and a row of the records table (design § 6). Neither says how a run is written to a file. The first assessor built against the design, `ux-static@1` of the [`uxui`](https://github.com/beyond10x/uxui) repository, wrote a shape of its own, `ratchet-evidence/draft`, and reported nine gaps, U1 to U9 ([consumer input](../research/consumer-input-ux-ui.md), section “Second input”, which is on the branch `uxui-input-2` until that branch is merged). This document names the format, lists every field, decides the gaps, and maps the draft onto the format. Six decisions are the owner’s: E1 to E6 in § 5, each with a default. The document is written under the defaults.
+An assessment run is an entity of the specification and a row of the records table (design § 6). Neither says how a run is written to a file. The first assessor built against the design, `ux-static@1` of the [`uxui`](https://github.com/beyond10x/uxui) repository, wrote a shape of its own, `ratchet-evidence/draft`, and reported nine gaps, U1 to U9 ([consumer input](../research/consumer-input-ux-ui.md), section “Second input”). This document names the format, lists every field, decides the gaps, and maps the draft onto the format. Six decisions were the owner’s: E1 to E6 in § 5.
+
+**Revision 2.** The consumer then wrote `ratchet-evidence/1` from this document and raised 13 questions, Q1 to Q13. Each answer is written into the rule or the field it belongs to, and § 11 lists where. Two things the questions asked for are new: how Ratchet starts an assessor, and how an assessor is declared (§ 10). Three choices are the owner’s: E7 to E9 in § 5, each with a default.
 
 ## 1. Name, version, and file
 
 - **Name.** `ratchet-evidence/1`, in the member `format`, as `ratchet-reference/1` and `ratchet-trade-off/1` are (design § 3, § 5).
 - **One document per assessment run.** A run is one execution of one assessment plan by its assessor, and every measurement of the plan reads that run (design § 3). The document holds all results of the run and one set of coverage counts. A document per measurement or per scope item is not this format.
 - **File.** One JSON object, UTF-8 without a byte order mark. The file name ends in `.evidence.json`; `<assessment>.evidence.json` is the proposed name. A reader takes nothing from the name. Where the record store keeps the file is not decided here: design § 6 names the hand-over and the ref and not their layout.
-- **Types.** A count is a JSON integer. A decimal is text, so no value changes in a conversion (design § 3). A time is text in UTC, `2026-11-24T02:49:16Z`. A duration is decimal text in seconds, `94.3`. A digest is `sha256:` and 64 lowercase hex digits. A path in `evidence` is relative to the root of the repository, with `/`.
+- **Types.** A count is a JSON integer. A decimal is text, so no value changes in a conversion (design § 3). A time is text in UTC, `2026-11-24T02:49:16Z`. A duration is decimal text in seconds, `94.3`. A digest is `sha256:` and 64 lowercase hex digits. A path in `evidence` is relative to the root of the repository, with `/`. A file outside that root has no path in `evidence`: the member that would hold the path is left out, and the digest of the file identifies it (Q8). Where a file lay on one machine is not evidence.
 - **Spelling.** Members and the values Ratchet defines are snake_case (design § 3, value lists).
-- **Version.** The number after the slash is the version. A reader of version 1 rejects a member of `evidence` that it does not know: such a member can change what a value means, and a reader that skipped `at_least` would read a lower bound as an exact value. It ignores a member of `run` that it does not know. A new member of `evidence`, or a new value of a list that Ratchet closes, therefore makes version 2, and a new member of `run` does not. A reader of a version reads every earlier one (E5).
+- **Version.** The number after the slash is the version. A reader of version 1 rejects a member of `evidence` that it does not know: such a member can change what a value means, and a reader that skipped `at_least` would read a lower bound as an exact value. It ignores a member of `run` that it does not know. A new member of `evidence`, or a new value of a list that Ratchet closes, therefore makes version 2, and a new member of `run` does not. A reader of a version reads every earlier one (E5). Revision 2 of this document is still version 1: no reader exists yet, and every document that the first assessor writes under revision 1 is valid under revision 2.
 
 ## 2. Two parts and three digests
 
@@ -39,7 +41,7 @@ Every digest is SHA-256 over bytes as they were written (U9). The format fixes n
 
 The column **From** says where a field comes from. `spec`: the field is in the specification with this meaning, and only its place in the JSON may differ. `changed`: it is in the specification with another name, type, or number. `new`: the specification does not have it. `§` is a section of the design. Specification types are in the domain `ratchet.evidence` unless they say otherwise.
 
-There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
+There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here.
 
 ### Top level
 
@@ -59,9 +61,9 @@ There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
 | `protocol_version` | text | no | The version of the assessment protocol. A change that affects comparability starts a new evidence series (§ 5). | spec: `AssessmentRun.protocol_version` |
 | `candidate` | text | exactly when `target.selection` is present | The identity the evidence is attributable to: the commit id for a target of the kind `revision`, the digest of the document for `document`, the artifact digest for `build` | changed: `AssessmentRun.candidate` is required and a revision |
 | `target` | object | yes | The resolved target (§ 3) | spec: `ResolvedTarget` |
-| `inputs` | map from an input name to an input | no | The resolved value of each input of the plan that is not local (§ 4) | new: § 4, § 6 |
-| `completion` | text | yes | `completed`, `timed_out`, `stopped_by_infrastructure`, or `skipped_locally` | spec: `RunCompletion` |
-| `conditions` | object | yes | The observed conditions. A condition that is absent is unknown (§ 6). | spec: `ObservedConditions` |
+| `inputs` | map from an input name to an input | no | The resolved value of each input of the plan that is not local (§ 4) and is not the target (§ 10) | new: § 4, § 6 |
+| `completion` | text | yes | `completed`, `timed_out`, `stopped_by_infrastructure`, `skipped_locally`, or `refused_inputs`. The CLI writes the document of a run whose assessor left none (§ 10). | changed: `RunCompletion`; `refused_inputs` is a new value (E9) |
+| `conditions` | object | yes | The observed conditions. A declared condition that is absent is unknown (§ 6). One that nobody declares does not apply (below, `evidence.conditions`). | spec: `ObservedConditions` |
 | `coverage` | object | yes | How much of the plan the run executed (§ 3) | spec: `EvidenceCoverage` |
 | `results` | list of results | yes | One result per output, scope item, boundary, and aggregation. Empty when nothing ran. | changed: `AssessmentRun.results` is a map keyed by measurement name (E3) |
 | `source` | object | exactly for an imported run | Where an imported run came from (§ 6) | spec: `ImportSource` |
@@ -73,8 +75,8 @@ There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
 | `kind` | text | yes | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, or `document` | changed: `ResolvedTarget.kind`; `document` is a new value (E1) |
 | `class` | text | yes | Where the evidence was produced: `local`, `ci`, `ephemeral`, `staging`, or `production` | spec: `ResolvedTarget.class` |
 | `selection` | text | no | `candidate` or `merge_result`. Absent: the evidence is attributable to no candidate (§ 3). | spec: `ResolvedTarget.selection` |
-| `revision` | text | no | The repository revision the target was read at, where there is one | spec: `ResolvedTarget.revision` |
-| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. | spec: `ResolvedTarget.identifiers` |
+| `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. | spec: `ResolvedTarget.revision` |
+| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). | spec: `ResolvedTarget.identifiers` |
 | `window` | object | exactly for a time-window plan | The window that was read (§ 3) | spec: `ResolvedTarget.window` |
 
 ### `evidence.target.window`
@@ -91,7 +93,7 @@ There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
 
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
-| `value` | text, count, boolean, or a list of these | yes | The value the plan passed, after defaults. A path and a decimal are text. | new: § 4 inputs |
+| `value` | text, count, boolean, or a list of these | yes, unless it is a path outside the tree | The value the plan passed, after defaults. A path and a decimal are text. | new: § 4 inputs |
 | `digest` | digest | for a path that was read | The file digest of the file at that path | new: U9 |
 | `digest_form` | text | with `digest` | `bytes` (§ 2) | new: U9 |
 
@@ -108,6 +110,8 @@ There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
 | `cache_profile` | text | no | The cache profile, such as `warm` | spec: `ObservedConditions.cache_profile` |
 | `other` | map from text to text | no | Every further condition that the plan or the assessor declares | spec: `ObservedConditions.other` |
 
+**Unknown, or not applicable** (Q13). A condition is read only where it is declared: by the plan, for the class of the run, or by the assessor in its declaration (§ 10). A declared condition that the document does not hold is unknown, and the evidence does not qualify for a gate (design § 6). A condition that neither declares does not apply to the run, and its absence says nothing. `ux-static@1` declares no condition and reads no viewport, so its documents hold `tools` alone and no viewport is unknown. The format has no value for “does not apply”: the declaration says it once, for every run.
+
 ### `evidence.coverage`
 
 | Field | Type | Required | Meaning | From |
@@ -121,11 +125,13 @@ There are 78 fields: 49 `spec`, 6 `changed`, 23 `new`.
 | `failed` | count | yes | Executed units whose own outcome is a fail | spec: `EvidenceCoverage.failed` |
 | `executed_ids` | list of text | no | The ids of the executed units, for a plan that declares `executed_ids` | spec: `EvidenceCoverage.executed_ids` |
 | `not_executed` | list | no | The units that were not executed, each with its state and reason | new: U3 |
-| `not_executed[].id` | text | yes | The id of the unit, in the assessor’s spelling | new: U3 |
+| `not_executed[].id` | text | yes | The id of the unit, in the assessor’s spelling. Unique within the run, and the same for the same unit in every run (rule 4). | new: U3 |
 | `not_executed[].state` | text | yes | `skipped`, `not_run`, or `unsupported` | new: U3 |
 | `not_executed[].reason` | text | no | Why the unit did not execute | new: U3 |
 
 The design names the four counts and does not say what tells `skipped` from `not_run`. The meanings above are a proposal.
+
+A unit is one piece of work, and it is counted once, however often the inputs name it (Q1). Where the unit is a check, one rule applied to one node for one scope item is one check: a node that a journey lists among its required nodes and as its signal is checked once for that journey. The same node under two scope items is two checks.
 
 ### `evidence.results[]`
 
@@ -138,7 +144,7 @@ The design names the four counts and does not say what tells `skipped` from `not
 | `boundary` | text | no | The part of a duration: `run_time`, `queue_wait`, or one the assessor declares | spec: `MeasurementResult.boundary` |
 | `value_type` | text | yes | `number`, `identity_set`, `digest`, or `assertion`. It decides which of the members below the result has. | spec: the tag of `MeasuredValue` |
 | `incomplete` | object | no | Present when the result has no value, or less than the whole value (U5, U6) | new: U5 |
-| `incomplete.cause` | text | yes | One of the causes of insufficient evidence of § 5 | new: U5; `ratchet.gate.VerdictCause` |
+| `incomplete.cause` | text | yes | One of the causes of insufficient evidence of § 5. One cause, also when several apply (§ 5, U5). | new: U5; `ratchet.gate.VerdictCause` |
 | `incomplete.detail` | text | no | One sentence for the reader of a report | new: U5 |
 | `details` | any JSON | no | What the assessor wants kept beside the result. Ratchet stores it and compares nothing in it. | new: U3, U4 |
 
@@ -157,7 +163,7 @@ A result of the value type `identity_set`:
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
 | `key` | list of text | yes | The identity key, such as `[rule, node_path]` | spec: `IdentitySet.key` |
-| `items` | list | yes | The items found for this scope item. Empty when it was evaluated and nothing was found. | changed: `IdentitySet.items` is a list of free objects |
+| `items` | list | yes | The items found for this scope item. Empty when nothing was found: on a complete result the item was evaluated, and on an incomplete one it was not, or not wholly (rule 8). | changed: `IdentitySet.items` is a list of free objects |
 | `items[].identity` | object | yes | Exactly the fields of the key. A field can be a map (§ 3). | new: U4; § 3 reference record (G28) |
 | `items[].fields` | object | no | The item fields the assessor declares, such as severity, message, and location. A measurement’s `filter` reads them. | new: U4; § 3, § 4 |
 
@@ -193,12 +199,14 @@ A reader checks these and rejects a document that breaks one.
 1. `candidate` is present exactly when `target.selection` is.
 2. `item` is absent exactly when `scope` is `run`.
 3. `results` holds at most one result per `output`, `scope`, `item`, `boundary`, and `aggregation`.
-4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`. `passed` plus `failed` is at most `executed`: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts.
+4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`, and is counted once (§ 3, `evidence.coverage`). `passed` plus `failed` is at most `executed`: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts. The id of a unit is unique within the run: no id is twice in `executed_ids` and `not_executed` taken together. The same unit has the same id in every run.
 5. A result is complete or incomplete. A complete result has the value of its type and no `incomplete`. An incomplete result has `incomplete`, and either no value or less than the whole one: a number with `at_least`, or the items of a set that were found.
 6. `at_least: true` appears only on an incomplete result.
-7. When `completion` is not `completed`, every result is incomplete.
-8. An output of the value type `identity_set` has a result for every scope item that was evaluated, also when the set is empty. No result means the item was not evaluated.
-9. `evidence` holds no time outside `target.window` and no absolute path.
+7. When `completion` is not `completed`, every result is incomplete, with the cause of that completion (§ 5, U5).
+8. An output of the value type `identity_set` has a result for every scope item that the run was to evaluate. The result is complete when the item was evaluated, also when the set is empty. It is incomplete when the item was not evaluated or not wholly, also when the set is empty (§ 5, U3). No result means that the inputs of the run hold no such item. An assessor does not leave a result out to say that it could not evaluate an item.
+9. `evidence` holds no time outside `target.window` and no absolute path. A file outside the tree has no path there (§ 1).
+
+Rules 1 to 7 and 9 can be checked on one document, with two exceptions in rule 4: that a unit is counted once, and that its id is the same in every run. Those two and rule 8 need the inputs or a second run. They bind the assessor, and a reader cannot check them.
 
 A measurement of the plan reads the results whose `output`, `scope`, `boundary`, and `aggregation` are its own. A requirement that reads an incomplete result returns insufficient evidence with the cause of the result, unless a lower bound proves a fail (§ 5, U6).
 
@@ -218,16 +226,25 @@ A measurement of the plan reads the results whose `output`, `scope`, `boundary`,
 
 ### U3. ACT outcomes
 
-The consumer’s rules give one outcome per rule and node, in the terms of the W3C ACT Rules Format. Its coverage unit is the **check**: one rule applied to one node or step.
+The consumer’s rules give one outcome per rule and node, in the terms of the W3C ACT Rules Format. Its coverage unit is the **check**: one rule applied to one node or step, for one scope item. A node that the inputs name twice for one scope item is one check (rule 4, Q1).
 
 | Outcome of a check | Coverage | Results | Verdict of a requirement that reads the result |
 | --- | --- | --- | --- |
 | passed | `executed` and `passed` | Nothing of its own | Counts toward a pass |
 | failed | `executed` and `failed` | One more in the count; one item in the set | Fail by the comparison: `limit_crossed`, `new_items`, or `assertion_not_held` |
 | cantTell | `unsupported`, with an entry in `not_executed` | The results of its scope item are incomplete, with the cause `coverage_below_plan`. A count becomes a lower bound. | Insufficient evidence, `coverage_below_plan`. A fail when the bound alone breaks the limit, or when an item that was found is new (E6). |
-| inapplicable | None. It is not a unit. | The scope item still has its results: a count of 0 and an empty set. An assertion has no result for it. | None of its own |
+| inapplicable | None. It is not a unit. | The scope item still has its results, both complete: a count of 0 and an empty set. An assertion has no result for it. | None of its own |
 
 A plan that declares `coverage: {unsupported: 0}` returns insufficient evidence as soon as one check is cantTell, for every requirement of the plan that no bound fails (E6). The counts per scope item, in the assessor’s own spelling, belong in `details`.
+
+**A scope item without a check** has one of two results, and the assessor knows which.
+
+| Case | Example | Results of the scope item | Coverage |
+| --- | --- | --- | --- |
+| The assessor evaluated the item and no check applies (Q7) | A page with no node that needs a name | Complete: the value `0` and an empty set. The rule looked at the whole page and found nothing to judge. | No unit |
+| The assessor lacks what says which checks apply (Q4) | The declarations name no required node and no signal for a journey | Incomplete, with the cause `coverage_below_plan`: a number without a value, and an empty set. Never no result (rule 8), and never a complete `0`, which would read as a pass. | No unit, and no entry in `not_executed` |
+
+The first is a fact about the candidate, and the second is a fact about the assessment.
 
 ### U5. Causes
 
@@ -235,11 +252,24 @@ The assessor gives no verdict. It says why a result is incomplete, in the words 
 
 | Draft cause | When | Cause of § 5 | Coverage |
 | --- | --- | --- | --- |
-| `coverage` | The assessor cannot evaluate a unit: a cantTell node, a step keyword it does not know | `coverage_below_plan` | The unit is `unsupported` |
+| `coverage` | The assessor cannot evaluate a unit: a cantTell node, a step keyword it does not know, a step on a node where the document alone cannot say what is drawn (Q2) | `coverage_below_plan` | The unit is `unsupported` |
 | `input` | A step names a node path that the document does not have: the journey cannot be followed on this document | `incompatible_target` | The step is `not_run` |
-| `declaration` | Nothing is declared to measure for the scope item | `coverage_below_plan` | No unit: the item executed none |
+| `declaration` | Nothing is declared to measure for the scope item (Q4) | `coverage_below_plan` | No unit: the item executed none |
 
-Of the 13 causes, an assessor can observe seven: `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `coverage_below_plan`, and `tool_mismatch`. The other six are the gate’s. `completion` maps the same way: `timed_out` is `assessor_timed_out`, `stopped_by_infrastructure` is `assessor_infrastructure_failure`, and `skipped_locally` is `skipped_locally`.
+The line between the first two rows is what the assessor knows about the node. It cannot tell whether the node is there: `unsupported`. It can tell that the node is not there: `not_run`.
+
+Of the 13 causes, an assessor can observe seven: `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `coverage_below_plan`, and `tool_mismatch`. The other six are the gate’s. `completion` maps the same way: `timed_out` is `assessor_timed_out`, `stopped_by_infrastructure` is `assessor_infrastructure_failure`, `skipped_locally` is `skipped_locally`, and `refused_inputs` is `incompatible_target` (E9).
+
+**One cause per result** (Q3). `incomplete.cause` holds one cause, because the verdict that reads it has one (design § 5). When several apply to one result, the assessor writes the first of them in this order, and `detail` names every one:
+
+1. the cause of `completion`, when the run did not complete (rule 7);
+2. `tool_mismatch`;
+3. `coverage_below_plan`;
+4. `incompatible_target`;
+5. `stale_telemetry`;
+6. `too_few_samples`.
+
+The first two hold for every result of the run. `coverage_below_plan` comes before `incompatible_target`, as the first assessor has it: a journey with an unknown step and a step on a missing node reports `coverage_below_plan`. A plan that bounds `unsupported` or `not_run` reports that cause for such a run too (design § 3), so one run shows one word. A list of causes in place of the one would change the member and the verdict of design § 5, and is not version 1.
 
 ### U6. A lower bound
 
@@ -248,6 +278,8 @@ Of the 13 causes, an assessor can observe seven: `too_few_samples`, `assessor_ti
 - A limit or an accepted value that the bound already breaks gives a fail: `eq 0` and `lte 1` are broken by “at least 2”, and the report shows those words. This is the rule of design § 3 for a run that reached its time limit (E6).
 - Every other comparison returns insufficient evidence with the cause of the result. A bound never gives a pass, and it is never adopted as an accepted value.
 - A bound of 0 says nothing. The assessor leaves the value out.
+- An assessor that knows a bound above 0 writes it (Q6). A bound is a value that the missing part can only keep or raise. The actions of a journey with one step that the assessor does not know are at least the actions of its other steps, so that sum is the bound. Without it, a fail that the run proves is reported as insufficient evidence (E6). A document that leaves a bound out is still valid: a reader cannot know that one existed.
+- A result has no bound when the value does not exist on this target. A journey with a step on a missing node cannot be followed on the document. It has no number of actions there, so its result has no value, whichever cause it names.
 
 An incomplete identity set is a bound of the same kind: it holds the items that were found, and more may exist.
 
@@ -311,15 +343,48 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 
 **Decided: A** (2026-11-24). Design § 5 puts a fail first “because a fail is a result about the candidate”, and what a partial run found is true of the candidate. What would change the answer: an assessor whose partial runs report failures that a full run would not.
 
+### E7. How does Ratchet give a run to an assessor? (Q10)
+
+| | Does | Costs |
+| --- | --- | --- |
+| A | Arguments. `--project`, `--assessment`, `--root`, `--class`, `--out`, `--revision` where there is one, and one `--<input>` per input (§ 10). | The six names are reserved, and no input can take one. An assessor refuses an argument it does not know, so a new reserved argument is a new version of the declaration format. |
+| B | Environment variables for the run (`RATCHET_PROJECT` and so on), and arguments for the inputs. | A run by hand reads variables that nobody set, and the command line alone does not repeat a run. The first assessor changes its command line. |
+| C | One request document, with its path as the only argument. | A third format beside the evidence and the declaration. The first assessor reads a file where it reads arguments today. |
+
+**Default: A.** The first assessor chose it, the command line is the whole request, and it is the spelling of the `ratchet` commands themselves (design § 5). What would change the answer: an input with more structure than a list, such as a matrix of conditions.
+
+### E8. Where is an assessor declared? (Q11)
+
+| | Does | Costs |
+| --- | --- | --- |
+| A | A document of its own, `ratchet-assessor/1`: one YAML file per assessor and version, kept with the assessor (§ 10). | The file can disagree with the program. The CLI checks every evidence document against it, so a disagreement is an error at the first run and not a wrong verdict. Where Ratchet looks for the file is not decided (§ 9). |
+| B | The program prints its declaration when asked. | `ratchet validate` runs a program of this machine to check a plan, so what a plan may say is read from a local binary and not from the trusted revision. |
+| C | A block `assessors` in the project’s specification. | Every project that uses a packaged assessor copies its declaration, and `ratchet/1` gets a new top-level key. |
+
+**Default: A.** Design § 4 has the assessor declare its outputs, and the specification has the assessor as an entity of its own with a version. What would change the answer: assessors that only one project uses, where a second file is overhead.
+
+### E9. What is recorded when an assessor refuses its inputs? (Q12)
+
+In every option the assessor exits 1 and writes no document, as the first assessor does. The options differ in what the CLI does next.
+
+| | Does | Costs |
+| --- | --- | --- |
+| A | The CLI writes the run with a fifth completion, `refused_inputs`. A requirement that reads it returns insufficient evidence with the cause `incompatible_target`. | A fifth value in a list that Ratchet closes. `incompatible_target` then also covers an input that is unreadable. |
+| B | The CLI records nothing. `ratchet assess` reports the refusal and exits non-zero. | The record store has no trace of the run. A gate finds no run for the candidate, and the design has no cause for that. |
+| C | The CLI writes the run as `stopped_by_infrastructure`. | No new value. The report says `assessor_infrastructure_failure`, which reads as “run it again”, and the same inputs are refused again. |
+
+**Default: A.** None of the four values fits, as the consumer found: the run did not complete, reached no time limit, lost no infrastructure, and was not skipped. What would change the answer: a cause of its own for refused inputs in design § 5, which the completion would then map to.
+
 ## 6. Example
 
-One run of `ux-static@1` over the consumer’s own UI document, its journeys, and its declarations. It was written from the 21 lines that the assessor prints for those inputs, built from its branch `ux-static` at commit `6741732` (not pushed): every value, digest, path, and count is from those lines. Three things are not from them:
+One run of `ux-static@1` over the consumer’s own UI document, its journeys, and its declarations. Since revision 2 the example is the document that the assessor writes, built at commit `edbbc27` of its repository, over the fixed copy of those inputs that its tests keep. Two things differ from the file it writes:
 
-- `project` and `assessment`. The draft has neither, and the names are illustrations.
-- The output name `findings`. The draft attaches findings to each record; § 5, U4 makes them an output, and the assessor names it.
-- The list of every node with its name, 53 entries under the draft’s `items` for `a11y.accessible_names@1`. It would go under `details` and is left out here. `details` is optional, so the document is complete.
+- The list of every node with its name, 53 entries under `details.items` of the results of `a11y.accessible_names@1`, is left out here. `details` is optional, so the document below is complete.
+- The white space. The format fixes none (§ 2), and the assessor writes the part before `results` on one line.
 
-The run is exact and has no `run` member. Coverage counts 97 checks: 22 declared nodes, 22 steps, and 53 nodes that need a name. The 75 checks on nodes have an outcome, and all passed; a step is counted and has none.
+`project` and `assessment` are the arguments the run was given, and the names are illustrations.
+
+The run is exact and has no `run` member. Coverage counts 95 checks: 20 declared nodes, 22 steps, and 53 nodes that need a name. The 73 checks on nodes have an outcome, and all passed; a step is counted and has none. Two journeys name their signal among their required nodes as well. Each of those nodes is one check (rule 4), where revision 1 counted it twice and showed 97 and 75 (Q1).
 
 ```json
 {
@@ -341,14 +406,14 @@ The run is exact and has no `run` member. Coverage counts 97 checks: 22 declared
     },
     "completion": "completed",
     "conditions": {"tools":{"ux-static":"0.1.0"}},
-    "coverage": {"unit":"check","executed":97,"skipped":0,"not_run":0,"unsupported":0,"passed":75,"failed":0},
+    "coverage": {"unit":"check","executed":95,"skipped":0,"not_run":0,"unsupported":0,"passed":73,"failed":0},
     "results": [
       {"output":"structure.required_present@1","kind":"exact","scope":"variant","item":"document","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":3,"failed":0,"cantTell":0}}},
       {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"stopping a running campaign asks first and sends the command","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":4,"failed":0,"cantTell":0}}},
-      {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":3,"failed":0,"cantTell":0}}},
+      {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":2,"failed":0,"cantTell":0}}},
       {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"switching one axis of a variant sends the switch","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":3,"failed":0,"cantTell":0}}},
       {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"the owner sees what gets worse and is offered only the accept that applies","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":5,"failed":0,"cantTell":0}}},
-      {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"starting a campaign from the catalog opens the form on that target","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":4,"failed":0,"cantTell":0}}},
+      {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"starting a campaign from the catalog opens the form on that target","value_type":"number","value":"0","unit":"nodes","details":{"outcomes":{"passed":3,"failed":0,"cantTell":0}}},
       {"output":"effort.actions_per_journey@1","kind":"exact","scope":"journey","item":"stopping a running campaign asks first and sends the command","value_type":"number","value":"2","unit":"actions","details":{"items":[{"step":3,"keyword":"act","at":"pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop"},{"step":4,"keyword":"act","at":"pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop/confirm/overlay"}]}},
       {"output":"effort.actions_per_journey@1","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"number","value":"0","unit":"actions"},
       {"output":"effort.actions_per_journey@1","kind":"exact","scope":"journey","item":"switching one axis of a variant sends the switch","value_type":"number","value":"1","unit":"actions","details":{"items":[{"step":2,"keyword":"act","at":"pages/variants.detail/sections/axes/rows/av-04/row_actions/switch"}]}},
@@ -385,18 +450,19 @@ The run is exact and has no `run` member. Coverage counts 97 checks: 22 declared
 }
 ```
 
-The sample has no finding and no incomplete result. The results below come from the same assessor over a copy of the inputs with four edits taken from its own tests: a chart replaced by a component the assessor does not know, a label emptied, a step with an unknown keyword added, and the declarations of one journey removed. In the draft they are three records with `result: insufficient`.
+The sample has no finding and no incomplete result. The results below come from the same assessor over a copy of the inputs with four edits taken from its own tests: a chart replaced by a component the assessor does not know, a label emptied, a step with an unknown keyword added, and the declarations of one journey removed. They are the five incomplete results of that run, whose coverage is `executed: 93`, `unsupported: 2`, `passed: 70`, and `failed: 1`. The fourth is new in revision 2: the journey with nothing declared has an empty set that is incomplete, and not no result (rule 8, Q4).
 
 ```json
 [
   {"output":"structure.required_present@1","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"number","unit":"nodes","incomplete":{"cause":"coverage_below_plan","detail":"the declarations name no required node and no signal for this journey"}},
   {"output":"effort.actions_per_journey@1","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"number","unit":"actions","incomplete":{"cause":"coverage_below_plan","detail":"step 4: `hover` is not a step ux-static@1 knows"}},
   {"output":"a11y.accessible_names@1","kind":"exact","scope":"page","item":"pages/campaigns.climb","value_type":"number","value":"1","unit":"nodes","at_least":true,"incomplete":{"cause":"coverage_below_plan","detail":"1 nodes whose name the document alone cannot give"},"details":{"outcomes":{"passed":3,"failed":1,"cantTell":1,"inapplicable":0}}},
+  {"output":"findings","kind":"exact","scope":"journey","item":"a progress event lands in the live climb","value_type":"identity_set","key":["rule","node_path"],"items":[],"incomplete":{"cause":"coverage_below_plan","detail":"the declarations name no required node and no signal for this journey"}},
   {"output":"findings","kind":"exact","scope":"page","item":"pages/campaigns.climb","value_type":"identity_set","key":["rule","node_path"],"items":[{"identity":{"rule":"a11y.accessible_names@1","node_path":"pages/campaigns.climb/sections/hill_kpis/row_actions/show"},"fields":{"reason":"`label` is declared empty"}}],"incomplete":{"cause":"coverage_below_plan","detail":"1 nodes whose name the document alone cannot give"}}
 ]
 ```
 
-The two checks that could not be evaluated are entries of `coverage.not_executed`. The spelling of `id` is the assessor’s.
+The two checks that could not be evaluated are entries of `coverage.not_executed`. The spelling of `id` is the assessor’s: the rule, the scope item, and the node or the step. The rule at the scope `page` leaves the scope item out, because the node path starts with the page. An id is unique within the run (rule 4, Q5).
 
 ```json
 [
@@ -405,7 +471,7 @@ The two checks that could not be evaluated are entries of `coverage.not_executed
 ]
 ```
 
-Under E6, default A, a requirement `eq 0` on the accessible names of that page fails, because “at least 1” already breaks the limit. A requirement on the actions of that journey returns insufficient evidence with the cause `coverage_below_plan`.
+Under E6 (A), a requirement `eq 0` on the accessible names of that page fails, because “at least 1” already breaks the limit. A requirement on the actions of that journey returns insufficient evidence with the cause `coverage_below_plan`. Its result has no value: the steps the assessor knows take 0 actions in that journey, and a bound of 0 says nothing (U6). In the journey that stops a campaign, the same unknown step gives `"value": "2", "at_least": true` under U6. At `edbbc27` the assessor writes no bound for actions yet (Q6).
 
 ## 7. Mapping from the uxui draft
 
@@ -464,9 +530,11 @@ What the consumer changes beyond a rename:
 6. It maps its three causes to two of design § 5.
 7. It writes paths relative to the root of the repository.
 
+The consumer made these seven changes in its commit `edbbc27`. What revision 2 asks of it beyond them is in § 11.
+
 ## 8. What the ESS specification needs
 
-The format should later be a projection of the specification and not a second definition. The list is against revision 3 of [`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md); revision 4 of the specification may bring some of it (the coverage unit, local inputs, the window counts).
+The format should later be a projection of the specification and not a second definition. Items 1 to 17 are against revision 3 of [`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md). Revision 4 has since brought the coverage unit (10, 14), `local_inputs` (3), and the window counts (11, as `WindowItems` on the run, with other names). Items 18 to 25 are from revision 2 of this document, against revision 4.
 
 In [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
 
@@ -494,9 +562,182 @@ From ESS, and not from this specification:
 16. A way to say that a reader rejects an unknown member in one struct and ignores it in another (E5).
 17. A canonical form of a document (U9). The consumer has filed it.
 
+From revision 2, in [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
+
+18. **`RunCompletion`.** A fifth value, `refused_inputs`, which maps to the cause `incompatible_target` (E9). The comment above the type says which completions the CLI writes and which the assessor writes (§ 10).
+19. **`EvidenceCoverage`.** An invariant: no id is twice in `executed_ids` and `not_executed` taken together (rule 4). Its summary says that a unit is counted once.
+20. **`ObservedConditions`.** Its summary says that an absent value is unknown only for a condition that the plan or the assessor declares (Q13).
+21. **`ResolvedTarget.identifiers`.** Its summary names the identifiers of a `document`: `digest`, `digest_form`, and `path`, which is absent for a document outside the tree (Q8).
+22. **The input of item 3.** `value` is optional, for a path outside the tree.
+
+From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml) and the CLI binding:
+
+23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`.
+24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run.
+25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as.
+
 ## 9. Not in version 1
 
 - **A paired run** (design § 3). Its evidence is two values of one run, and the specification has no field for the second.
 - **Raw samples.** A result is one value. An assessor that aggregates names the aggregation and the number of samples.
 - **A result per condition cell**, such as a viewport and a theme. A finding carries its environment in its identity (design § 3). A number has no field for it, and the first assessor runs under no conditions.
 - **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
+- **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
+- **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision` or `document` and the selection `candidate`. It does not say how an assessor learns the observation of a plan (`scenarios`, `workload`, `command`, `runs`, `min_samples`), a `merge_result` selection, a plan without a selection, or a target of another kind. The first assessor needs none of these.
+- **Where a declaration is found**, and whether a plan pins it by digest as a binding pins a preset (design § 4).
+
+## 10. The assessor contract
+
+Design § 4 says what an assessor declares and that it returns evidence in the format of the bundled assessors. It does not say how Ratchet starts an assessor, what an exit status means, or how the declaration is written. This section defines the least that the first assessor needs for the three (Q10, Q11, Q12). Three choices in it are the owner’s: E7, E8, and E9 (§ 5). No CLI exists yet, so nothing here is built on Ratchet’s side.
+
+### Invocation
+
+Ratchet runs the assessor’s command once per run of a plan. The working directory is the root of the tree that is assessed. Every value is an argument, `--name value` (E7).
+
+| Argument | Value | Passed | The assessor writes it as |
+| --- | --- | --- | --- |
+| `--project` | The `project` of the specification | Always | `evidence.project` |
+| `--assessment` | The key of the plan | Always | `evidence.assessment` |
+| `--root` | The root of the tree that is assessed: the checkout, or the scratch copy that `ratchet prove` makes | Always | Nothing. Paths in `evidence` are relative to it (§ 1). |
+| `--class` | The target class of this run | Always | `evidence.target.class` |
+| `--out` | The file that the document is written to | Always | Nothing |
+| `--revision` | The commit id of the tree | For a target of the kind `revision` | `evidence.candidate` and `evidence.target.revision` |
+| `--<input>` | The value of an input that the assessor declares: from the plan after defaults, or from the local config for a local input | For each input that has a value | `evidence.inputs.<input>`, or `run.local_inputs.<input>` for a local input |
+
+- **Values.** Text is passed as it is, and a count or a decimal as decimal text. A boolean is `true` or `false`, and a list is one argument of JSON, as for the `ratchet` commands (design § 5). A path that is not local is passed as the plan wrote it, relative to the root.
+- **Reserved names.** An assessor declares no input named `project`, `assessment`, `root`, `class`, `out`, or `revision`.
+- **Nothing else.** Ratchet passes no argument beside these. A new reserved argument is a new version of the declaration format, so an assessor can refuse an argument that it does not know.
+- **The target of the kind `document`** is an input: the declaration names it as `target_input`. The assessor reads the file, writes the digest of its bytes as `candidate` and under `target.identifiers`, and does not repeat it under `inputs`. The target may lie outside the root, as a generated variant in a scratch directory does. It then has no `path` (§ 1, Q8). The same holds for another input file outside the root: its entry under `inputs` has the digest and no `value`. A plan names its paths relative to the root, so only a caller other than the CLI passes such a file.
+- **The revision** (Q9). The assessor writes the revision it is given and looks none up. For a `document`, Ratchet passes none and `target.revision` is absent: the digests identify the document and the inputs, so the same files give the same document at every commit. The CLI never fills a member of a document that an assessor wrote, because the record id is over the bytes of the file (E4).
+- **Without the CLI.** An assessor may give `--root`, `--class`, and `--out` a default, as the first assessor does (the working directory, `local`, and the standard output), so that it runs by hand.
+
+The first assessor at `edbbc27` takes this call, run in the root, and writes the document of § 6:
+
+```sh
+ux-static --project uxui --assessment studio-static --root . --class local \
+  --out studio-static.evidence.json \
+  --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml --declarations ess/ui/studio.uxui.yaml
+```
+
+### Exit status
+
+The assessor gives no verdict, and its exit status is not one: a document with 40 findings is written with exit 0, and the gate decides.
+
+| Exit status | Means | Document | The CLI records |
+| --- | --- | --- | --- |
+| 0 | The run ended, and the document is at `--out` | From the assessor | That document, after it checks the rules of § 4 and the declaration. A missing document or one that breaks a rule is recorded as the last row is. |
+| 1 | The assessor refuses its inputs: a file is unreadable or malformed, or the inputs do not belong together (Q12) | None | A run with `completion: refused_inputs` (E9) |
+| 2 | The invocation is wrong: an argument the assessor does not know, a required one missing, a value that a reserved argument cannot have | None | A run with `completion: stopped_by_infrastructure`. The declaration and the program do not match. |
+| Any other, or a signal | The assessor or a tool under it broke | None | A run with `completion: stopped_by_infrastructure` |
+
+Two more completions have no exit status, because the CLI decides them. It ends an assessor that reaches its time limit and records `timed_out`. It does not start an assessment that the local config skips and records `skipped_locally` (design § 5).
+
+So an assessor writes `completed` in the document it leaves with exit 0, and the CLI writes the other four. There is one exception. An assessor that ended a tool under it, at a limit or after a failure, and still has results to keep writes `timed_out` or `stopped_by_infrastructure` itself, with every result incomplete (rule 7), and exits 0.
+
+An assessor writes one line per problem to the standard error, and the CLI shows those lines. It writes no document with exit 1 or 2, and no part of one.
+
+**A document that the CLI writes** holds what the CLI passed: `project`, `assessment`, `assessor`, the target and the candidate it resolved, the inputs with the digests it could compute, the completion, empty `conditions`, the six counts as 0 in the declared unit, and no result. Rule 7 holds for it, because it has no result. Where the CLI cannot resolve the candidate, as for a target document that does not exist, it records no run and reports the error, because a run without its candidate is evidence about nothing.
+
+### Declaration `ratchet-assessor/1`
+
+One YAML document per assessor and version (E8). `ratchet validate` checks a plan against it: the target kind, the names and types of the inputs, and for each measurement the output, the scope, the unit, the boundary, and the fields of a `filter` (design § 4). The CLI checks an evidence document against it: `assessor`, `coverage.unit`, and for each result `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields`.
+
+| Field | Type | Required | Meaning | From |
+| --- | --- | --- | --- | --- |
+| `format` | text | yes | `ratchet-assessor/1`. The version covers the invocation above too. | new: E8 |
+| `name` | text | yes | The part of `ux-static@1` before the `@` | spec: `Assessor.name` |
+| `version` | text | yes | The part after the `@` | spec: `Assessor.version` |
+| `command` | text | for an assessor that Ratchet runs | The program. `[tools]` of the local config says how it is started on one machine (design § 5). | new: § 4, a project command |
+| `targets` | list of text | yes | The target kinds it supports | changed: `Assessor.supported_targets` |
+| `target_input` | text | exactly when `targets` holds `document` | The input that holds the path of the target document | new: Q10 |
+| `inputs` | map from an input name to an input | no | Each input: `type` (`string`, `integer`, `decimal`, `boolean`, or `path`), `list`, `required`, `default`, and `local` (design § 4) | changed: `Assessor.configuration_inputs` is a list |
+| `conditions` | list of text | no | The conditions it declares beside `host_load_per_cpu`, `tools`, and `runner`. Absent or empty: it declares none (§ 3, Q13). | spec: `Assessor.conditions` |
+| `coverage_unit` | text | yes | The one unit its coverage counts count | spec: `Assessor.coverage_unit` |
+| `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. A count it does not report is 0 in its documents. | spec: `Assessor.coverage` |
+| `outputs` | map from an output name to an output | yes | The outputs a measurement can read | changed: `Assessor.outputs` is a list |
+| `population_fields` | list of text | no | The fields a time-window plan’s `population: {filter}` may name | spec: `Assessor.population_fields` |
+
+An output, `outputs.<name>`:
+
+| Field | Type | Required | Meaning | From |
+| --- | --- | --- | --- | --- |
+| `value_type` | text | yes | `number`, `identity_set`, `digest`, or `assertion` | spec: `AssessorOutput.value_type` |
+| `kind` | text | yes | `exact` or `sampled` | spec: `AssessorOutput.kind` |
+| `scopes` | list of text | yes | The scopes its results can have, beside `run`, which every assessor has (design § 3). The scope items are not declared: they come from the inputs of a run. | spec: `AssessorOutput.scopes` |
+| `unit` | text | no | The unit of its values. Absent: the output has no unit, as the number of items of a set has none. | spec: `AssessorOutput.unit` |
+| `boundaries` | list of text | no | For a duration, the parts it reports | spec: `AssessorOutput.boundaries` |
+| `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |
+| `item_fields` | list of text | no | The names an item may have under `fields`, which a `filter` may read | spec: `AssessorOutput.item_fields` |
+
+The declaration of the first assessor, written from the documents it writes at `edbbc27`. The consumer has no such file yet.
+
+```yaml
+format: ratchet-assessor/1
+name: ux-static
+version: "1"
+command: ux-static
+targets: [document]
+target_input: document
+inputs:
+  document: {type: path, required: true}
+  journeys: {type: path, required: true}
+  declarations: {type: path, required: true}
+conditions: []
+coverage_unit: check
+coverage: [executed, skipped, not_run, unsupported, passed, failed]
+outputs:
+  structure.required_present@1:
+    {value_type: number, kind: exact, scopes: [variant, journey], unit: nodes}
+  effort.actions_per_journey@1:
+    {value_type: number, kind: exact, scopes: [journey], unit: actions}
+  a11y.accessible_names@1:
+    {value_type: number, kind: exact, scopes: [page], unit: nodes}
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: [variant, journey, page]
+    identity_key: [rule, node_path]
+    item_fields: [reason]
+```
+
+A plan then reads it like this. The plan is an illustration, and `document` as a target kind is not in the value list of design § 3 yet (E1).
+
+```yaml
+assessments:
+  studio-static:
+    subject: studio
+    assessor: ux-static@1
+    inputs:
+      document: ess/ui/studio.ui.yaml
+      journeys: ess/ui/tests/studio.yaml
+      declarations: ess/ui/studio.uxui.yaml
+    target: {kind: document, environments: [local, ci], selection: candidate}
+    observation:
+      kind: snapshot
+      coverage: {not_run: 0, unsupported: 0}
+    measurements:
+      names-missing:
+        {kind: exact, output: a11y.accessible_names@1, scope: page, unit: nodes, better: lower}
+      new-findings:
+        {kind: exact, output: findings, scope: page, identity: [rule, node_path]}
+```
+
+## 11. Revision 2 (answers to the first implementation)
+
+The 13 questions of the consumer, from its implementation at `edbbc27`, and where each answer is written. The last column says what the answer asks of the first assessor.
+
+| | Question | Answer | Where | The first assessor |
+| --- | --- | --- | --- | --- |
+| Q1 | Is a node that the inputs name twice for one scope item one check or two? | One. A unit is counted once. The example now shows 95 and 73. | § 3 `evidence.coverage`; § 4 rule 4; § 6 | No change |
+| Q2 | Is a step on a node that the document cannot judge `unsupported`, with `coverage_below_plan`? | Yes | § 5, U5 | No change |
+| Q3 | Several causes on one result: a list, or an order? | One cause, in a fixed order; `detail` names every one. `coverage_below_plan` comes before `incompatible_target`. | § 5, U5 | No change |
+| Q4 | Nothing is declared for a scope item: an empty incomplete set, or no result? | An incomplete result: a number without a value and an empty set, with `coverage_below_plan` | § 4 rule 8; § 5, U3 | No change |
+| Q5 | Are the ids in `not_executed` unique within a run? | Yes, and the same unit has the same id in every run. The spelling is the assessor’s. | § 4 rule 4 | No change |
+| Q6 | Does an incomplete count of actions carry its lower bound? | Yes, where the bound is above 0 and the journey can be followed. A document without it stays valid. | § 5, U6 | Writes `value` and `at_least` for a journey with an unknown step |
+| Q7 | A page with no check: complete or incomplete? | Complete: `0` and an empty set | § 5, U3 | No change |
+| Q8 | What is `identifiers.path` for a document outside the tree? | Left out. The digest identifies the document. | § 1 Types; § 3 `evidence.target`; § 10 | Accepts a target document outside `--root` and leaves `path` out, where it refuses today |
+| Q9 | Who fills `target.revision`? | The assessor, from `--revision`. Ratchet passes none for a `document`, and the CLI edits no document. | § 3 `evidence.target`; § 10 | No change |
+| Q10 | How does Ratchet pass the project, the assessment, and the root? | As the arguments `--project`, `--assessment`, and `--root`, with `--class`, `--out`, and one argument per input | § 10 Invocation; E7 | No change |
+| Q11 | How does an assessor declare its outputs, units, scopes, coverage unit, and item fields? | In a document `ratchet-assessor/1` | § 10 Declaration; E8 | Adds the file, once E8 is decided |
+| Q12 | Inputs that do not belong together: exit 1 and no document? | Yes. The CLI records the run as `refused_inputs`. | § 10 Exit status; E9 | No change. An unknown `--class` and an empty `--project` or `--assessment` are exit 2, where they are exit 1 today. |
+| Q13 | Does an absent condition read as unknown for a static run? | No. Only a declared condition can be unknown, and the assessor declares none. | § 3 `evidence.conditions` | No change |
