@@ -21,6 +21,22 @@ The repository is in the design phase.
 - Field names, document shapes and CLI commands in `docs/design.md` are proposals. Do not cite
   them as settled.
 
+## Specification first (ESS)
+
+Timo, 2026-11-24: "when you're building this tool, the CLI tool, remember, just do ESS upfront.
+So we specify stuff before we're building it … There's also a CLI spec for the CLI surface, which
+you should utilize, and then you should use the ESS synthesizer to actually build the boilerplate".
+
+- Every noun Ratchet introduces (requirement, measurement, reference, record, exception, …) is
+  declared in an ESS specification before code that uses it exists; `ess specify validate`
+  passes first.
+- The `ratchet` command surface is declared as an `ess-cli/2` presentation binding (ESS
+  `docs/design/cli-presentation-binding.md`); the parser and process adapter come from
+  `ess generate cli`, not by hand.
+- Other boilerplate comes from `ess generate synthesize`; generated files are never edited by
+  hand and are checked for drift in the gate.
+- Applies when implementation starts; the design phase rule above still holds until then.
+
 ## Ownership
 
 | path | what |
