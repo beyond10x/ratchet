@@ -1,29 +1,31 @@
 # Open questions: options and a default for each
 
-Status: recommendations, 2026-11-24. Nothing here is decided. Each default is a recommendation
-that awaits the owner; until the owner answers, the six questions of
-[product-brainstorm.md](product-brainstorm.md) § 10 stay open.
+Status: decided, 2026-11-24. The owner chose Q1 A, Q2 A, Q3 C, Q4 C, Q5 A and Q6 B for the six
+questions of [product-brainstorm.md](product-brainstorm.md) § 10. The options and the
+recommendations below are kept as the record of the choice; `docs/design.md` applies them.
 
 Citations: `F<n>` and implication numbers are in `research/synthesis.md`; `design § n` is
 `docs/design.md`; `brainstorm § n` is `docs/product-brainstorm.md`; `id Xn` is question `Xn` of
 `research/responses/<id>.md`. A path that starts with a repository name (`slot/docs/design.md`) is
 a file of that beyond10x repository, read from its local checkout on 2026-11-24.
 
-## Defaults at a glance
+## Decisions at a glance
 
-| Question | Default | Option |
-| --- | --- | --- |
-| Q1 config format | A | YAML for the specification, TOML for the local config |
-| Q2 local config and gates | A | Never: a gate reads no local skip |
-| Q3 record store | C | Both: CI artifact as hand-over, git ref as the series |
-| Q4 UI | A | Static export first |
-| Q5 preset catalog | A | A directory in this repository |
-| Q6 cross-repository view | B | A consumer of Ratchet's records |
+| Question | Recommended | Chosen | Option chosen |
+| --- | --- | --- | --- |
+| Q1 config format | A | A | YAML for the specification, TOML for the local config |
+| Q2 local config and gates | A | A | Never: a gate reads no local skip |
+| Q3 record store | C | C | Both: CI artifact as hand-over, git ref as the series |
+| Q4 UI | A | C | Both: a static export and a served app |
+| Q5 preset catalog | A | A | A directory in this repository |
+| Q6 cross-repository view | B | B | A consumer of Ratchet's records |
 
 Q2 depends on Q1 (it names the local file). Q4 and Q6 read what Q3 stores: with Q3 answered B,
 the export of Q4 and the consumer of Q6 read CI artifacts and lose history past their retention.
 
 ## Q1. TOML for the local config, YAML for the specification: two formats, or one?
+
+**Status:** decided by the owner, 2026-11-24: A.
 
 | | Does | Costs |
 | --- | --- | --- |
@@ -49,6 +51,8 @@ What would change the answer:
   first): then that format for both. I did not check which document loaders `ess generate` emits.
 
 ## Q2. Can a local TOML ever affect a gate, for example on a developer's pre-push?
+
+**Status:** decided by the owner, 2026-11-24: A.
 
 | | Does | Costs |
 | --- | --- | --- |
@@ -81,6 +85,8 @@ What would change the answer:
   arise.
 
 ## Q3. Record store: git ref, CI artifacts, or both?
+
+**Status:** decided by the owner, 2026-11-24: C.
 
 Assumed, not decided: reference records are files in the tree. Design § 5 rule 1 reads the copy
 on the trusted revision and rule 4 has the candidate adopt a better value "in the same change"; 8
@@ -115,6 +121,8 @@ What would change the answer:
 
 ## Q4. Is the UI a static export first, or a served app first?
 
+**Status:** decided by the owner, 2026-11-24: C.
+
 | | Does | Costs |
 | --- | --- | --- |
 | A | Static export first. `ratchet render` writes one HTML page and its JSON data from the records: a CI artifact, a committed file or a page of the docs site. | No live refresh. Filters and history depth are fixed at export. A committed page goes stale without `ratchet render --check`. |
@@ -143,6 +151,8 @@ What would change the answer:
 
 ## Q5. Is the preset catalog a separate repository (`ratchet-presets`) or a directory here?
 
+**Status:** decided by the owner, 2026-11-24: A.
+
 | | Does | Costs |
 | --- | --- | --- |
 | A | A directory here (`presets/`), released with the format and the CLI. | A preset fix waits for a release of this repository. Every contributed preset passes this repository's gate. |
@@ -170,6 +180,8 @@ What would change the answer:
   apart from `gates` (`gates/AGENTS.md` § Contract): then B for those presets.
 
 ## Q6. Is the cross-repository view part of Ratchet, or a consumer of its records?
+
+**Status:** decided by the owner, 2026-11-24: B.
 
 | | Does | Costs |
 | --- | --- | --- |

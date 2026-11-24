@@ -176,8 +176,9 @@ files, docs numbers rendered from records. It is the first place the UI shows re
 
 ## 10. Open questions
 
-Options, a recommended default and what would change it, per question:
-[open-questions.md](open-questions.md). Recommendations only; they await the owner.
+Decided by the owner, 2026-11-24: Q1 A, Q2 A, Q3 C, Q4 C, Q5 A, Q6 B. Options, the
+recommendation and the choice per question: [open-questions.md](open-questions.md); `design.md`
+applies them.
 
 1. TOML for the local config, YAML for the specification: two formats, or TOML for both?
 2. Can a local TOML ever affect a gate, for example on a developer's pre-push?

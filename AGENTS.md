@@ -57,8 +57,10 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 Use the terms of `docs/design.md` § 1 with those meanings: subject, audience, quality
 specification, quality requirement, measurement, measurement kind (exact, sampled), scope,
 identity set, assessment plan, assessor, target, evidence coverage, protected reference
-(generated, accepted value), gate, ratchet policy, exception, trade-off. A gate verdict is one of
-pass, fail, insufficient evidence.
+(generated, accepted value), ratchet policy (a reference's `adoption`), gate (including the
+operational gate), candidate, exception, trade-off, quality statement, preset, local config
+(`ratchet.toml`). A gate verdict is one of pass, fail, insufficient evidence; fail takes precedence
+over insufficient evidence.
 
 ## Boundary
 
