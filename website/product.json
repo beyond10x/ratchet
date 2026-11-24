@@ -1,0 +1,135 @@
+{
+  "format": "b10x-product-landing/1",
+  "product": {
+    "name": "ratchet",
+    "mark": "R",
+    "eyebrow": "Quality specification · design phase",
+    "promise": [
+      "Specify software quality,",
+      "then keep it from going backwards."
+    ],
+    "lede": "Ratchet is a proposed versioned YAML format, a CLI, a preset catalog and assessors for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. A gate returns pass, fail or insufficient evidence; only a pass clears it. Nothing is implemented yet; field names and commands are proposals.",
+    "description": "A proposed YAML format and CLI to declare software quality requirements and refuse regressions. Design phase: nothing is implemented.",
+    "actions": [
+      {
+        "label": "Vision",
+        "href": "/docs/",
+        "kind": "primary"
+      },
+      {
+        "label": "Design proposal",
+        "href": "/docs/design"
+      },
+      {
+        "label": "Survey synthesis",
+        "href": "/docs/research/synthesis"
+      },
+      {
+        "label": "Candidate presets",
+        "href": "/docs/research/candidate-presets"
+      }
+    ],
+    "meta": "Design phase · no code yet · Apache-2.0"
+  },
+  "sections": [
+    {
+      "kind": "flow",
+      "eyebrow": "The format",
+      "title": "One declaration per project.",
+      "lede": "The same YAML serves a developer, a coding agent and CI. Presets use the same schema as a project's own checks.",
+      "steps": [
+        {
+          "label": "subject",
+          "title": "What is assessed, for whom",
+          "description": "The subject and its audience."
+        },
+        {
+          "label": "requirement",
+          "title": "What must hold",
+          "description": "A quality requirement, such as search p95 below 100 ms or no new analyzer findings."
+        },
+        {
+          "label": "assessment",
+          "title": "How we know",
+          "description": "The assessment plan: assessor, target and observation conditions."
+        },
+        {
+          "label": "gate",
+          "title": "When it is enforced",
+          "description": "A gate at a workflow stage returns pass, fail or insufficient evidence."
+        },
+        {
+          "label": "ratchet",
+          "title": "When it may tighten",
+          "description": "A ratchet policy over a protected reference adopts a measurably better result."
+        }
+      ]
+    },
+    {
+      "kind": "features",
+      "eyebrow": "Proposed",
+      "title": "What the repository would ship.",
+      "lede": "Planned means not built. Each item links to its section of the design proposal.",
+      "items": [
+        {
+          "title": "Specification",
+          "description": "YAML document shapes, typed comparisons, evidence and gate semantics, and a machine-readable schema for authoring.",
+          "status": "planned",
+          "href": "/docs/design#2-what-the-repository-ships"
+        },
+        {
+          "title": "CLI",
+          "description": "Proposed commands include ratchet init, validate, assess, evaluate --gate <name> and reference propose.",
+          "status": "planned",
+          "href": "/docs/design#proposed-cli"
+        },
+        {
+          "title": "Preset catalog",
+          "description": "Reusable YAML for web, backend, code quality, build and CI concerns.",
+          "status": "planned",
+          "href": "/docs/design#4-presets-and-custom-assessors"
+        },
+        {
+          "title": "Assessors",
+          "description": "Adapters that run a tool or import its report as structured evidence.",
+          "status": "planned",
+          "href": "/docs/design#4-presets-and-custom-assessors"
+        },
+        {
+          "title": "Agent integration",
+          "description": "A skill that uses the same specification and CLI as CI.",
+          "status": "planned",
+          "href": "/docs/design#5-agent-workflow-and-enforcement"
+        }
+      ]
+    },
+    {
+      "kind": "features",
+      "eyebrow": "Research",
+      "title": "The evidence behind the design.",
+      "lede": "Survey 1 asked 26 agent sessions how their projects track quality. The design proposal was revised from its answers.",
+      "items": [
+        {
+          "title": "Survey questions",
+          "description": "What was asked, and the template each answer follows.",
+          "href": "/docs/research/survey"
+        },
+        {
+          "title": "Synthesis",
+          "description": "The patterns across the answers and what they imply for the design.",
+          "href": "/docs/research/synthesis"
+        },
+        {
+          "title": "Candidate presets",
+          "description": "First presets the answers support. Design input, not a plan.",
+          "href": "/docs/research/candidate-presets"
+        },
+        {
+          "title": "Consumer input",
+          "description": "Four gaps the ux-ui repository found in a real round, recorded as sent.",
+          "href": "/docs/research/consumer-input-ux-ui"
+        }
+      ]
+    }
+  ]
+}
