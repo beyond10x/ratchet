@@ -14,6 +14,9 @@ subjects:
   local-gate:
     kind: development-workflow
     audiences: [coding-agent, developer]
+  ci-queue:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
 
 assessments:
   ci-gate-timing:
@@ -66,7 +69,6 @@ assessments:
   local-gate-run-time:
     subject: local-gate
     assessor: command-timing@1
-    inputs: {job_log: jobs.jsonl}
     target: {kind: revision, environments: [local]}
     observation:
       kind: controlled_run
@@ -79,6 +81,24 @@ assessments:
       run-time:
         {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
 
+  ci-gate-queue-wait:
+    subject: ci-queue
+    assessor: record-series@1
+    target: {kind: workflow_run, environments: [ci]}
+    observation:
+      kind: time_window
+      window: {length: 1d}
+      population: {runs_of: ci-gate-timing, from: any_revision}
+      min_samples: 10
+    measurements:
+      p90:
+        kind: sampled
+        output: queue-wait
+        scope: run
+        aggregation: {kind: percentile, parameter: 90}
+        unit: min
+        better: lower
+
 requirements:
   ci-gate-turnaround:
     assessment: ci-gate-timing
@@ -89,8 +109,7 @@ requirements:
       tolerance: {percent: 20}
       adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}
   ci-gate-queue-wait-does-not-rise:
-    assessment: ci-gate-timing
-    measurement: queue-wait
+    assessment: ci-gate-queue-wait
     reference:
       kind: accepted_value
       tolerance: {percent: 20}

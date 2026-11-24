@@ -1,31 +1,36 @@
 # Examples
 
-Worked `ratchet/1` specifications for the first milestone of [`vision.md`](../vision.md), in the
-shapes of [`docs/design.md`](../docs/design.md) revision 3. They were first written against
-revision 2, and the gaps found then are listed
-[below](#gaps-of-revision-2-and-how-revision-3-closed-them).
+Worked `ratchet/1` specifications for the first milestone of
+[`vision.md`](https://github.com/beyond10x/ratchet/blob/main/vision.md), in the shapes of
+[`docs/design.md`](https://github.com/beyond10x/ratchet/blob/main/docs/design.md) revision 4. They
+were first written against revision 2 and rewritten to revision 3. The gaps found in those two
+rounds are listed below, [G1 to G25](#gaps-of-revision-2-and-how-revision-3-closed-them) and
+[G26 to G29](#gaps-of-revision-3-and-how-revision-4-closed-them).
 Design-phase documents: nothing here runs, and no tool has validated them beyond YAML, TOML and JSON
 syntax.
 
 How to read them:
 
-- Every key is one that `docs/design.md` revision 3 shows or names in §§ 3 to 5. The key names are
-  proposals, as that document says. Where an example needed a key the design does not have, the key
-  is left out and the case is listed under [New gaps](#new-gaps).
+- Every key is one that `docs/design.md` revision 4 shows or names in §§ 3 to 5. The key names are
+  proposals, as that document says. Where an example needed something the design does not say, the
+  case is listed under [New gaps](#new-gaps).
 - Some values are not shown in the design. They are listed under
   [Values not shown in the design](#values-not-shown-in-the-design).
 - Every number comes from a survey answer. `ux-ui B5` means
-  [`research/responses/ux-ui.md`](../research/responses/ux-ui.md), question B5. `F5` is a finding in
-  [`research/synthesis.md`](../research/synthesis.md), `gap 2` is a gap in
-  [`research/consumer-input-ux-ui.md`](../research/consumer-input-ux-ui.md), `§ 5` is a section of
-  `docs/design.md`. Numbers without a source are listed at the end.
+  [`research/responses/ux-ui.md`](https://github.com/beyond10x/ratchet/blob/main/research/responses/ux-ui.md),
+  question B5. `F5` is a finding in
+  [`research/synthesis.md`](https://github.com/beyond10x/ratchet/blob/main/research/synthesis.md),
+  `gap 2` is a gap in
+  [`research/consumer-input-ux-ui.md`](https://github.com/beyond10x/ratchet/blob/main/research/consumer-input-ux-ui.md),
+  `§ 5` is a section of `docs/design.md`. Numbers without a source are listed at the end.
 - Project names, ids, paths, commands, rule names, runner labels and reason texts are illustrative
   unless a source names them. Each project name is neutral: an example is built from the answers
   named, and is not the specification of any one repository.
 - An accepted value is not in a specification file (§ 3). Where an example has one, this page says
   what its reference record would hold.
-- D1 to D4 of § 9 are decided, all A (the owner, 2026-11-24; `docs/design.md` § 9). [Where they matter](#decisions-d1-to-d4) says
-  which example uses which.
+- D1 to D4 of § 9 are decided, all A (the owner, 2026-11-24). D5 and D6 are open; the examples
+  use their recommended default A, as the design does.
+  [Where they matter](#decisions-d1-to-d6) says which example uses which.
 
 | File | Integration (`vision.md`) | Audience | Main sources |
 | --- | --- | --- | --- |
@@ -44,10 +49,15 @@ How to read them:
 
 - `keyboard-task-completion` imports an ESS UI result for the keyboard-only scenario and enforces
   an assertion with `holds`: every task completes.
-- `walks` imports one `ux-eval@1` report for all 30 walks, matched by a scenario pattern. Five
+- `walks` imports one `ux-eval@1` report for every scenario that the pattern matches. Five
   measurements read that one run: steps and layout shift against accepted values, actions per fix
   and cue accuracy against fixed limits, and page-scoped findings of two severities compared by
   identity against an accepted set.
+- `executed: 30` counts walks, the coverage unit of `ux-eval@1` (§ 3, evidence coverage). The plan
+  has one set of counts, whatever the scope of a measurement. A scenario is a scope item and holds
+  the values. A walk is what the assessor counts as executed.
+- The layout shift has no unit. Its measurement carries no `unit`, and its tolerance of 0.01 is a
+  bare number (§ 3, comparisons).
 
 **Audience.** End users of the page. ux-ui E3: "a task takes more clicks or a control drops below
 the fold".
@@ -70,9 +80,14 @@ the fold".
 | scenario `keyboard-only` | ux-ui C1 |
 | local gate only | ux-ui B3 (no CI, no remote), E4 |
 
-**Reference records (not in the file).** `no-new-page-findings`: the 12 findings filed in the round
-(ux-ui B4), adopted from observe-mode evidence. `steps-do-not-rise` and
-`layout-shift-does-not-rise`: one value per walk. The answer gives no values.
+**Reference records (not in the file).**
+
+- `no-new-page-findings`: the 12 findings filed in the round (ux-ui B4), adopted from observe-mode
+  evidence. Each item is `{identity: {rule, node_path, environment}}`, and `environment` is a map of
+  viewport, theme and input mode (§ 3).
+- `steps-do-not-rise` and `layout-shift-does-not-rise`: one value per scenario, at the scope
+  `journey`. A layout-shift value has no `unit` key. The answer gives no values. § 3 reads the 168
+  values of the round as 12 scenarios with 14 keys.
 
 **Trade-off record (not in the file).** The round's change to in-page navigation moved one value
 from 23 to 0 and made 20 of 168 worse: one more click per task, 12 Tab stops (gap 1). As
@@ -85,7 +100,7 @@ from 23 to 0 and made 20 of 168 worse: one more click per task, 12 Tab stops (ga
   "reason": "<why the gain is worth the loss>",
   "owner": "decision:in-page-navigation",
   "gains": [
-    {"requirement": "<requirement of the key that moved>", "item": "<walk>", "from": "23", "to": "0"}
+    {"requirement": "<requirement of the key that moved>", "item": "<scenario>", "from": "23", "to": "0"}
   ],
   "loosens": [
     {"requirement": "steps-do-not-rise", "item": "ess-ui:explainer-page/keyboard-only", "from": "<old>", "to": "<new>"}
@@ -106,15 +121,22 @@ One reference change per loosened requirement names the trade-off.
 - The round measured 20 of 74 gating tests red and filed 12 findings (ux-ui B4). The first adoption
   of those 12 is a change of its own, merged before a candidate is judged by them (D2).
 - A sub-task that is never done is reported as not run. `not_run: 0` then makes that run
-  insufficient evidence with the cause `coverage_below_plan`, not a held assertion.
-- The pattern matches 29 walks after one is deleted: `executed: 30` fails the same way.
+  insufficient evidence with the cause `coverage_below_plan`, not a held assertion. This reads the
+  coverage unit of `ess-ui-report@1` as a task.
+- A run that executes 29 walks is below `executed: 30`: insufficient evidence with the cause
+  `coverage_below_plan`, for every requirement of the plan.
+- A run of 30 walks that has no value for one scenario of the reference: `steps-do-not-rise` and
+  `layout-shift-does-not-rise` return insufficient evidence with the cause `coverage_below_plan`,
+  each for itself (§ 3). The two requirements with a fixed limit have no reference and do not see
+  it (G31).
+- A candidate that adds a scenario under the pattern: not defined (G30).
 
 **Left out.**
 
 - The other metrics of the 14 per walk. Each is one more entry of `measurements`; the answer names
   `false_complete`, no-scroll and always-visible among them (ux-ui B5).
 - The keys of the trade-off, as said above.
-- What `executed: 30` counts when the measurements of one plan have two scopes (G29).
+- How a walk maps to a scenario. The answers do not say (§ 3).
 
 ## 2. CI turnaround
 
@@ -127,7 +149,13 @@ One reference change per loosened requirement names the trade-off.
 - Run time has a fixed limit and an accepted value. It is judged in `workflow-finished`, a gate
   that a job evaluates after the workflow has ended (§ 7, second placement). A gate inside the
   workflow cannot read that workflow's total time.
-- Queue wait is judged in `build-pool`, an operational gate. It decides nothing about a candidate.
+- Queue wait has no requirement on that plan. The runs of `ci-gate-timing` are the population of
+  `ci-gate-queue-wait`, a time-window plan that `record-series@1` reads from the record store: the
+  90th percentile of the queue wait over the runs of one day, on the trusted branch and of every
+  candidate (`from: any_revision`). The plan has no `selection` and no conditions of its own
+  (§ 3, time windows).
+- `ci-gate-queue-wait-does-not-rise` names the window plan and is judged in `build-pool`, an
+  operational gate (§ 7, third placement). It decides nothing about a candidate.
 - The UI test step and the Rust test step end before `ratchet evaluate` and stay in the pre-merge
   gate (§ 7, first placement), the Rust step in report mode.
 - The run time of the local gate has no requirement, so it is in observe mode.
@@ -146,24 +174,40 @@ answers).
 | UI step at most 120 s | slot B5 |
 | Rust test step 120 s, not enforced | slot B5 |
 | `queue_wait` apart from `run_time` | slot B2 (job log); § 3 |
-| job log `jobs.jsonl` | slot B2 |
+| queue wait as a 90th percentile over a window | slot E4 (queue-wait p90 over 60 min) |
 | commands | slot B1, B2 |
 | `rustc` pinned in `rust-toolchain.toml` | slot B1 |
 | merge gate judged in CI | slot D1 ("use the forge as the full verdict", inferred there) |
 | queue wait in an operational gate | ext-03 C3; ext-08 C3; § 5 |
+| no `job_log` in the file | slot B2, B7 (the log is local to the host); § 4 |
 
-**Reference records (not in the file).** `ci-gate-turnaround`: the median of the last 10
-qualifying runs on the trusted revision. The answer has no such figure. Its nearest is 5.4 min, the
-median of 160 successful runs out of 187 listed (slot B3), and it does not say whether that
-includes queue wait. `ci-gate-queue-wait-does-not-rise`: no answer gives the queue wait of a
-workflow run, so the requirement returns insufficient evidence with the cause `reference_missing`
-until 10 runs are in the series.
+**The job log is a local input.** `command-timing@1` declares `job_log` as local (§ 3, § 4), so
+`local-gate-run-time` passes no input for it. The local config of a workstation checkout of this
+example supplies it (§ 5, local config, rule 6). The file is `jobs.jsonl` (slot B2), and the
+directory is an illustration:
+
+```toml
+[inputs.local-gate-run-time]
+job_log = "/var/lib/build-pool/jobs.jsonl"
+```
+
+**Reference records (not in the file).**
+
+- `ci-gate-turnaround`: the median of the last 10 qualifying runs on the trusted revision. The
+  answer has no such figure. Its nearest is 5.4 min, the median of 160 successful runs out of 187
+  listed (slot B3), and it does not say whether that includes queue wait.
+- `ci-gate-queue-wait-does-not-rise`: the median of the last 10 windows. The `adoption` of a window
+  measurement counts windows that an evaluation recorded, and not runs (§ 3, time windows). With a
+  window of one day and one evaluation a day, the requirement returns insufficient evidence with
+  the cause `reference_missing` for the first 10 days (G32, G33). No answer gives the queue wait of
+  a workflow run.
 
 **The milestone on this example.**
 
-1. Observe: `ratchet import` writes the 187 listed forge runs as assessment runs (§ 6). A run whose
-   runner is unknown extends the series and does not qualify for a gate. Local `task check`: p50
-   164 s, p90 422 s, 27 of 40 runs exit 0 (slot B2).
+1. Observe: `ratchet import` writes the 187 listed forge runs as assessment runs of
+   `ci-gate-timing` (§ 6). A run whose runner is unknown extends the series, does not qualify for a
+   gate, and is left out of a window's population. Local `task check`: p50 164 s, p90 422 s, 27 of
+   40 runs exit 0 (slot B2).
 2. Adopt: with 5.4 min as the accepted value, allowed is 5.4 × 1.2 = 6.48 min, and under 30 min.
    The first adoption is a change of its own (D2), and the record is a file in the tree (D1).
 3. Reject: a run of 12.3 min (the p90 of slot B3) under qualifying conditions fails with the cause
@@ -174,16 +218,31 @@ until 10 runs are in the series.
 The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host load 50 to 170
 (slot C2). Its plan runs in `ci` only.
 
+**The operational gate.**
+
+- `ratchet evaluate --gate build-pool` takes no candidate. It assesses `ci-gate-queue-wait`, and
+  the window ends at that moment (§ 5, gate kinds). The run records the bounds of the window, the
+  number of runs in it, the time of the newest, and the number of runs left out.
+- Fewer than 10 qualifying runs in the day: insufficient evidence with the cause
+  `too_few_samples`. No pull request was merged on 3 of 12 days (slot A3).
+- A 90th percentile worse than the accepted value by more than 20 %: fail with the cause
+  `regression`. The next step is `system`, on the runners, and not `candidate`.
+- A second evaluation at the same moment reads the same runs, and a missed day changes nothing:
+  the window is the plan's.
+
 **Left out.**
 
-- Which runs the operational gate reads (G26).
-- The place of the job log on each machine (G27). The file has the name the answer gives.
+- Whether `job_log` is a required input of `command-timing@1`. The two plans that run in `ci` read
+  run time only. Where the assessor requires the input, each runner supplies its own under
+  `[inputs]`, and a runner without one returns `not_assessable_here` (§ 5, local config, rule 6).
 - A pinned tool for the UI step. The answer names `rustc` only, so that plan declares the runner
   alone.
-- A tolerance in seconds. `tolerance: {absolute: ...}` exists now, and no answer gives one for a
+- A tolerance in seconds. `tolerance: {absolute: ...}` exists, and no answer gives one for a
   workflow.
-- slot E4 as written: a comparison of 60 minutes after an install with 60 minutes before (§ 10,
-  not changed).
+- A fixed limit on the queue wait. No answer gives one for a workflow run, so the requirement has a
+  reference alone.
+- slot E4 as written: a comparison of 60 minutes after an install with 60 minutes before. A window
+  plan gives one value per window (§ 11, not changed).
 
 ## 3. No new analyzer findings
 
@@ -191,7 +250,8 @@ The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host 
 
 **Checks.** Four identity sets:
 
-- lint findings, which must be none: `lte 0` on the number of items;
+- lint findings, which must be none: `lte 0` on the number of items. The number of items of a set
+  has no unit, so neither the measurement nor the `condition` carries one (§ 3, comparisons);
 - files that nothing refers to, compared with an accepted set from the first run;
 - secret-scan findings, compared with an accepted set whose one item is an allowlist entry with a
   reason and an owner;
@@ -220,8 +280,8 @@ The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host 
 
 - `no-new-unreferenced-files`: the 26 files the first run found, kept "as unexamined"
   (runbook C3).
-- `no-lost-passing-cases`: the ids of the cases that passed when the set was adopted. The answers
-  give no count.
+- `no-lost-passing-cases`: the ids of the cases that passed when the set was adopted, each
+  `{identity: {case_id}}`. The answers give no count.
 - `no-new-secret-findings`: one item, the allowlist entry for signed test tokens in conformance
   vectors (substrate C3). As `ratchet/references/no-new-secret-findings.json` (D1):
 
@@ -233,8 +293,10 @@ The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host 
   "revision": "<commit the set was adopted at>",
   "items": [
     {
-      "rule": "<rule>",
-      "path": "<path of the conformance vectors>",
+      "identity": {
+        "rule": "<rule>",
+        "path": "<path of the conformance vectors>"
+      },
       "reason": "Signed test tokens in conformance vectors.",
       "owner": "decision:<id>"
     }
@@ -245,9 +307,9 @@ The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host 
 }
 ```
 
-The item has no end date: it is a permanent false positive, and an accepted item, not an
-exception. § 3 shows a record with `values` and none with `items`, so the item's shape is a guess
-(G28).
+The item is `{identity, reason, owner}` (§ 3, § 5). `identity` holds exactly the two fields of the
+measurement's identity key, and `reason` and `owner` sit beside it. The item has no end date: it is
+a permanent false positive, and an accepted item, not an exception.
 
 **Expected verdicts.**
 
@@ -263,6 +325,8 @@ exception. § 3 shows a record with `values` and none with `items`, so the item'
   "the review-by dates exist; I have not seen one enforced" (ext-07 C3).
 - In CI the three source checks return insufficient evidence with the cause `not_assessable_here`
   (§ 3). They are not left out and not passed.
+- The lint run executes 3 crates: insufficient evidence with the cause `coverage_below_plan`.
+  `executed: 4` counts crates, read here as the coverage unit of `clippy-report@1`.
 
 **Left out.**
 
@@ -313,7 +377,8 @@ documents, specification, generated files and code say the same thing.
   requirement, and a fail from either blocks (D3).
 
 **Left out.** The number of scenario files; canon B6 gives none, so the slow lane declares no
-`executed`. `executed: 18` is a minimum. Exactly 18 is `{min: 18, max: 18}`.
+`executed`. `executed: 18` is a minimum. Exactly 18 is `{min: 18, max: 18}`. It counts files, read
+here as the coverage unit of `generator-check@1`.
 
 ## 5. Insufficient evidence on a host-caused limit
 
@@ -322,6 +387,8 @@ documents, specification, generated files and code say the same thing.
 **Checks.** One plan runs `task test` once and gives two measurements: the test steps within 120 s
 and each test within 60 s, as run time without queue wait. The conditions are per target class: a
 bound on host load for the workstation, a runner for CI. Either class can clear the gate.
+`skipped: 0` counts tests, the coverage unit of `command-timing@1` (§ 3), once for the run and for
+both measurements.
 
 **Audience.** Coding agents and developers. swell E3: "the gate takes longer or its verdict depends
 on load".
@@ -358,27 +425,47 @@ on load".
   a killed step produced).
 - A round of 1912 s with a browser run of 108.6 s (ux-ui C2) is judged on 108.6 s.
 
+**The check before the run is not the evidence.** Both rows are runs that started. The verdict
+reads `host_load_per_cpu` as the mean of the 1-minute load over the run (§ 3). With
+`skip_sampled_outside_conditions` in [`ratchet.toml`](ratchet.toml), the CLI also reads the load
+once before `task test` starts. That single reading decides one thing, whether the run starts
+(§ 5, local config, rule 4), and it is in no verdict:
+
+- A reading of 4.06 before the run: the run does not start. It is recorded as skipped locally, and
+  a gate that finds only that record returns insufficient evidence with the cause
+  `skipped_locally`.
+- A reading of 2.0 before the run and a mean of 4.06 over it: the run started, and it is
+  insufficient evidence with the cause `conditions_outside_declared`, as in the first row.
+- A reading of 2.0 before the run does not make a run qualify. Only the mean over the run does.
+
 **Not in the answer.** It gives one load value per run, and the table reads it as the mean over the
-run that § 3 defines. The evidence would also hold the minimum and the maximum.
+run. The evidence would also hold the minimum and the maximum.
 
 ## `ratchet.toml`
 
-[`ratchet.toml`](ratchet.toml) has the six sections of § 5. It is the local config of a workstation
-checkout of example 5.
+[`ratchet.toml`](ratchet.toml) has the seven sections of § 5. It is the local config of a
+workstation checkout of example 5.
 
 - `skip_sampled_outside_conditions` holds no number. The bound is the plan's, 2.125 under `local`.
+  Its check is one reading of the load before the run and not the evidence (example 5).
 - `observe_only` names one requirement of that file. `ratchet status` shows it with its value and
   leaves it out of its summary. The release gate still enforces it: a gate reads no `[local]` key.
 - A run skipped under this file is recorded with the cause `skipped_locally` and reported as
   "skipped locally by ratchet.toml", never as a pass.
 - In CI, `ratchet evaluate` refuses this file with `local_skips_refused`, because it carries two
-  `[local]` skips.
+  `[local]` skips. `[inputs]` is not a skip and is not refused.
+- `[inputs.test-steps]` supplies `job_log`, the local input of `command-timing@1`, to the plan
+  `test-steps` (§ 4; § 5, local config, rule 6). The specification passes no input for it, and the
+  assessment run records the resolved path. The path is the illustration of § 5: the pool prints
+  queue wait per job (swell B2) and another answer names the log `jobs.jsonl` (slot B2). A key
+  there for an input that is not local is refused with `input_not_local`.
 - The catalog source is this repository. `presets/` does not exist in it yet, and `<commit>` is
   not a commit, so the entry resolves to nothing.
 
-## Decisions D1 to D4
+## Decisions D1 to D6
 
-The owner decided the four questions of § 9 on 2026-11-24, all A.
+The owner decided D1 to D4 of § 9 on 2026-11-24, all A. D5 and D6 are open with the owner; the
+examples, like the design, are written under their recommended default A.
 
 | Decision | Where an example uses it |
 | --- | --- |
@@ -386,6 +473,8 @@ The owner decided the four questions of § 9 on 2026-11-24, all A.
 | D2: a loosening is a change of its own, merged before the candidate | first adoptions in examples 1, 2 and 3; the three exceptions, the allowlist item and a 27th file in example 3 |
 | D3: evidence from any one listed class decides | the `merge` gate of example 4, which declares no `evidence`; example 5 writes `evidence: any` |
 | D4: an exception ends at a date only | the three exceptions of example 3; the allowlist entry is an accepted item and has no date |
+| D5: the evidence of an operational gate is a time-window plan | `ci-gate-queue-wait` and the gate `build-pool` of example 2 |
+| D6: an input that differs per machine is declared local by the assessor and supplied by `ratchet.toml` | `[inputs.test-steps]` in `ratchet.toml`; `local-gate-run-time` of example 2 passes no `job_log` |
 
 ## Values not shown in the design
 
@@ -394,26 +483,30 @@ leaves to the assessor or to the author, unless the last column says otherwise.
 
 | Key | Value | Where it comes from |
 | --- | --- | --- |
-| `assessor` | every id except `ux-eval@1`, `command-timing@1` and `generator-check@1` | placeholder |
-| `inputs` | `workflow`, `job_log`, `layout_shift_exclusion_ms` | input names, the assessor's |
+| `assessor` | every id except `ux-eval@1`, `command-timing@1`, `generator-check@1` and `record-series@1` | placeholder |
+| `inputs` | `workflow`, `layout_shift_exclusion_ms` | input names, the assessor's |
 | `subjects.*.kind` | `api-operation` | free label |
 | `audiences` | `end-user`, `api-consumer`, `docs-reader` | free labels |
 | `target.kind` | `workflow_run` | closed list of § 3 |
 | `target.environments` | `staging` | closed list of § 3 |
 | `measurements.*.scope` | `task` | the assessor's |
-| `measurements.*.unit` | `min`, `actions`, `percent`, `score` | the assessor's |
+| `measurements.*.unit` | `min`, `actions`, `percent` | the assessor's |
 | `measurements.*.better` | `higher` | closed list of § 3 |
-| `measurements.*.output` | every name except `findings`, `steps`, `duration` and `digest` | the assessor's |
+| `measurements.*.output` | every name except `findings`, `steps`, `duration`, `digest` and `queue-wait` | the assessor's |
 | `condition.operator` | `gte`, `holds`, `no_lost_items` | closed list of § 3 |
+| `window.length` | `1d` | § 3, time windows |
 | `gates.*.stage` | `post-workflow` | free label |
 | `exceptions.*.created` | a date | § 5, prose |
 
-`unit: score` stands for a layout shift, which has no unit. § 3 does not say whether a number may
-leave `unit` out.
+Coverage units are the assessor's, and no YAML names one. § 3 gives the walk for `ux-eval@1` and
+the test for `command-timing@1`. The examples read the others as: the task for `ess-ui-report@1`,
+the crate for `clippy-report@1`, the file for `generator-check@1`, `project-command@1` and
+`secret-scan-report@1`, and the case for `ess-conformance-report@1`.
 
-Shapes of revision 3 that no example uses: `statements`, with `meaning` and `serves` on a
-requirement; a `presets` binding; `planted_defects`; `paired`; `window` and `population`;
-`aggregation` on a measurement; `executed_ids`; `value` on an exception; `skip` in `ratchet.toml`.
+Shapes of revision 4 that no example uses: `statements`, with `meaning` and `serves` on a
+requirement; a `presets` binding; `planted_defects`; `paired`; `executed_ids`; `value` on an
+exception; `skip` in `ratchet.toml`; `window: {last: N}`; `population: {filter: ...}`;
+`from: trusted_revision` on a population; a `selection` on a time-window plan.
 
 ## Gaps of revision 2 and how revision 3 closed them
 
@@ -421,7 +514,8 @@ Writing these examples against revision 2 found 25 gaps. Revision 3 closes each 
 `docs/design.md` § 10 gives the cause of every change. That section cites this list as "Design
 gaps found", and cites "Values not shown in the design" and "Numbers without a source" as they
 stood then. The full text of each gap (what was needed, what the design lacked, the proposed fix)
-is in this file at commit `b7cd992`.
+is in this file at commit `b7cd992`,
+[section "Design gaps found"](https://github.com/beyond10x/ratchet/blob/b7cd992deb4192ef8c4d0f89b0f6c12604b68999/examples/README.md#design-gaps-found).
 
 - **G1. Ratchet policy.** `reference.adoption`: `same_change`, or `{from, runs, aggregation}`. § 5.
 - **G2. Reference record.** Fields, one illustrative record, one file per requirement. § 3, § 5;
@@ -464,43 +558,96 @@ is in this file at commit `b7cd992`.
 - **G25. Value lists.** Closed lists, assessor's lists and free labels; Ratchet's values in
   snake_case. § 3.
 
+## Gaps of revision 3 and how revision 4 closed them
+
+Rewriting the examples to revision 3 found four more gaps. Revision 4 closes each one, and
+`docs/design.md` § 11 gives the cause of every change. That section cites this list as "New gaps".
+The full text of each gap is in this file at commit `a94ab83`,
+[section "New gaps"](https://github.com/beyond10x/ratchet/blob/a94ab83f8afb6dcbb8d987a907b41d93039b535d/examples/README.md#new-gaps).
+
+- **G26. The evidence of an operational gate.** Closed. Each requirement of an operational gate
+  names a time-window plan. `window` is `{length}`, `{last}` or both, `population` is
+  `{runs_of, from}` or `{filter}`, and `min_samples` is required. `record-series@1` reads the runs
+  of another plan. § 3 (time windows), § 5 (gate entries, deciding evidence, and gate kinds), § 7;
+  D5. Used in example 2.
+- **G27. An input that differs per machine.** Closed. The assessor declares the input as local,
+  and `[inputs.<assessment>]` in `ratchet.toml` supplies it. § 4 (custom assessors), § 5 (local
+  config, rule 6); D6. Used in `ratchet.toml` and in example 2.
+- **G28. An item in a reference record of a set.** Closed. An item is `{identity, reason, owner}`,
+  and the last two are optional. § 3 (the record of `no-new-search-findings`), § 5 (reference
+  records). Used in examples 1 and 3.
+- **G29. Coverage of a plan with several measurements.** Closed. Coverage belongs to the plan and
+  counts the assessor's coverage unit, declared once per assessor. § 3 (evidence coverage), § 4
+  (custom assessors). Used in examples 1, 3, 4 and 5.
+
+Revision 4 also resolves two things these examples carried as notes: a number without a unit takes
+no `unit`, so `unit: score` is gone from example 1 (§ 3, comparisons), and a walk is a coverage unit
+and not a scenario, so `executed: 30` has a source (§ 3; ux-ui B4).
+
 ## New gaps
 
-Found while rewriting the examples to revision 3. Each: what an example needed, what
-`docs/design.md` revision 3 lacks, and a proposed fix.
+Found while rewriting the examples to revision 4. Each: what an example needed, what
+`docs/design.md` revision 4 lacks, and a proposed fix.
 
-**G26. The evidence of an operational gate.**
-- Needed: queue wait of the gate workflow, judged once a day (example 2).
-- Lacks: an operational gate has no candidate. Nothing says which runs `ratchet evaluate --gate
-  build-pool` reads: the last finished run, every run since the last evaluation, or a window. § 7
-  says "the series of finished runs on the trusted branch", and the plan that feeds it has
-  `selection: candidate`. The YAML of § 3 has the same shape (`queue-wait-budget`). A time-window
-  plan could answer it, and `population` has no shape yet.
-- Fix: say which records an operational gate reads, as a key of the gate (`over: {runs: N}` or a
-  window) or by requiring a `time_window` plan, and show `window` and `population` in YAML.
+**G30. A scope item that is new in a run.**
+- Needed: a candidate adds a scenario that the pattern `ess-ui:explainer-page/*` matches.
+  `steps-do-not-rise` and `layout-shift-does-not-rise` have an accepted value for every other
+  scenario (example 1).
+- Lacks: § 5 rule 3 covers a requirement with no reference. § 3 covers an item of the reference
+  with no value in the run. Nothing covers an item of the run with no value in the reference, and
+  § 11 names the case as left open. If the item is `reference_missing`, the candidate cannot
+  advance: evidence from before the candidate cannot exist for a scenario that the candidate adds,
+  and a first adoption is a change of its own before the candidate (D2).
+- Fix: for an exact measurement the candidate adopts the value of a new item in the same change,
+  and the gate verifies it against the candidate's evidence, as it does for a tightening. It is
+  recorded as a first adoption of that item and loosens nothing, because no value was accepted
+  before. For a sampled measurement the item is reported as new and is not judged until the
+  `adoption` has its runs. The gate result lists the new items.
 
-**G27. An input that differs per machine.**
-- Needed: the place of the build pool's job log (example 2; slot B2).
-- Lacks: `inputs` is part of the specification, which is read from the trusted revision. The log
-  is in a state directory of each machine. `ratchet.toml` locates tools as commands and has no
-  place for an input.
-- Fix: an assessor declares an input as local, and `ratchet.toml` supplies it under `[inputs]`.
-  The value locates a file and carries no policy.
+**G31. A pattern that matches fewer scenarios, under a coverage that counts walks.**
+- Needed: `fix-within-two-actions` and `cues-are-accurate` hold for every scenario of the pattern
+  (example 1). They have a fixed limit and no reference.
+- Lacks: § 3 says a plan with a pattern declares its coverage, because a pattern can match fewer
+  scenarios than before. The coverage counts the coverage unit, a walk for `ux-eval@1`, and § 3
+  says that the answers do not relate a walk to a scenario. A reference lists its items, so a
+  requirement with one sees a lost scenario. A requirement with a fixed limit has no list: a run of
+  30 walks over 11 scenarios passes it.
+- Fix: the assessment run records the scope items that each measurement has a value for, and a plan
+  can bound their number beside `scenarios`. Or § 3 says that coverage does not answer a shrinking
+  pattern where the coverage unit is not the scenario.
 
-**G28. An item in a reference record of a set.**
-- Needed: an allowlist entry with a reason and an owner (example 3); the 12 findings (example 1).
-- Lacks: § 3 shows `values` and says that `items` are "keyed by the identity key of the set". With
-  an identity of several fields it is open whether an item is an object with those fields, and
-  where `reason` and `owner` sit beside them.
-- Fix: show one record with `items`, each `{identity: {...}, reason, owner}`.
+**G32. The `from` of an adoption on a window measurement.**
+- Needed: an accepted value for the 90th percentile of the queue wait, from the windows of an
+  operational gate whose population is `from: any_revision` (example 2).
+- Lacks: an `adoption` is `{from: trusted_revision, runs, aggregation}`, and § 5 reads it as the
+  last N qualifying runs on the trusted revision. § 3 says that on a window measurement `runs`
+  counts the windows that an evaluation recorded. A window has no candidate and no revision of its
+  own, and its items are the runs of every candidate. Nothing says what `from: trusted_revision`
+  selects there, or whether a window that `ratchet assess` wrote outside an evaluation counts.
+- Fix: say that on a window measurement `from: trusted_revision` selects the windows recorded with
+  the specification read at the trusted revision, whatever the `from` of the population, and name
+  which command's windows count.
 
-**G29. Coverage of a plan with several measurements.**
-- Needed: 30 walks executed, for measurements at the scopes journey and page (example 1); tests
-  not skipped, for measurements at the scopes run and test (example 5).
-- Lacks: `coverage` is one block per plan, and § 4 has the assessor declare coverage counts per
-  output. Nothing says which item a count of the plan counts.
-- Fix: say that a plan's coverage counts the items of one scope that the assessor names, or let a
-  measurement carry `coverage`.
+**G33. A first window reference from a series that exists.**
+- Needed: the first accepted value of `ci-gate-queue-wait-does-not-rise`, once `ratchet import` has
+  written the listed forge runs as assessment runs (example 2).
+- Lacks: a window ends when its plan is assessed, and an `adoption` counts recorded windows. With
+  `runs: 10` and a window of one day the requirement is `reference_missing` for 10 days, whatever
+  the series already holds. No command assesses a window that ends in the past.
+- Fix: `ratchet assess` takes an end time for a time-window plan over `runs_of`, and the run
+  records that it was assessed after the fact. Or the first adoption of a window measurement reads
+  the series and cuts the windows itself.
+
+**G34. The target class of a window.**
+- Needed: `build-pool` lists `qualifying_environments: [ci]`, and `ci-gate-queue-wait` lists
+  `environments: [ci]` (example 2).
+- Lacks: on every other plan `environments` lists the classes the plan runs in, and evidence
+  records the class it was produced in (§ 3). On a window plan it lists the classes whose runs
+  count. `record-series@1` reads the record store, which a workstation has after `git fetch`
+  (§ 6). Nothing says whether a window that a workstation assessed over runs of the class `ci` is
+  evidence of the class `ci` or `local`, and so whether it qualifies for the gate.
+- Fix: say that the class of a window over `runs_of` is the class of its population, wherever
+  `record-series@1` ran, and that the run also records the class of the machine that assessed it.
 
 ## Numbers without a source
 
@@ -510,16 +657,21 @@ Found while rewriting the examples to revision 3. Each: what an example needed, 
 - **`since: 2026-11-23`** (example 2). slot B5 says the Rust test step rule is not enforced, not
   since when. The date is the day of the answer.
 - **Tolerance 20 %** (example 2). The two sources apply 20 % to other measurements: step wall time
-  per CI job (ext-02 E4) and queue-wait p90 over 60 minutes (slot E4). The example applies it to
-  the run time and the queue wait of one workflow run.
+  per CI job (ext-02 E4) and queue-wait p90 over 60 minutes of a pool's job log (slot E4). The
+  example applies it to the run time of one workflow run and to the queue-wait p90 of a window of
+  workflow runs.
 - **`runs: 10` of the adoption** (example 2). ext-02 E4 names the median of the last 10 runs for
-  the wall time of a test step. § 5 gives N no default.
+  the wall time of a test step. § 5 gives N no default. On the window measurement the 10 are
+  windows, and no answer counts windows.
+- **`window: {length: 1d}`** (example 2). No answer gives a window for the queue wait of a workflow
+  run. slot E4 uses 60 minutes of a pool's job log. One day is the stage of the gate that reads
+  the window, so two windows of consecutive evaluations share no run.
+- **`min_samples: 10`** (example 2). No answer gives one. slot B3 lists 187 runs of the workflow and
+  does not give the period. § 11 gives a window length and `min_samples` no default.
 - **`runs: 1`** (examples 2, 5). The answers run a gate once; none states a run count for a timing
   check of a whole step. Repeats in use are 3 (surf B5, runbook B4, entity-runtime B6) and 5
   (ext-04 B6).
-- **`executed: 30`** (example 1). ux-ui B4 counts 30 walks. Whether a walk is one scenario of the
-  pattern is not in the answer: 168 values (gap 1) at 14 metrics are 12 scenarios.
 - **Exception texts** (example 3). Exception ids, case ids, reasons and story ids are illustrative.
   Only the count of three and the dates are from the answers.
-- **Paths** (examples 1, 3, 4). Report paths, reference `paths` and the `when` list are
-  illustrative. No answer names them.
+- **Paths** (examples 1, 2, 3, 4 and `ratchet.toml`). Report paths, reference `paths`, the `when`
+  list and the directory of the job log are illustrative. No answer names them.
