@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    outputs:
+      class: ${{ steps.changes.outputs.class }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -53,6 +55,7 @@ jobs:
               '') ;;
               .engineering/*) planning=1 ;;
               website/* | vision.md | docs/* | research/*) site=1 ;;
+              crates/*) code=1 ;;
               *.md) planning=1 ;;
               *) code=1 ;;
             esac
@@ -100,3 +103,111 @@ jobs:
           include-hidden-files: true
           retention-days: 30
           if-no-files-found: error
+
+  gate:
+    name: Repository gate
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Read the change class of the job build
+        id: class
+        env:
+          CHANGE_CLASS: ${{ needs.build.outputs.class }}
+        run: |
+          set -euo pipefail
+          case "$CHANGE_CLASS" in
+            code) run=true ;;
+            planning | docs-site) run=false ;;
+            *) echo "the job build gave no change class"; exit 1 ;;
+          esac
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "change class: $CHANGE_CLASS; task check runs: $run"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: steps.class.outputs.run == 'true'
+        with:
+          persist-credentials: false
+      - name: Read the rustc pinned in rust-toolchain.toml
+        id: rustc
+        if: steps.class.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
+        if: steps.class.outputs.run == 'true'
+        with:
+          toolchain: ${{ steps.rustc.outputs.channel }}
+          components: rustfmt, clippy
+      - name: Show the rustc the gate builds with
+        if: steps.class.outputs.run == 'true'
+        env:
+          CHANNEL: ${{ steps.rustc.outputs.channel }}
+        run: |
+          set -euo pipefail
+          rustc --version
+          rustc --version | grep -F "rustc $CHANNEL "
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        if: steps.class.outputs.run == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52
+        if: steps.class.outputs.run == 'true'
+        with:
+          version: 3.54.0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-nextest
+        if: steps.class.outputs.run == 'true'
+        env:
+          NEXTEST_VERSION: "0.9.143"
+          NEXTEST_SHA256: 66786b9abe23920d022a182d1416b1bbc8130dd4872a9553d76985a1708dcd1e
+        run: |
+          set -euo pipefail
+          asset="cargo-nextest-$NEXTEST_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p "$RUNNER_TEMP/nextest"
+          cd "$RUNNER_TEMP/nextest"
+          curl --fail --silent --show-error --location --output "$asset" \
+            "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$NEXTEST_VERSION/$asset"
+          echo "$NEXTEST_SHA256  $asset" | sha256sum --check --strict
+          tar -xzf "$asset" cargo-nextest
+          echo "$RUNNER_TEMP/nextest" >> "$GITHUB_PATH"
+          ./cargo-nextest --version | grep -F "cargo-nextest $NEXTEST_VERSION "
+      - name: Install ess
+        if: steps.class.outputs.run == 'true'
+        env:
+          ESS_VERSION: "0.98.0"
+          ESS_SHA256: c6c9a3a3d6956ce1a237f0340905dfadc431d31b1a15b104a6d2e64bb5acaa8e
+        run: |
+          set -euo pipefail
+          name="ess-$ESS_VERSION-x86_64-unknown-linux-gnu"
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --output "$name.tar.gz" \
+            "https://github.com/beyond10x/ess/releases/download/$ESS_VERSION/$name.tar.gz"
+          echo "$ESS_SHA256  $name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$name.tar.gz"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+          "./$name/ess" --version | grep -Fx "ess $ESS_VERSION"
+      - name: Install aep
+        if: steps.class.outputs.run == 'true'
+        env:
+          AEP_VERSION: "0.80.0"
+          AEP_SHA256: 9277f3977397b540767497917bdb9666719249364901c466939343d1787d502a
+        run: |
+          set -euo pipefail
+          name="aep-$AEP_VERSION-x86_64-unknown-linux-gnu"
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --output "$name.tar.gz" \
+            "https://github.com/beyond10x/aep/releases/download/$AEP_VERSION/$name.tar.gz"
+          echo "$AEP_SHA256  $name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$name.tar.gz"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+          "./$name/aep" --version | grep -Fx "aep $AEP_VERSION"
+      - name: Run the repository gate
+        if: steps.class.outputs.run == 'true'
+        run: task check

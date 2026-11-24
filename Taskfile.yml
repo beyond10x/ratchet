@@ -1,13 +1,84 @@
 version: '3'
 
+includes:
+  acceptance:
+    taskfile: acceptance/Taskfile.yml
+    optional: true
+
 tasks:
   check:
     desc: Run the repository gate.
     cmds:
       - aep plan artifact validate
       - task: check:spec
+      - task: check:rust
+      - task: check:generated
+      - task: check:scripts
+      - task: test
       - task: check:ci-paths
       - task: site
+
+  check:rust:
+    desc: Check the format and the lints of the hand-written crates. A generated crate is no member of the workspace, so it is neither formatted nor linted.
+    cmds:
+      - cargo fmt --check
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  check:generated:
+    desc: Compare each generated crate, byte for byte, with a fresh generation into target/check-generated. The crates and their generator lines are in .github/scripts/check-generated.sh.
+    cmds:
+      - sh .github/scripts/check-generated.sh
+
+  generate:
+    desc: Replace each generated crate with a fresh generation. Run it after a change of the specification; a generated file is never edited.
+    cmds:
+      - sh .github/scripts/check-generated.sh --write
+
+  check:scripts:
+    desc: Run every script test, .github/scripts/*.test.sh.
+    cmds:
+      - |
+        set -eu
+        n=0
+        for t in .github/scripts/*.test.sh; do
+          [ -f "$t" ] || { echo "check:scripts: no .github/scripts/*.test.sh"; exit 1; }
+          echo "check:scripts: sh $t"
+          sh "$t"
+          n=$((n + 1))
+        done
+        echo "check:scripts: $n script test(s) passed"
+
+  test:
+    desc: Run the tests of the workspace with cargo-nextest. .config/nextest.toml ends a test at 60 s and the run at 120 s, each as a failure. The ten slowest tests are printed last.
+    cmds:
+      - cargo nextest run --workspace --locked --no-run
+      - |
+        set -eu
+        log=target/test-step/nextest.txt
+        mkdir -p target/test-step
+        status=0
+        cargo nextest run --workspace --locked > "$log" 2>&1 || status=$?
+        cat "$log"
+        slowest=$(awk '
+          { gsub(/\033\[[0-9;]*m/, "") }
+          match($0, /^ *[A-Z][A-Z0-9 ]*\[ *[0-9]+\.[0-9]+s\] +/) {
+            name = substr($0, RSTART + RLENGTH)
+            sub(/^\([^)]*\) +/, "", name)
+            time = $0
+            sub(/^[^[]*\[ */, "", time)
+            sub(/s\].*$/, "", time)
+            if (!(name in times) || time + 0 > times[name] + 0) times[name] = time
+          }
+          END { for (name in times) printf "%10ss  %s\n", times[name], name }
+        ' "$log" | LC_ALL=C sort -k1,1nr -k2 | head -10)
+        echo "test: the ten slowest tests"
+        if [ -n "$slowest" ]; then
+          printf '%s\n' "$slowest"
+        elif [ "$status" = 0 ]; then
+          echo "test: cargo nextest run exited 0 and its output names no test with its time"
+          exit 1
+        fi
+        exit "$status"
 
   check:spec:
     desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
@@ -79,6 +150,15 @@ tasks:
         code|README.md crates/ratchet/src/lib.rs
         code|docs/design.md src/main.rs
         code|
+        planning|spec/README.md
+        code|spec/cli.yaml
+        code|Cargo.lock
+        code|rust-toolchain.toml
+        code|.config/nextest.toml
+        code|.github/scripts/check-generated.sh
+        code|crates/ratchet/tests/validate.rs
+        code|crates/ratchet-cli-contract/README.md
+        code|.engineering/planning/story/x.md crates/ratchet-cli-contract/README.md
         CASES
         echo "$n cases"
         exit $fail

@@ -1,0 +1,34 @@
+{
+  "binary": "ratchet",
+  "files": [
+    "Cargo.toml",
+    "README.md",
+    "binding.json",
+    "completions/ratchet.bash",
+    "help.txt",
+    "src/lib.rs",
+    "src/main.rs",
+    "src/runtime.rs",
+    "src/wire.rs"
+  ],
+  "format": "ess-cli-artifacts/1",
+  "obligations": [
+    "handler:assess: implement the owner-qualified callable and its declared result/error contract",
+    "handler:diff: implement the owner-qualified callable and its declared result/error contract",
+    "handler:doctor: implement the owner-qualified callable and its declared result/error contract",
+    "handler:evaluate: implement the owner-qualified callable and its declared result/error contract",
+    "handler:exceptions: implement the owner-qualified callable and its declared result/error contract",
+    "handler:explain: implement the owner-qualified callable and its declared result/error contract",
+    "handler:history: implement the owner-qualified callable and its declared result/error contract",
+    "handler:import: implement the owner-qualified callable and its declared result/error contract",
+    "handler:init: implement the owner-qualified callable and its declared result/error contract",
+    "handler:prove: implement the owner-qualified callable and its declared result/error contract",
+    "handler:reference-adopt: implement the owner-qualified callable and its declared result/error contract",
+    "handler:reference-propose: implement the owner-qualified callable and its declared result/error contract",
+    "handler:render: implement the owner-qualified callable and its declared result/error contract",
+    "handler:serve: implement the owner-qualified callable and its declared result/error contract",
+    "handler:status: implement the owner-qualified callable and its declared result/error contract",
+    "handler:validate: implement the owner-qualified callable and its declared result/error contract"
+  ],
+  "package": "ratchet-cli-contract"
+}
