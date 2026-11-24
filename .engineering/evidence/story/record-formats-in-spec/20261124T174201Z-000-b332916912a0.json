@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T17:42:01Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:record-formats-in-spec",
+  "kind": "story",
+  "revision": 14,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check",
+    "reference": "773be17: exit 0; record-fields 97 of 97, record-types 97 of 97, record-examples 563 of 563, contract-examples 72 of 72, cli-coverage-row 9 of 9, cli-errors 3 of 3, gate-inputs 10 of 10, synthesis 211 capabilities 0 refused"
+  }
+}

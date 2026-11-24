@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:record-formats-in-spec
 kind: story
-status: active
+status: implemented
 title: 'The specification for 0.1.0: record formats, long-form bounds, refusals'
 summary: 'Every specification change 0.1.0 needs, in one change before code is generated: ratchet-evidence/1, ratchet-assessor/1, E7 to E9 as A, no shorthands, the catalog directory.'
 relations:
@@ -50,10 +50,11 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 7, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-24T17:42:01Z", actor: "agent:ratchet", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":24,"verification":1}}}
 ---
 ## Context
 
