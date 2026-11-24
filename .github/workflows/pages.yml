@@ -1,0 +1,102 @@
+name: Documentation validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: List the changed files
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/changed-files"
+          : > "$out"
+          case "$EVENT" in
+            pull_request) git diff --name-only HEAD^1 HEAD > "$out" ;;
+            push)
+              if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] \
+                && git fetch --no-tags --depth=1 origin "$BEFORE" \
+                && git diff --name-only "$BEFORE" HEAD > "$out"; then :; else : > "$out"; fi
+              ;;
+          esac
+          echo "CHANGED_FILES=$out" >> "$GITHUB_ENV"
+          cat "$out"
+      - name: Classify the changed files
+        id: changes
+        run: |
+          set -euo pipefail
+          planning=0 site=0 code=0
+          while IFS= read -r f || [ -n "$f" ]; do
+            case "$f" in
+              '') ;;
+              .engineering/*) planning=1 ;;
+              website/* | vision.md | docs/* | research/*) site=1 ;;
+              *.md) planning=1 ;;
+              *) code=1 ;;
+            esac
+          done < "${CHANGED_FILES:-/dev/stdin}"
+          if [ "$code" = 1 ] || [ "$planning$site" = 00 ]; then class=code
+          elif [ "$site" = 1 ]; then class=docs-site
+          else class=planning
+          fi
+          echo "class=$class" >> "$GITHUB_OUTPUT"
+          echo "change class: $class"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        if: steps.changes.outputs.class != 'planning'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Build the Docusaurus site
+        if: steps.changes.outputs.class != 'planning'
+        run: npm --prefix website ci && npm --prefix website run build
+      - name: Refuse a site that holds a machine path
+        if: steps.changes.outputs.class != 'planning'
+        run: |
+          set -euo pipefail
+          if grep -rIl -e '/home/' -e '/Users/' website/build; then echo "website/build holds a machine path"; exit 1; fi
+      - name: Declare what was built
+        if: steps.changes.outputs.class != 'planning'
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          case "$COMMIT" in *[!0-9a-f]*|'') exit 1 ;; esac
+          test "${#COMMIT}" -eq 40
+          test -f website/build/index.html
+          mkdir -p website/build/.well-known
+          jq -n --arg commit "$COMMIT" \
+            '{schema: "b10x-project-site/v1", repository: "ratchet", commit: $commit, baseUrl: "/ratchet/"}' \
+            > website/build/.well-known/b10x-site.json
+          cat website/build/.well-known/b10x-site.json
+      - name: Upload the exact built site
+        if: steps.changes.outputs.class != 'planning' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: b10x-project-site
+          path: website/build
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error

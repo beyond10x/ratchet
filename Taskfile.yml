@@ -6,9 +6,58 @@ tasks:
     cmds:
       - aep plan artifact validate
       - task: check:spec
+      - task: check:ci-paths
+      - task: site
 
   check:spec:
     desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands.
     cmds:
       - ess specify validate --path spec --strict-requires
       - ess specify cli --path spec --binding spec/cli.yaml --strict-requires
+
+  site:
+    desc: Build the documentation site (website/, pages read from vision.md, docs/ and research/) into website/build.
+    dir: website
+    cmds:
+      - npm ci
+      - npm run build
+
+  check:ci-paths:
+    silent: true
+    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty."
+    cmds:
+      - |
+        set -eu
+        step=$(awk '
+          /- name: Classify the changed files$/ { f = 1; next }
+          f && !r && /run: \|$/ { r = 1; i = match($0, /[^ ]/); next }
+          r && /^ *$/ { print ""; next }
+          r { j = match($0, /[^ ]/); if (j <= i) exit; print substr($0, i + 2) }
+        ' .github/workflows/pages.yml)
+        test -n "$step" || { echo "no classifier step in .github/workflows/pages.yml"; exit 1; }
+        fail=0 n=0
+        while IFS='|' read -r want files; do
+          n=$((n + 1))
+          got=$(printf '%s' "$files" | tr ' ' '\n' | CHANGED_FILES= GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p')
+          if [ "$got" = "$want" ]; then echo "ok   $want <- ${files:-(none)}"; else echo "FAIL $want <- ${files:-(none)}: got ${got:-nothing}"; fail=1; fi
+        done <<'CASES'
+        planning|.engineering/planning/project.yaml
+        planning|.engineering/planning/story/x.md
+        planning|AGENTS.md CLAUDE.md README.md
+        planning|.engineering/planning/story/x.md AGENTS.md
+        docs-site|vision.md
+        docs-site|docs/design.md
+        docs-site|research/synthesis.md
+        docs-site|research/responses/slot.md
+        docs-site|website/docusaurus.config.ts
+        docs-site|website/product.json
+        docs-site|AGENTS.md docs/design.md
+        code|Taskfile.yml
+        code|.github/workflows/pages.yml
+        code|LICENSE
+        code|README.md crates/ratchet/src/lib.rs
+        code|docs/design.md src/main.rs
+        code|
+        CASES
+        echo "$n cases"
+        exit $fail
