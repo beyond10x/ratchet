@@ -5,7 +5,28 @@ summary: >-
   result and return structured evidence (docs/design.md § 1, § 2, § 4). A project pins the
   assessor versions it uses; no Ratchet command creates an assessor.
 
+# Built-in assessor `record-series@1` (design § 3 "A series of runs as a population"): it reads
+# the runs of a source plan (`population: {runs_of, from}`) from the record store. Its outputs
+# are the measurements of the source plan, by name, so it declares no fixed output list: a
+# measurement of a window plan keeps the scope, unit and direction of the source measurement.
+# Only runs that qualified under the source plan (conditions, coverage) enter the population, and
+# the run records the runs left out. It takes no configuration input and no population fields.
+# `ratchet.specification.AssessmentPlan` holds the rule that a plan over `runs_of` names it and
+# that it is named only over `runs_of`. ESS declares no instance of a provided entity, so this
+# comment and that invariant are its declaration.
+# UNMAPPED: the design gives `record-series@1` no coverage unit. A run of the source plan is the
+# piece of work its window counts, so `run` is the reading; open question for the owner.
+
 types:
+  - name: ratchet.assessor.CoverageUnit
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The piece of work a run executes or skips, such as a walk, a test, a file or a crate
+        (§ 1, § 3 "Evidence coverage"). An assessor declares one; it need not be the scope of a
+        measurement, and `executed_ids` are ids of it.
+
   # The counts § 3 "Evidence coverage" names, next to passed and failed.
   - name: ratchet.assessor.CoverageCount
     kind: enum
@@ -15,10 +36,11 @@ types:
     kind: struct
     naming:
       summary: >-
-        One output an assessor declares (§ 4 "Custom assessors"): the value type, the kind,
-        the scopes, the unit, the boundaries of a duration, the identity key of a set and the
-        fields of its items, and the coverage counts it reports. `ratchet validate` checks a
-        measurement's output, scope, unit, boundary and filter fields against it.
+        One output an assessor declares (§ 4 "Outputs"): the value type, the kind, the scopes,
+        the unit or that the output has none, the boundaries of a duration, and the identity
+        key of a set and the fields of its items. `ratchet validate` checks a measurement's
+        output, scope, unit, boundary and filter fields against it. Coverage is declared once
+        for the assessor, not per output (§ 4 "Coverage").
     fields:
       - name: name
         type: ratchet.specification.OutputName
@@ -32,6 +54,9 @@ types:
         summary: The scopes a result of this output can belong to; `run` is always one.
       - name: unit
         type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Absent declares that the output has no unit, such as a layout shift, a ratio or the
+          number of items of a set; a measurement of it then takes no `unit` (§ 3).
       - name: boundaries
         type: Optional<List<ratchet.specification.Boundary>>
         summary: >-
@@ -45,17 +70,16 @@ types:
         summary: >-
           The fields of the items of a set, which a measurement's `filter` may read, such as
           `severity` (§ 3, § 4).
-      - name: coverage
-        type: List<ratchet.assessor.CoverageCount>
 
 entities:
   - name: ratchet.assessor.Assessor
     naming:
       summary: >-
         A tool or adapter that runs a check or reads an existing result and returns structured
-        evidence (§ 1). It declares supported targets, configuration inputs, output types and
-        a version (§ 4). A review assessor imports a review's findings as an identity set tied
-        to the revision the review judged.
+        evidence (§ 1). It declares supported targets, configuration inputs, output types, a
+        coverage unit and a version (§ 4). A review assessor imports a review's findings as an
+        identity set tied to the revision the review judged. The built-in `record-series@1`
+        reads the runs of another plan (comment at the top of this file).
     provided: true
     identity:
       name: assessor
@@ -71,7 +95,9 @@ entities:
         type: List<ratchet.specification.InputDeclaration>
         summary: >-
           The inputs a plan passes as `inputs`: the workflow to read, the path of a report, an
-          exclusion the tool applies (§ 4).
+          exclusion the tool applies (§ 4). An input declared `local` is not passed by the plan;
+          the local config supplies it under `[inputs.<assessment>]`, such as `job_log` of
+          `command-timing@1` (§ 3, § 5 rule 6).
       - name: conditions
         type: Optional<List<String>>
         summary: >-
@@ -79,6 +105,22 @@ entities:
           `runner`, such as `cache` (§ 3).
       - name: outputs
         type: List<ratchet.assessor.AssessorOutput>
+      - name: coverage_unit
+        type: ratchet.assessor.CoverageUnit
+        summary: >-
+          The one unit its coverage counts count, such as the unit of `ux-eval@1` that
+          `executed: {min: 3}` of `search-ui` counts, or `test` for `command-timing@1` (§ 3).
+      - name: coverage
+        type: List<ratchet.assessor.CoverageCount>
+        summary: >-
+          The coverage counts it reports, for the assessor as a whole: a run has one set of
+          counts, whichever outputs a plan reads (§ 4 "Coverage").
+      - name: population_fields
+        type: Optional<List<String>>
+        summary: >-
+          The fields a time-window plan's `population: {filter}` may name, for an assessor that
+          reads a population outside the record store, such as `service` and `region` of
+          production telemetry (§ 3 "Time windows", value lists).
     lifecycle:
       initial: Declared
       states: [Declared]

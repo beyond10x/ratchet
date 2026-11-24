@@ -90,7 +90,12 @@ types:
     kind: enum
     variants: [shape, completeness]
 
-  # design § 2, § 3, § 4, § 5: what `ratchet validate` refuses or reports.
+  # design § 2, § 3, § 4, § 5: what `ratchet validate` refuses or reports. Added for revision 4:
+  # `unit_missing` and `unit_not_declared` (§ 3: a number has a unit exactly when the assessor
+  # declares one), `population_field_mismatch` (§ 3 value lists), `time_window_incomplete` and
+  # `window_on_other_kind` (§ 3 "Time windows"), `plan_does_not_fit_gate_kind` and
+  # `when_in_operational_gate` (§ 5 "Gate kinds"), `local_input_in_specification` (§ 5 rule 6)
+  # and `preset_input_local` (§ 4). The names are this specification's proposals.
   - name: ratchet.cli.ValidationCode
     kind: enum
     variants:
@@ -99,6 +104,15 @@ types:
       - duplicate_id
       - kind_mismatch
       - unit_mismatch
+      - unit_missing
+      - unit_not_declared
+      - population_field_mismatch
+      - time_window_incomplete
+      - window_on_other_kind
+      - plan_does_not_fit_gate_kind
+      - when_in_operational_gate
+      - local_input_in_specification
+      - preset_input_local
       - scope_mismatch
       - boundary_mismatch
       - target_binding_mismatch
@@ -185,6 +199,12 @@ types:
         type: ratchet.evidence.EvidenceCoverage
       - name: results
         type: List<ratchet.cli.ResultRow>
+      - name: local_inputs
+        type: Map<String, String>
+        summary: The resolved value of each local input, as the run records it (§ 5 rule 6).
+      - name: window
+        type: Optional<ratchet.cli.WindowRow>
+        summary: For a time-window plan, the window the run read.
 
   - name: ratchet.cli.AssessResult
     kind: struct
@@ -200,12 +220,33 @@ types:
         type: ratchet.specification.GateName
       - name: candidate
         type: Optional<ratchet.specification.Revision>
-        summary: The candidate revision; the working tree's HEAD by default.
+        summary: >-
+          The candidate revision of a candidate gate; the working tree's HEAD by default. An
+          operational gate takes no candidate (§ 5 "Gate kinds"), and one given is refused
+          (`operational_gate_takes_no_candidate`).
       - name: trusted
         type: Optional<ratchet.specification.Revision>
         summary: >-
           The trusted revision whose policy and accepted references judge the candidate, such
           as `main` (§ 5 rule 1).
+
+  - name: ratchet.cli.WindowRow
+    kind: struct
+    naming:
+      summary: >-
+        The window a time-window run read (§ 3, § 6): its exact bounds as RFC 3339 text, the
+        number of population items, the time of the newest and the runs left out.
+    fields:
+      - name: starts_at
+        type: String
+      - name: ends_at
+        type: String
+      - name: items
+        type: Integer
+      - name: newest_item_at
+        type: Optional<String>
+      - name: runs_left_out
+        type: Optional<Integer>
 
   - name: ratchet.cli.VerdictRow
     kind: struct
@@ -231,6 +272,12 @@ types:
         type: Optional<ratchet.gate.VerdictCause>
       - name: next_step
         type: Optional<ratchet.gate.NextStep>
+        summary: "`system` in place of `candidate` in an operational gate."
+      - name: window
+        type: Optional<ratchet.cli.WindowRow>
+        summary: >-
+          In an operational gate, the window this requirement was judged over, in place of a
+          candidate (§ 5, § 6).
       - name: observed
         type: Optional<ratchet.cli.ValueRow>
       - name: allowed
@@ -289,7 +336,8 @@ types:
         What `ratchet evaluate` prints: the verdict, a summary line that says when report-mode
         requirements fail, every entry with its mode (report-mode, not applicable, enforced),
         coverage, and the active and expired exceptions (§ 5). Fail precedes insufficient
-        evidence in the gate's verdict.
+        evidence in the gate's verdict. An operational gate's report has no candidate and
+        gives each requirement's window.
     fields:
       - name: decision
         type: ratchet.gate.DecisionId
@@ -298,7 +346,8 @@ types:
       - name: kind
         type: ratchet.specification.GateKind
       - name: candidate
-        type: ratchet.specification.Revision
+        type: Optional<ratchet.specification.Revision>
+        summary: Absent for an operational gate.
       - name: policy_revision
         type: ratchet.specification.Revision
       - name: verdict
@@ -675,10 +724,13 @@ types:
         type: List<ratchet.cli.DiffRow>
 
   # doctor -------------------------------------------------------------------------------------
-  # design § 5: the local config, the specifications, the tools and the record store reachable.
+  # design § 5: the local config, the specifications, the tools, the local inputs and the record
+  # store reachable. `local_inputs`: every key of `[inputs.<assessment>]` names a local input of
+  # that plan's assessor (else `input_not_local`), its path is reachable, and a required local
+  # input has a value on this machine (else the requirement is `not_assessable_here`).
   - name: ratchet.cli.DoctorCheckKind
     kind: enum
-    variants: [config, specs, tools, record_store, sampled_conditions]
+    variants: [config, specs, tools, local_inputs, record_store, sampled_conditions]
 
   - name: ratchet.cli.DoctorCheck
     kind: struct

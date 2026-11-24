@@ -1,7 +1,7 @@
 format: ess-cli/2
 binary: ratchet
 about: Specify software quality, assess it, and keep it from going backwards
-# Commands: docs/design.md revision 3, § 5 "Proposed CLI" (init, validate, assess, evaluate,
+# Commands: docs/design.md revision 4, § 5 "Proposed CLI" (init, validate, assess, evaluate,
 # reference propose, reference adopt, prove, render, status, explain, diff, exceptions, doctor,
 # history, import, serve). Every name, flag and field is a proposal.
 #
@@ -41,7 +41,10 @@ callables:
     target: {kind: local, owner: ratchet.cli, action: assess}
     input: ratchet.cli.AssessInput
     result: ratchet.cli.AssessResult
+    # `input_not_local`: `[inputs.<assessment>]` in `ratchet.toml` sets an input that the plan's
+    # assessor does not declare as local (design § 5 "Local config" rule 6).
     errors:
+      input_not_local: ratchet.cli.Refusal
       unknown_assessment: ratchet.cli.Refusal
       assessor_unavailable: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
@@ -51,11 +54,15 @@ callables:
     result: ratchet.cli.GateReport
     # `local_skips_refused`: outside the class `local` (and always when a CI environment is
     # detected) a `ratchet.toml` that carries `[local]` skips is refused, naming the key; the
-    # section is not ignored (design § 5 "Local config" rule 3).
+    # section is not ignored (design § 5 "Local config" rule 3). An operational gate takes no
+    # candidate and assesses its time-window plans first, each window ending at the evaluation
+    # (design § 5 "Gate kinds"); `--candidate` with one is `operational_gate_takes_no_candidate`,
+    # a name this specification proposes.
     errors:
       gate_failed: ratchet.cli.GateReport
       insufficient_evidence: ratchet.cli.GateReport
       unknown_gate: ratchet.cli.Refusal
+      operational_gate_takes_no_candidate: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
       local_skips_refused: ratchet.cli.Refusal
   # `reference propose` writes nothing; `reference adopt` writes what propose prints, into the
@@ -171,7 +178,7 @@ commands:
       - {field: report, source: {kind: option, long: report}}
   - path: [evaluate]
     callable: evaluate
-    about: Evaluate a named gate with qualifying evidence; only a pass exits 0
+    about: Evaluate a named gate with qualifying evidence, or an operational gate over its windows; only a pass exits 0
     arguments:
       - {field: gate, source: {kind: option, long: gate}}
       - {field: candidate, source: {kind: option, long: candidate}}
@@ -230,7 +237,7 @@ commands:
       - {field: candidate, source: {kind: option, long: candidate}}
   - path: [doctor]
     callable: doctor
-    about: Check that config, specifications, tools and the record store are reachable
+    about: Check that config, specifications, tools, local inputs and the record store are reachable
     arguments: []
   - path: [import]
     callable: import
