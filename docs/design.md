@@ -1,8 +1,8 @@
 # Ratchet
 
 **Proposed repository:** `beyond10x/ratchet`  
-**Status:** Design proposal, revision 3 (2026-11-24)  
-**Evidence:** revision 2 was revised from survey 1 of 2026-11-23 ([synthesis](../research/synthesis.md), [consumer input from `ux-ui`](../research/consumer-input-ux-ui.md)); § 8 lists those changes. Revision 3 was revised from two drafts written against revision 2: five worked examples ([`examples/`](../examples/README.md)) and the ESS specification of Ratchet’s own domain ([`spec/`](../spec/README.md)). § 10 lists each change and its cause. § 9 lists the questions left to the owner.
+**Status:** Design proposal, revision 4 (2026-11-24)  
+**Evidence:** revision 2 was revised from survey 1 of 2026-11-23 ([synthesis](../research/synthesis.md), [consumer input from `ux-ui`](../research/consumer-input-ux-ui.md)); § 8 lists those changes. Revision 3 was revised from two drafts written against revision 2: five worked examples ([`examples/`](https://github.com/beyond10x/ratchet/blob/main/examples/README.md)) and the ESS specification of Ratchet’s own domain ([`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md)). § 10 lists each change and its cause. Revision 4 was revised from those examples as rewritten to revision 3 (`examples/README.md` at commit `a94ab83`, [section “New gaps”](https://github.com/beyond10x/ratchet/blob/a94ab83f8afb6dcbb8d987a907b41d93039b535d/examples/README.md#new-gaps)): four more gaps, G26 to G29, and the places where revision 3 contradicted itself. § 11 lists each change and its cause. § 9 lists the questions left to the owner: D1 to D4 are decided, and D5 and D6 are open with a default each.
 
 Ratchet specifies how to specify software quality. It defines a versioned YAML format for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. The repository ships the specification, a CLI, a catalog of reusable YAML presets, and assessors that run or wrap existing tools. An agent or developer can use the same format to add a measurement specific to their repository.
 
@@ -11,6 +11,8 @@ The primary outcome is **regression prevention**. A brownfield team can start by
 Survey 1 asked 26 agent sessions how their projects track quality. Three practices are common: a committed generated file compared by bytes (21 answers), a committed file of accepted values compared by the project’s own tool (18), and a written time budget for the test step (21). The survey also shows where they fail. A check failed with nothing wrong in 23 answers. A passing result covered less than it appeared to in 10. In 18, a loosening was not tightened again or nobody knows whether it was. Revision 2 made the format carry what those cases lacked: the kind of a measurement, the conditions it was observed under, how much of the plan ran, and who may change a reference.
 
 Writing the examples and the specification showed where revision 2 named a thing and gave it no field, no value list, or no rule: 25 gaps in the examples and 12 open markers in the specification. Revision 3 closes them. The six product questions are decided ([open questions](open-questions.md)), and revision 3 applies them: the specification is YAML and the local config is TOML (Q1); a gate never reads a local skip (Q2); records are handed over as a CI artifact and kept as a series on a git ref (Q3); the views are a static export and a served app (Q4); the preset catalog is a directory in this repository (Q5); a view across repositories is a consumer of Ratchet’s records (Q6).
+
+Rewriting the examples to revision 3 found four more gaps and showed where revision 3 disagreed with itself. Revision 4 closes them. An operational gate reads a time window that its plan declares, and `window` and `population` have a shape (G26). An input that differs per machine is declared local by its assessor and supplied by the local config (G27). An item of an accepted set is `{identity, reason, owner}` (G28). A plan’s coverage counts the assessor’s coverage unit, once per run (G29). G26 and G27 are written under a default that the owner has not confirmed (§ 9, D5 and D6).
 
 ## 1. Domain language
 
@@ -30,14 +32,15 @@ A coding agent that builds the project is an audience with subjects of its own: 
 | Assessment plan | The instructions for collecting evidence. It binds one or more measurements to an assessor, a target, and observation conditions. |
 | Assessor | A tool or adapter that runs a check or reads an existing result and returns structured evidence. |
 | Target | The concrete repository revision, build, deployed service, workflow run, or telemetry population from which evidence is collected. |
-| Evidence coverage | How much of the plan a run executed: counts of executed, skipped, not run, and unsupported items. |
+| Evidence coverage | How much of the plan a run executed: counts of executed, skipped, not run, and unsupported items. The items are of the assessor’s **coverage unit**, the piece of work a run executes or skips, such as a walk, a test, or a file. |
 | Protected reference | An accepted state used for regression comparisons. It is either a **generated reference**, a committed artifact that a generator reproduces and that is compared by bytes or digest, or an **accepted value**, a measured value or identity set. It has a revision, the conditions that produced it, and evidence supporting its adoption. |
-| Gate | A decision at a workflow stage, such as merge or promotion, that requires specified verdicts before a candidate can advance. A gate lists each requirement as enforced or report-only. A **candidate gate** judges one candidate. An **operational gate** judges a host or a population and decides nothing about a candidate. |
+| Gate | A decision at a workflow stage, such as merge or promotion, that requires specified verdicts before a candidate can advance. A gate lists each requirement as enforced or report-only. A **candidate gate** judges one candidate. An **operational gate** judges a host or a population over a time window and decides nothing about a candidate. |
 | Ratchet policy | The rule for when an evidenced improvement can tighten a requirement or replace its protected reference. It is declared per requirement, as the `adoption` of its reference. |
 | Exception | An accepted departure from a requirement: a waived finding, a known-failing case, a raised limit. It carries a reason, an owner reference, and an expiry date. It is authored in the specification. |
 | Trade-off | A record that accepts worse values for some requirements and names the better values it buys. Each reference change it loosens names it. |
 | Preset | A reusable part of a specification in the catalog, with declared inputs. A project binds it by name and version. |
-| Local config | A file per machine or checkout (`ratchet.toml`) that says where specifications, presets, records, and tools are, and what to run on this machine. It carries no policy. |
+| Local config | A file per machine or checkout (`ratchet.toml`) that says where specifications, presets, records, tools, and local inputs are, and what to run on this machine. It carries no policy. |
+| Local input | An input of an assessor whose value differs per machine, such as the path of a build pool’s job log. The assessor declares it as local, and the local config supplies it. |
 
 KPI, SLI, SLO, and SLA can keep their usual meanings. A KPI is a selected measure of an important outcome. A service SLI can be represented as a measurement and an SLO as an objective over a defined window. An SLA adds a customer commitment. These are useful domain concepts within the model. General quality requirements also cover static checks, behavioral assertions, and development workflows.
 
@@ -49,7 +52,7 @@ KPI, SLI, SLO, and SLA can keep their usual meanings. A KPI is a selected measur
 | CLI | Resolves presets, validates configuration, runs or imports assessments, evaluates gates, checks exception expiry, and writes human-readable and machine-readable results. It can also generate a block of numbers in a document from records. |
 | Preset catalog | A directory `presets/` in this repository, released with the format and the CLI (open questions Q5). It supplies versioned YAML instances of the specification for common concerns. Each preset declares its inputs, expected evidence, and defaults where they are meaningful. |
 | Assessors | Built-in or separately packaged adapters for scenario runners, analyzers, benchmarks, CI systems, telemetry, reviews, and repo-specific tools. |
-| Local config | `ratchet.toml`, in TOML (open questions Q1). It locates specifications, preset sources, the record store, and tools, and selects what runs on one machine (§ 5). |
+| Local config | `ratchet.toml`, in TOML (open questions Q1). It locates specifications, preset sources, the record store, tools, and local inputs, and selects what runs on one machine (§ 5). |
 | Record store | Versioned JSON records. A run hands its records over as a CI artifact, and one job on the trusted branch appends them to the git ref `refs/ratchet/records`, which gates and views read (open questions Q3; § 6). |
 | Views | One page and one data document from the records, as a static export and as a served app (open questions Q4; § 6). A view across repositories is a consumer of the records and not a part of Ratchet (open questions Q6). |
 | Agent integration | A skill or plugin guides agents through choosing presets, authoring custom checks, running them, and interpreting results. It uses the same specification and CLI as CI. |
@@ -66,11 +69,11 @@ A requirement describes **what must hold**. An assessment plan describes **how w
 | Controlled run | How does this candidate behave under a repeatable workload? | Browser search p95 on an ephemeral deployment with fixed data, traffic, and sample requirements. A run can collect many samples and still produce one result for the candidate. |
 | Time window | What happened across a defined population and interval? | Successful requests over a rolling 30-day production window, or median CI turnaround across seven days of eligible workflow runs. |
 
-**History** is a separate concern. Storing snapshots and controlled runs over time creates a trend. A windowed measurement specifies the time interval and population as part of the evidence itself. Its plan declares `window: {length: 30d}` and a `population`. The window ends at the evaluation, and the evidence records the exact bounds. This shape is a proposal that no example has tested (§ 8, time-window evidence).
+**History** is a separate concern. Storing snapshots and controlled runs over time creates a trend. A windowed measurement specifies the time interval and population as part of the evidence itself. Its plan declares a `window` and a `population`, and the evidence records the exact bounds (below, time windows). No example uses the shape yet, and the survey does not test it (§ 8, time-window evidence).
 
 Record both the **expected target** in the plan and the **resolved target** in the evidence. For source checks, this may be a commit and lockfile. For a deployed benchmark, it may be an ephemeral environment ID, the candidate’s artifact digest, and the workload version. For production telemetry, it may be a service, region, traffic filter, deployment or cohort identifier where available, and exact window bounds. Local, CI, ephemeral, staging, and production are explicit target classes. A pre-release gate can use an ephemeral environment with declared production-like conditions. A production window with mixed revisions describes that population and can support an operational gate, such as pausing a rollout. Candidate-specific verdicts require evidence attributable to that candidate.
 
-A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references).
+A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references). A time-window plan declares a `selection` only when its population is the candidate’s alone, such as a cohort that only the candidate serves. Without one, its evidence is attributable to no candidate, and the plan serves an operational gate (§ 5).
 
 The local gate and CI are different targets, even for the same tree. 14 answers report a different check set or a different result between the two (F10). A plan lists the classes it runs in as `environments`, always a list. Evidence records where it was produced: the target class, the runner, and the tools. A gate names the classes whose evidence qualifies. A requirement that a location cannot assess is reported there as not run: its verdict is insufficient evidence with the cause `not_assessable_here`. It is not left out of the list, and the run does not exit 0 as if it had passed (ext-07 D3).
 
@@ -92,7 +95,7 @@ Sampled evidence states the conditions it was observed under. The plan declares 
 
 | Condition | Meaning | In the evidence |
 | --- | --- | --- |
-| `host_load_per_cpu` | The mean of the 1-minute load average over the run, divided by the number of CPUs. The bound applies to the mean. | Mean, minimum, and maximum. One answer saw load move from 82 to 112 during one run (inbox C2). |
+| `host_load_per_cpu` | The mean of the 1-minute load average over the run, divided by the number of CPUs. The bound applies to the mean. One reading before the run is not this condition: it can decide whether a local run starts, and it is not evidence (§ 5, local config, rule 4). | Mean, minimum, and maximum. One answer saw load move from 82 to 112 during one run (inbox C2). |
 | `tools` | A map from a tool to its version, or to the file that pins it: `{rustc: {pin: rust-toolchain.toml}, ess: "0.97.4"}`. It replaces `toolchain: pinned`, which named no tool and no version. | The resolved version of each named tool |
 | `runner` | The label of the runner or runner class | The runner that ran |
 
@@ -124,15 +127,43 @@ The scopes are not a closed list. An assessor declares the scope of each output,
 
 **Several measurements from one run.** A plan holds a map of `measurements`. The assessor runs once per plan, and every measurement reads that run: the 14 metrics of one walk (ux-ui B4), the step time and the time per test of one `task test`, the run time and the queue wait of one workflow run. A requirement names the plan and the measurement. It can leave the measurement out when the plan has one.
 
-**Several scenarios in one plan.** `scenarios` is a list, and an entry can end in `*`. The scope keeps one result per scenario, as for the 30 walks of one round (ux-ui B4). A pattern can match fewer scenarios than it did before, so a plan with a pattern declares its coverage.
+**Several scenarios in one plan.** `scenarios` is a list, and an entry can end in `*`. The scope keeps one result per scenario. A pattern can match fewer scenarios than it did before, so a plan with a pattern declares its coverage.
+
+A scenario is not a walk. One round ran 30 walks with 14 metrics each (ux-ui B4) and compared 168 values (consumer gap 1), which at 14 metrics are 12 scenarios. The answers do not say how a walk maps to a scenario. In this format a scenario is a scope item and holds the values, and a walk is what the assessor counts as executed (below, evidence coverage).
 
 ### Evidence coverage
 
 Every assessment run reports how much of the plan it executed: counts of **executed**, **skipped**, **not run**, and **unsupported** items, next to passed and failed. The plan declares the coverage that qualifies, as bounds on those counts or as an exact set of executed item ids (spindle B5). A run below it is insufficient evidence. That includes a run that executed a subset of what its name claims.
 
+**Coverage belongs to the plan and not to a measurement.** A plan runs once and every measurement reads that run, so a run has one set of counts. They count items of the assessor’s **coverage unit**: the piece of work that a run executes or skips, such as a walk, a test, a file, or a crate. An assessor declares one unit (§ 4). The unit need not be the scope of a measurement. A plan with measurements at the scopes journey and page counts walks, and a plan with measurements at the scopes run and test counts tests. The evidence names the unit beside the counts, and `executed_ids` are ids of that unit.
+
+A measurement needs no count of its own. Where a requirement has an accepted value per scope item, the reference record lists the items. An item of the reference with no value in the run makes that requirement insufficient evidence, with the cause `coverage_below_plan`.
+
 The plan’s `coverage` has four count keys, `executed`, `skipped`, `not_run`, and `unsupported`, and one set key, `executed_ids`. A bare number is a bound in the direction that matters: a minimum for `executed`, a maximum for the other three. `{min, max}` states both. `executed_ids` is the exact set, as a list or as `{file: <path>}`. The file is read from the trusted revision.
 
 10 answers report a passing result that covered less than it appeared to: 96 tests skipped for a missing prerequisite, 87 of 119 scenarios unsupported and still passing, “tests pass” evidence that covered 3 of 20 crates (F9). 9 answers already put a number on coverage. An assessor that prints “not run” and exits 0 has returned no evidence. A coverage count can also be a measurement with an accepted value, so that the number of ignored tests may not rise (ext-04 C3).
+
+### Time windows
+
+A time-window plan (`observation.kind: time_window`) declares three keys.
+
+| Key | Shape | Meaning |
+| --- | --- | --- |
+| `window` | `{length: 7d}`, `{last: 20}`, or both | `length` is a duration back from the end of the window: a whole number and `m`, `h`, or `d`. `last` is a number of population items, newest first. With both, the window holds the newest `last` items inside `length`. |
+| `population` | `{runs_of: <assessment>, from: any_revision}` | The assessment runs of another plan, read from the record store (§ 6). `from` is `trusted_revision`, the runs on the trusted branch alone, or `any_revision`, the runs of every candidate too. |
+| | `{filter: {service: portal, region: eu}}` | A population that the assessor reads outside the record store: production telemetry, a job log. The fields are those the assessor declares for its population. |
+| `min_samples` | A whole number | The fewest population items that qualify. Below it the verdict is insufficient evidence, with the cause `too_few_samples`. |
+
+The window ends when the plan is assessed. The evidence records the exact bounds, the number of items, and the time of the newest item. `ratchet validate` reports a time-window plan that lacks one of the three keys, and a `window` or a `population` on a plan of another kind.
+
+**A series of runs as a population.** `runs_of` names another plan of the same specification, the source plan. The built-in assessor `record-series@1` reads the source plan’s runs from the record store. Its outputs are the measurements of the source plan, by name.
+
+- A measurement of the window plan keeps the scope, the unit, and the direction of the source measurement and declares an `aggregation` across the runs in the window. That gives one value for a measurement at the scope `run` and one value per item at any other scope, as for a pass rate per scenario over the last 10 runs (ext-07 E4). A window aggregates numbers, and assertions with `pass_rate`.
+- The target has the kind of the source plan’s target, lists the classes whose runs count, and has no `selection`. A plan that lists two classes gives one window per class.
+- Only runs that qualified under the source plan enter the population. A run outside the source plan’s conditions or below its coverage is left out, and the evidence counts the runs left out. The window plan therefore declares no conditions of its own, and the rule that a sampled measurement declares conditions does not apply to it.
+- A window measurement can have an accepted value. Its `adoption` counts windows: `runs: 4` is the last four windows that an evaluation recorded. Windows that overlap share items.
+
+This is how a per-candidate plan feeds a requirement about a host or a pool. One per-candidate plan gives the run time and the queue wait of a run. The run time is judged per candidate. The queue wait has no requirement on that plan: its runs are the population of a window plan, and the requirement names the window plan. The YAML below shows the pair as `test-step` and `pool-queue-wait`.
 
 ### Comparisons
 
@@ -149,7 +180,7 @@ A measurement returns one of four value types: a **number**, an **identity set**
 - `no_new_items` holds when every item of the candidate’s set is in the accepted set. `no_lost_items` holds when every item of the accepted set is in the candidate’s set. A set of passing cases takes `no_lost_items`, so a case that fails or stops running is lost (§ 4). A set of failing cases with `no_new_items` does not see a deleted case.
 - An assertion holds or does not hold for each item of its scope: a scenario passing, an expectation of an imported ESS UI result. `holds` requires it for every item, and the result names the items where it does not hold.
 - A tolerance is `{percent: 10}`, `{absolute: 30}` in the unit of the measurement, or both. With both, the wider band applies. Absolute bands are in use: 0.01 for layout shift in 3 answers (ux-ui B5, spindle B5, slot B5), and the 30 seconds of § 5. `ratchet validate` reports a sampled measurement with an accepted value and no tolerance. Ratchet ships no default band.
-- A `condition` carries the unit of its measurement. `ratchet/1` converts no units, and a different unit is a validation error.
+- A number has a `unit` exactly when the assessor declares one for the output. The measurement states that unit, and so does its `condition`. `ratchet/1` converts no units, and a different unit is a validation error. An output without a unit, such as a layout shift, a ratio, or the number of items of a set, takes no `unit` on the measurement, on the `condition`, or in a record, and an absolute tolerance on it is a bare number. A `unit` written for such an output is a validation error, so no stand-in such as `score` is needed.
 - `filter` on a measurement of an identity set keeps the items whose field has one of the listed values, such as `filter: {severity: [serious, critical]}`. It applies before the comparison. The fields are those the assessor declares for the items of the set. A changed filter starts a new evidence series (§ 5).
 
 ### Value lists
@@ -172,14 +203,16 @@ Ratchet defines some values. An assessor or the author defines the others. Value
 | Gate kind | `candidate`, `operational` | Ratchet, closed |
 | Deciding evidence (`evidence`) | `any`, `all` | Ratchet, closed |
 | Verdict | `pass`, `fail`, `insufficient_evidence` | Ratchet, closed |
-| Scope, unit, output, boundary, input names, further conditions | For example `journey`, `file`, `min`, `steps`, `percent` | The assessor declares them, and `ratchet validate` checks the plan against the declaration. `run`, `run_time`, and `queue_wait` are Ratchet’s. |
+| Next step | `candidate`, `assessment`, `system` | Ratchet, closed |
+| Run source (`from`) | `trusted_revision` for an adoption. `trusted_revision`, `any_revision` for a population. | Ratchet, closed |
+| Scope, unit, output, boundary, coverage unit, input names, population filter fields, further conditions | For example `journey`, `file`, `min`, `steps`, `percent`, `walk` | The assessor declares them, and `ratchet validate` checks the plan against the declaration. `run`, `run_time`, and `queue_wait` are Ratchet’s. |
 | Subject kind, audience, stage, owner reference | For example `codebase`, `api-consumer`, `pre-merge`, `story:filter-bar` | The author. Free labels. |
 
 An aggregation is a map, `{kind: percentile, parameter: 95}` or `{kind: median}`. `environments` is always a list.
 
 ### Illustrative project YAML
 
-The field names and commands in this document are proposals, and the numbers in this YAML are illustrations. The example shows a sampled measurement against an absolute limit, two measurements from one UI evaluation, three measurements from one test run under conditions per target class, and a generated reference.
+The field names and commands in this document are proposals, and the numbers in this YAML are illustrations. The example shows a sampled measurement against an absolute limit, two measurements from one UI evaluation, three measurements from one test run under conditions per target class, a time window over the runs of that plan for an operational gate, and a generated reference.
 
 ```yaml
 format: ratchet/1
@@ -195,6 +228,9 @@ subjects:
     kind: user-interaction
     audiences: [portal-user]
   test-step:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+  build-pool:
     kind: development-workflow
     audiences: [coding-agent, developer]
   reference-docs:
@@ -269,6 +305,24 @@ assessments:
       test-time:
         {kind: sampled, output: duration, boundary: run_time, scope: test, unit: s, better: lower}
 
+  pool-queue-wait:
+    subject: build-pool
+    assessor: record-series@1
+    target: {kind: revision, environments: [ci]}
+    observation:
+      kind: time_window
+      window: {length: 7d}
+      population: {runs_of: test-step, from: any_revision}
+      min_samples: 20
+    measurements:
+      p90:
+        kind: sampled
+        output: queue-wait
+        scope: run
+        aggregation: {kind: percentile, parameter: 90}
+        unit: s
+        better: lower
+
   generated-docs:
     subject: reference-docs
     assessor: generator-check@1
@@ -312,8 +366,8 @@ requirements:
     measurement: test-time
     condition: {operator: lte, value: 60, unit: s}
   queue-wait-budget:
-    assessment: test-step
-    measurement: queue-wait
+    meaning: 9 of 10 runs of the test step start within 300 s of being queued.
+    assessment: pool-queue-wait
     condition: {operator: lte, value: 300, unit: s}
   generated-docs-current:
     assessment: generated-docs
@@ -343,13 +397,18 @@ gates:
 exceptions:
   filter-reset-target-size:
     requirement: no-new-search-findings
-    item: {rule: target-size, node_path: /search/filters/reset, environment: {viewport: narrow}}
+    item:
+      rule: target-size
+      node_path: /search/filters/reset
+      environment: {viewport: narrow, theme: light, input_mode: pointer}
     reason: The filter bar is replaced in the next release.
     owner: story:filter-bar
     expires: 2026-12-15
 ```
 
 The sample count illustrates a project choice. A real plan also defines how the assessor selects the request, handles errors and timeouts, and versions the workload. For user-perceived latency, the measurement would instead span the input action to the expected result becoming visible. Both measurements can use the same interaction.
+
+Two things are not written in the YAML because the assessor declares them (§ 4). One is the coverage unit: `executed: {min: 3}` of `search-ui` counts the unit of `ux-eval@1`, and `skipped: 0` of `test-step` counts tests. The other is a local input: `test-step` passes no input for the place of the build pool’s job log, because `command-timing@1` declares `job_log` as local and the local config supplies it (§ 5).
 
 The accepted values are not in this file. They live in reference records that the `ratchet reference` commands write (§ 5, § 6). The specification names the kind of reference, the tolerance, and the adoption rule. One reference record, for `search-steps-do-not-rise`:
 
@@ -368,7 +427,46 @@ The accepted values are not in this file. They live in reference records that th
 }
 ```
 
-The record of an identity set has `items` in place of `values`, each item keyed by the identity key of the set. Decimals are text in records and reports, so no value changes in a conversion.
+Decimals are text in records and reports, so no value changes in a conversion. A value without a unit has no `unit` key.
+
+The record of an identity set has `items` in place of `values`. For `no-new-search-findings`:
+
+```json
+{
+  "format": "ratchet-reference/1",
+  "requirement": "no-new-search-findings",
+  "kind": "accepted_value",
+  "revision": "<commit the set was adopted at>",
+  "items": [
+    {
+      "identity": {
+        "rule": "color-contrast",
+        "node_path": "/search/results/row/meta",
+        "environment": {"viewport": "narrow", "theme": "dark", "input_mode": "pointer"}
+      }
+    },
+    {
+      "identity": {
+        "rule": "region",
+        "node_path": "/search/banner",
+        "environment": {"viewport": "wide", "theme": "light", "input_mode": "pointer"}
+      },
+      "reason": "<why this finding is accepted>",
+      "owner": "decision:<id>"
+    }
+  ],
+  "conditions": {"tools": {"ux-eval": "1"}},
+  "evidence": ["run:<id>"],
+  "last_change": {"kind": "first_adoption", "authorized_by": "decision:<id>"}
+}
+```
+
+- An item is an object. `identity` holds exactly the fields of the measurement’s identity key, and a field can be a map, as `environment` is.
+- `reason` and `owner` sit beside `identity` and not inside it, so a key with a field of that name stays unambiguous. Both are optional.
+- An item holds nothing else. Severity, message, and location are in the evidence.
+- The set is one per requirement, whatever the scope of the measurement. The identity key tells two items apart.
+- The `item` of an exception on a set has the shape of `identity`, as in the YAML above.
+- An `identity` with other fields than the key makes the reference not comparable, with the cause `reference_not_comparable`.
 
 ## 4. Presets and custom assessors
 
@@ -396,9 +494,16 @@ The same comparison applies beyond analyzer findings (F7, F9, F18). A total of p
 
 **Proof that a check can fail.** A check that has never returned fail has the standing of a first reference compared with itself. 8 answers plant a defect or test the check itself: 65 planted defects a gate must refuse, 8 broken copies of a manifest (F15). A requirement can declare planted defects, which are inputs the assessor must refuse. A planted defect has an `id` and one of two forms. `inputs` replaces inputs of the plan for that run: a broken copy of a manifest, a report with a known finding. `patch` is a patch file applied to a scratch copy of the tree. `ratchet prove` runs the assessment once per defect, never in the working tree, and expects the verdict fail. Insufficient evidence is not a refusal. The proof record holds the ids refused and the ids accepted. A gate report marks an enforced requirement with no proof record and no recorded fail as unproven.
 
-**Custom assessors.** A custom assessor can run as a project command or import a structured report. It declares supported targets, configuration inputs, output types, and a version. Each input has a name, a type (string, integer, decimal, boolean, path, or a list of one of these), whether it is required, and a default. A plan passes them as `inputs`, and `ratchet validate` checks names and types against the declaration: the workflow to read, the path of a report, an exclusion the tool applies. For each output the assessor declares the value type, the kind, the scopes, the unit, the boundaries of a duration, the identity key of a set and the fields of its items, and the coverage counts it reports. It returns evidence in the same format as bundled assessors. The CLI validates those outputs and applies the project’s comparison rules. This keeps custom measurements usable in the same gates and history from their first run.
+**Custom assessors.** A custom assessor can run as a project command or import a structured report. It declares supported targets, configuration inputs, output types, a coverage unit, and a version.
 
-**Presets.** A preset is a `ratchet/1` document with a `preset` block in place of `project`: a name, a version, and declared `inputs` with the shape of an assessor’s inputs. Its statements, assessments, and requirements refer to an input as `${inputs.<name>}`. A project binds a preset under a name:
+- **Inputs.** Each input has a name, a type (string, integer, decimal, boolean, path, or a list of one of these), whether it is required, a default, and whether it is local. A plan passes the inputs that are not local as `inputs`, and `ratchet validate` checks names and types against the declaration: the workflow to read, the path of a report, an exclusion the tool applies.
+- **Local inputs.** A local input is one whose value differs per machine, such as the place of a build pool’s job log, which is in a state directory of each machine (slot B2, B7). It has the type `path`. The specification cannot set it, and the local config supplies it under `[inputs]` (§ 5; § 9, D6, default A).
+- **Outputs.** For each output the assessor declares the value type, the kind, the scopes, the unit or that the output has none, the boundaries of a duration, and the identity key of a set and the fields of its items.
+- **Coverage.** The assessor declares one coverage unit and the coverage counts it reports, for the assessor as a whole and not per output. A run has one set of counts, whichever outputs a plan reads (§ 3).
+
+It returns evidence in the same format as bundled assessors. The CLI validates those outputs and applies the project’s comparison rules. This keeps custom measurements usable in the same gates and history from their first run.
+
+**Presets.** A preset is a `ratchet/1` document with a `preset` block in place of `project`: a name, a version, and declared `inputs` with the shape of an assessor’s inputs, none of them local. Its statements, assessments, and requirements refer to an input as `${inputs.<name>}`. A project binds a preset under a name:
 
 ```yaml
 presets:
@@ -457,7 +562,7 @@ A stored series can supply the evidence for an adoption, for example the median 
 
 `ratchet validate` reports a sampled measurement with an accepted value and no `adoption`. A first adoption reads the same source (rule 3). The series of runs is read from the record store (§ 6).
 
-**Reference records.** A reference record holds the requirement, the kind, the revision it was adopted at, the values per scope item or the items of a set, the conditions, the evidence ids, and the context of its last change (§ 3 shows one). An item of an accepted set can carry a `reason` and an `owner`. An allowlist entry for a permanent false positive is such an item: one answer scopes an entry by rule and path, another keeps 27 lines with a written reason each (substrate C3, ext-08 C3). Adding an item is a loosening. The place is one JSON file per requirement in the tree, `ratchet/references/<requirement>.json` (§ 9, D1, decided A).
+**Reference records.** A reference record holds the requirement, the kind, the revision it was adopted at, the values per scope item or the items of a set, the conditions, the evidence ids, and the context of its last change (§ 3 shows one of each kind). An item of an accepted set is `{identity, reason, owner}`, and the last two are optional. An allowlist entry for a permanent false positive is such an item: one answer scopes an entry by rule and path, another keeps 27 lines with a written reason each (substrate C3, ext-08 C3). Adding an item is a loosening. The place is one JSON file per requirement in the tree, `ratchet/references/<requirement>.json` (§ 9, D1, decided A).
 
 A reference is current or superseded by computation and not by a stored state. It is superseded when a later reference change names it as the previous one. No command moves it.
 
@@ -475,6 +580,8 @@ Results include the requirement ID, target revision, observed and allowed values
 | --- | --- | --- |
 | Fail | On the candidate | `limit_crossed`, `regression`, `new_items`, `lost_items`, `assertion_not_held`, `generated_reference_differs`, `stale_reference_not_adopted` |
 | Insufficient evidence | On the assessment | `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `conditions_outside_declared`, `coverage_below_plan`, `tool_mismatch`, `reference_missing`, `reference_not_comparable`, `not_attributable_to_candidate`, `not_assessable_here`, `skipped_locally` |
+
+An operational gate has no candidate (below). The next step of a fail there is on the host or the population that the gate judges, and the report says `system` in place of `candidate`.
 
 **The verdict of a gate.** A gate passes when every enforced requirement that applies has passed. It fails when at least one of them fails. In every other case its verdict is insufficient evidence. Fail comes first because a fail is a result about the candidate: recovering the assessment of another requirement would not clear the gate. The report lists the verdict of every requirement in each case, so the agent sees both kinds of work.
 
@@ -503,6 +610,15 @@ A gate that should be decided by one class lists that class alone. `all` needs t
 
 **Gate kinds.** A gate is `candidate` by default. An `operational` gate judges a host, a build pool, or a population: queue wait, a production window with mixed revisions. Its evidence is not attributable to one candidate, so it never decides whether a candidate advances. Its verdict is for whoever operates the system. A requirement on queue wait belongs in an operational gate (ext-03 C3, ext-08 C3).
 
+**The evidence of an operational gate is a window** (§ 9, D5, default A). Every requirement of an operational gate names a time-window plan that has no `selection` (§ 3).
+
+- `ratchet evaluate --gate <operational>` takes no candidate. It reads the specification and the references at the trusted revision, as every gate does.
+- It assesses each of those plans at the evaluation, so each window ends there. It writes the windows as assessment runs and judges them.
+- It does not read the last run alone, and it does not read the runs since the previous evaluation. The window is declared in the plan, so two evaluations at the same moment read the same runs, and a missed day changes nothing. A gate that should judge the last run declares `window: {last: 1}`.
+- A per-candidate plan does not feed an operational gate directly. Its runs feed one as the population of a window plan (§ 3, time windows).
+- `ratchet validate` reports an operational gate whose requirement names a plan of another kind, a candidate gate whose requirement names a time-window plan without a `selection`, and a `when` in an operational gate, which has no change to match.
+- The gate decision records the bounds of each window in place of a candidate (§ 6).
+
 ### Policy changes, exceptions, and trade-offs
 
 A candidate’s gate uses policy from a trusted revision. Proposed changes to thresholds, assessor versions, measurement conditions, or protected references are evaluated as policy changes. An explicitly authorized update records the previous value, supporting evidence, and new value. Protocol changes that affect comparability establish a new evidence series or use documented overlap to relate it to the old one. A loosening is a change of its own, merged before the candidate it would affect (§ 9, D2, decided A).
@@ -526,7 +642,7 @@ Two updates need no separate authorization, because the gate can verify them: a 
 }
 ```
 
-An entry names a requirement and, where the requirement has a value per scope item, the item. The 168 values of that round are pairs of a scenario and a key. In this format a key is a measurement with a requirement of its own and a scenario is a scope item, so one entry addresses each value. One reference change is recorded per requirement the trade-off loosens, and each names the trade-off. `ratchet reference propose` with gains named drafts the record from the candidate’s evidence, and `ratchet reference adopt` writes it. The CLI checks both lists against that evidence: the named gains are present, and nothing outside `loosens` got worse. The loosened values become the references, so a trade-off has no expiry. A worse value that buys no named gain remains an exception and expires.
+An entry names a requirement and, where the requirement has a value per scope item, the item. The 168 values of that round are pairs of a scenario and a key: at 14 keys, 12 scenarios (§ 3). In this format a key is a measurement with a requirement of its own and a scenario is a scope item, so one entry addresses each value. One reference change is recorded per requirement the trade-off loosens, and each names the trade-off. `ratchet reference propose` with gains named drafts the record from the candidate’s evidence, and `ratchet reference adopt` writes it. The CLI checks both lists against that evidence: the named gains are present, and nothing outside `loosens` got worse. The loosened values become the references, so a trade-off has no expiry. A worse value that buys no named gain remains an exception and expires.
 
 ### Local config
 
@@ -552,24 +668,34 @@ observe_only = ["test-budget"]
 
 [tools]
 nextest = "cargo nextest"
+
+[inputs.test-step]
+job_log = "/var/lib/build-pool/jobs.jsonl"
 ```
 
-`<commit>` is a placeholder, and `presets/` does not exist in the repository yet. `[records] store` names the ref that holds the series (§ 6).
+`<commit>` is a placeholder, and `presets/` does not exist in the repository yet. `[records] store` names the ref that holds the series (§ 6). `[inputs.test-step]` supplies the local input `job_log` of the plan `test-step` of § 3, and the path is an illustration.
 
 1. **A gate reads no `[local]` key.** `[local]` selects what `ratchet assess` and `ratchet status` do on this machine: `skip` names assessments that do not run here, and `observe_only` names requirements that `ratchet status` shows with their value and leaves out of its summary. A requirement leaves a gate only through the specification: an exception, or report mode.
 2. **A local skip is recorded and shown.** `ratchet assess` records a skipped assessment as a run that executed nothing, with the cause `skipped_locally`, and reports it as “skipped locally by ratchet.toml”. A gate that finds only that record returns insufficient evidence with that cause.
 3. **Outside the class `local`, `ratchet evaluate` refuses a config that carries `[local]` skips.** `skip`, `observe_only`, and `skip_sampled_outside_conditions` are skips. It names the key and returns the refusal `local_skips_refused`. It does not ignore the section. The class is `ci` when a CI environment is detected, whatever the file says.
-4. **The skip rule holds no number.** `skip_sampled_outside_conditions` reads the bound from the plan: before a sampled assessment runs, the CLI compares the present conditions with the declared ones.
+4. **The skip rule holds no number, and its check is not evidence.** `skip_sampled_outside_conditions` reads the bound from the plan. Before a sampled assessment runs, the CLI compares the declared conditions with what it can read at that moment: the tools, the runner, and for `host_load_per_cpu` the 1-minute load average at that moment, divided by the number of CPUs. The check decides one thing, whether the run starts. A run that does not start is skipped locally (rule 2). A run that starts is judged as § 3 defines, by the mean over the run. It can still end outside the declared conditions, and the cause is then `conditions_outside_declared`.
 5. **Several paths form one specification.** Ids are unique across the files of `[spec] paths`, a duplicate is a validation error, and the files declare one `format` and one `project`.
+6. **`[inputs]` supplies local inputs and nothing else** (§ 9, D6, default A). `[inputs.<assessment>]` gives a value to an input that the plan’s assessor declares as local (§ 4).
+   - A key for an input that is not local is refused with `input_not_local`. A threshold, a filter, or an exclusion therefore cannot move into this file.
+   - A local input set in the specification is a validation error, so the trusted revision holds no path of one machine.
+   - The value says where evidence is read and decides nothing about a verdict. `ratchet assess` reads `[inputs]`, and a gate does not. The machine is trusted with it as it is with `[tools]`.
+   - The assessment run records the resolved value.
+   - A required local input with no value on this machine makes the requirement not assessable there: insufficient evidence with the cause `not_assessable_here` (§ 3).
+   - `[inputs]` is not a skip. Rule 3 does not refuse it, and a CI runner has its own.
 
 ### Proposed CLI
 
 | Command | Purpose |
 | --- | --- |
 | `ratchet init` | Create a project spec and bind selected catalog presets. |
-| `ratchet validate` | Check the spec, resolve references, and validate assessor configuration. Report sampled measurements without declared conditions, accepted values without a direction, a tolerance, or an adoption rule where § 3 and § 5 require one, and exceptions without a reason, an owner, or an expiry. |
+| `ratchet validate` | Check the spec, resolve references, and validate assessor configuration. Report sampled measurements without declared conditions; accepted values without a direction, a tolerance, or an adoption rule where § 3 and § 5 require one; exceptions without a reason, an owner, or an expiry; a time-window plan without a `window`, a `population`, or `min_samples`; and a requirement whose plan does not fit the kind of its gate. |
 | `ratchet assess` | Run selected assessors or ingest their results and produce structured evidence. |
-| `ratchet evaluate --gate promote` | Evaluate a named gate using qualifying evidence and emit a report with an exit status CI can enforce. The report lists report-mode requirements, entries that are not applicable, active and expired exceptions, and coverage. |
+| `ratchet evaluate --gate promote` | Evaluate a named gate using qualifying evidence and emit a report with an exit status CI can enforce. The report lists report-mode requirements, entries that are not applicable, active and expired exceptions, and coverage. For an operational gate it takes no candidate and assesses the gate’s windows first. |
 | `ratchet reference propose` | Print an evidence-backed proposal to adopt a stronger protected reference, or a trade-off that names its gains. Write nothing. |
 | `ratchet reference adopt` | Write the proposed reference record, and the trade-off record where there is one, into the working tree. |
 | `ratchet prove` | Run a requirement’s planted defects and record that the check refuses each. |
@@ -578,7 +704,7 @@ nextest = "cargo nextest"
 | `ratchet explain <requirement>` | Print the requirement’s `meaning`, the statements it serves, its audience, how it is measured, and where its evidence is. |
 | `ratchet diff <requirement>` | Compare the candidate with the reference item by item: new items, lost items, worse and better values. |
 | `ratchet exceptions` | List active and expired exceptions, and those that expire within a number of days. |
-| `ratchet doctor` | Check that the local config, the specifications, the tools, and the record store are reachable. |
+| `ratchet doctor` | Check that the local config, the specifications, the tools, the local inputs, and the record store are reachable. |
 | `ratchet history <requirement>` | Show the series with the reference line, reference changes, and exceptions marked. It reads the record store. |
 | `ratchet import` | Write history that exists elsewhere as assessment runs: forge runs, build pool logs, JUnit files. The records reach the store as those of any run do (§ 6). |
 | `ratchet serve` | Serve the page of § 6 over the record store. |
@@ -597,8 +723,8 @@ Store observations, decisions, and reference changes as separate records. This m
 
 | Record | Required context |
 | --- | --- |
-| Assessment run | Candidate identity, resolved target and its class, assessor and protocol versions, timestamps or window bounds, values per measurement with value type, kind, unit, and scope, sample or run count, coverage counts, observed conditions (runner, host load, tools, cache profile), queue wait and run time, artifact references, and for an imported run where it came from. |
-| Gate decision | Candidate, gate, the revision of the policy, evidence IDs, and the verdict of the gate. Per requirement: the protected reference or absolute limit, the mode, the verdict with its cause and next step, exceptions applied, and whether it is proven. Entries that were not applicable. |
+| Assessment run | Candidate identity, resolved target and its class, assessor and protocol versions, timestamps or window bounds, values per measurement with value type, kind, unit, and scope, sample or run count, coverage counts with their unit, observed conditions (runner, host load, tools, cache profile), queue wait and run time, the resolved value of each local input, artifact references, and for an imported run where it came from. For a window: the number of population items, the time of the newest, and the number of runs left out. |
+| Gate decision | Candidate, or for an operational gate the window bounds of each requirement. Gate, the revision of the policy, evidence IDs, and the verdict of the gate. Per requirement: the protected reference or absolute limit, the mode, the verdict with its cause and next step, exceptions applied, and whether it is proven. Entries that were not applicable. |
 | Reference change | One requirement, the kind of change (first adoption, regeneration, tightening, loosening, trade-off), previous and adopted references, the conditions of the adopted one, supporting evidence, the trade-off it belongs to, and the revision or decision that authorized adoption. |
 | Trade-off | Reason, owner reference, the gains and the loosened values with their requirements and scope items, and the decision that authorized it. |
 | Proof | Requirement, revision, the planted defects run, and the ids refused and accepted. |
@@ -612,7 +738,7 @@ An authored entry has the id its author gave it: the key of its map. A record ge
 - **Hand-over.** A run writes its records as a CI artifact. A pull-request job needs no push rights.
 - **Series.** One job on the trusted branch appends the handed-over records to the git ref `refs/ratchet/records`. It is the only writer. Gates and views read the ref, and `git fetch` gives a local gate the records that CI reads.
 
-The hand-over can be built first. The ref follows with the first requirement that needs a series, such as a sampled adoption (§ 5). The same job writes a reference change to the ref when its change reaches the trusted revision. Records of a local run stay on the machine that produced them. The push right of the writer and the author of its commits are the owner’s to set. The decision sets no retention for the ref. Reference records live in the tree (§ 9, D1).
+The hand-over can be built first. The ref follows with the first requirement that needs a series, such as a sampled adoption (§ 5) or a window over the runs of a plan (§ 3). The same job writes a reference change to the ref when its change reaches the trusted revision. Records of a local run stay on the machine that produced them. The push right of the writer and the author of its commits are the owner’s to set. The decision sets no retention for the ref. Reference records live in the tree (§ 9, D1).
 
 **Views** (open questions Q4). One page and one JSON data document serve two forms, built together. The static export is written by `ratchet render`: a CI artifact, a committed file, or a page of the docs site. The served app is `ratchet serve`, which answers over the record store. Both show the same page over the same data. `ratchet status` is the terminal form. A committed export is a generated reference, and `ratchet render --check true` fails when it is stale.
 
@@ -643,11 +769,11 @@ The first proposal named three integrations to prove the shared contract. The su
 
 - The steps that ended before `ratchet evaluate` are measured in the same run, each by its own measurement, in the pre-merge gate.
 - The whole run is judged by a job that starts when the workflow has finished. That job evaluates a gate with a stage of its own and reports to the forge as a separate check.
-- The series of finished runs on the trusted branch is judged in an operational gate.
+- The series of finished runs is judged in an operational gate, through a time-window plan whose population is the runs of the per-candidate plan (§ 3, time windows).
 
 A stage is a free label. A gate is evaluated wherever `ratchet evaluate --gate` runs, so a gate at the end of a product run needs no stage that Ratchet defines (ext-03 E4; candidate presets § 6, item 7).
 
-Then add deployed browser timing to exercise candidate attribution and controlled sampling, and production telemetry to exercise windowed assessment. The survey gives little evidence for these two: 3 of 26 answers describe a deployed service and 1 cites a production incident (synthesis § 4, implication 17). Their design is unchanged. The same specification should carry through all six cases. The first end-to-end milestone is a project that can start in observe mode, adopt a gate, reject a regression with actionable evidence, and record an improvement as a new protected reference. It also returns insufficient evidence, and not a fail, when the host and not the candidate caused a limit to be crossed.
+Then add deployed browser timing to exercise candidate attribution and controlled sampling, and production telemetry to exercise windowed assessment. The survey gives little evidence for these two: 3 of 26 answers describe a deployed service and 1 cites a production incident (synthesis § 4, implication 17). Their design is unchanged, except that a time window has a shape now (§ 3), which integration 2 uses first, for its operational gate. The same specification should carry through all six cases. The first end-to-end milestone is a project that can start in observe mode, adopt a gate, reject a regression with actionable evidence, and record an improvement as a new protected reference. It also returns insufficient evidence, and not a fail, when the host and not the candidate caused a limit to be crossed.
 
 ## 8. Changes from survey 1
 
@@ -699,9 +825,9 @@ Then add deployed browser timing to exercise candidate attribution and controlle
 
 All 26 answers are from one day, and almost all from sessions on one shared host under load. F1 to F3 describe that host on that day (synthesis § 5). The changes that rest on them record conditions and split wait from run time. They do not assume a loaded host. 18 of the 25 projects share one organization’s rules, so a count of a shared convention is not 18 independent choices.
 
-## 9. Design questions D1 to D4
+## 9. Design questions D1 to D6
 
-Revision 3 left four questions to the owner, each a decision about authority or a default that every project inherits. The owner decided all four on 2026-11-24, each as recommended (A); §§ 3 to 6 are written under those answers. The options are kept as the record of the choice. These are separate from the product questions Q1 to Q6 of [open-questions.md](open-questions.md), which are decided.
+Revision 3 left four questions to the owner, each a decision about authority or a default that every project inherits. The owner decided all four on 2026-11-24, each as recommended (A). Revision 4 adds D5 and D6. Both are open, and each names a default. §§ 3 to 6 are written under the four answers and the two defaults. The options are kept as the record of the choice. These are separate from the product questions Q1 to Q6 of [open-questions.md](open-questions.md), which are decided.
 
 | Question | Decided | Option |
 | --- | --- | --- |
@@ -709,6 +835,8 @@ Revision 3 left four questions to the owner, each a decision about authority or 
 | D2 authorization of a loosening | A | A change of its own, before the candidate |
 | D3 default of `evidence` | A | `any` |
 | D4 exception that ends at an event | A | A date only |
+| D5 evidence of an operational gate | Open, default A | A time-window plan |
+| D6 an input that differs per machine | Open, default A | Declared local by the assessor, supplied by `ratchet.toml` |
 
 ### D1. Where do reference records and trade-off records live?
 
@@ -758,9 +886,33 @@ An exception expires on a date (§ 5). Three answers accept something until an e
 
 **Decided: A** (the owner, 2026-11-24). It is what `ratchet/1` can check without a resolver. C follows when a first consumer brings one.
 
+### D5. Which runs does an operational gate read?
+
+An operational gate has no candidate (§ 5). Revision 3 did not say which evidence `ratchet evaluate --gate <operational>` reads, and its YAML fed such a gate from a per-candidate plan (G26).
+
+| | Does | Costs |
+| --- | --- | --- |
+| A | A requirement of an operational gate names a time-window plan. The plan declares the `window`, the `population`, and `min_samples`. A per-candidate plan feeds it as `population: {runs_of: ...}`. The evaluation assesses the window that ends there. | A second plan for a series that a per-candidate plan already produces. `ratchet evaluate` runs an assessor for these gates. |
+| B | A key on the gate, `over: {last: N}` or `over: {length: 7d}`. The gate reads that many runs of the per-candidate plan that its requirement names. | N runs give N verdicts, or they need an aggregation, which is a key of a measurement (§ 3) and would be written twice. A production window still needs a time-window plan, so one kind of evidence has two mechanisms. One plan is per candidate in one gate and a population in another. |
+| C | Every run since the last decision of the gate. No key. | The evidence depends on when someone last evaluated. A repeated evaluation gives another verdict, a missed day doubles the population, and the first evaluation has no start. |
+
+**Default: A.** The window, the aggregation, and the sample count are then declared in one place, the plan, and recorded in the evidence. “The last run” is A with `window: {last: 1}`. What would change the answer: many window plans that only repeat a per-candidate plan with an aggregation added. Then B, as a short form that expands to A.
+
+### D6. Where does an input live whose value differs per machine?
+
+A plan’s `inputs` are part of the specification, which is read from the trusted revision. The job log of a build pool is in a state directory of each machine (slot B2, B7; G27). The local config carries no policy (Q2, decided A), and it had no place for an input.
+
+| | Does | Costs |
+| --- | --- | --- |
+| A | An assessor declares an input as local, with the type `path`. `ratchet.toml` supplies it under `[inputs.<assessment>]`. The specification cannot set a local input, and the local config cannot set any other. The assessment run records the resolved value. | The machine says where its evidence is read, as it says which command is a tool. A wrong path gives evidence from the wrong file, and only the record shows it. A place that is not a path, such as the address of a local service, needs a second type. |
+| B | The specification holds the input with a variable that the machine resolves: `job_log: "${env.POOL_STATE}/jobs.jsonl"`. | The value comes from the environment of the process. `ratchet doctor` cannot list it, and a CI job of the candidate can set it. Every input becomes a template. |
+| C | No local input. The assessor finds the file by a convention of its own, or `ratchet import` copies it to a path in the tree before the run. | Each assessor invents a rule for finding its file. Neither the specification nor the local config says where the evidence came from. |
+
+**Default: A.** A gate still reads nothing from the local config (Q2): `ratchet assess` reads `[inputs]`, and a gate reads evidence. The two refusals of § 5 rule 6 keep a threshold, a filter, or an exclusion out of TOML. What would change the answer: a first local input that is not a path. Then the types of a local input grow, and A stays.
+
 ## 10. Changes from revision 2
 
-`G<n>` is a gap in [`examples/README.md`](../examples/README.md), section “Design gaps found”. `values`, `shapes`, and `numbers` are its sections “Values not shown in the design” (with the three shapes below its table) and “Numbers without a source”. `marker <file>: <entity>` is an `UNMAPPED:` comment in `spec/domains/<file>.yaml` or `spec/cli.yaml`. `spec README` is a point of [`spec/README.md`](../spec/README.md), section “Where this specification sharpens or departs from docs/design.md”. `presets <n>` is an item of [candidate presets](../research/candidate-presets.md) § 6. `Q<n>` is a question of [open-questions.md](open-questions.md) that the owner decided on 2026-11-24: A for Q1, Q2, and Q5, C for Q3 and Q4, B for Q6. The examples and the specification were written against revision 2, so they do not show the shapes of this revision yet.
+`G<n>` is one of the gaps G1 to G25 that the examples found in revision 2. The full text of each (what was needed, what the design lacked, the proposed fix) is in `examples/README.md` at commit `b7cd992`, [section “Design gaps found”](https://github.com/beyond10x/ratchet/blob/b7cd992deb4192ef8c4d0f89b0f6c12604b68999/examples/README.md#design-gaps-found). `values`, `shapes`, and `numbers` are sections of that file at the same commit: “Values not shown in the design” (with the three shapes below its table) and “Numbers without a source”. The file was rewritten to revision 3 afterwards. It now keeps one line per gap under “Gaps of revision 2 and how revision 3 closed them”, and its two other sections describe the rewritten examples. `marker <file>: <entity>` is an `UNMAPPED:` comment in `spec/domains/<file>.yaml` or `spec/cli.yaml`. `spec README` is a point of [`spec/README.md`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md), section “Where this specification sharpens or departs from docs/design.md”. `presets <n>` is an item of [candidate presets](../research/candidate-presets.md) § 6. `Q<n>` is a question of [open-questions.md](open-questions.md) that the owner decided on 2026-11-24: A for Q1, Q2, and Q5, C for Q3 and Q4, B for Q6. The examples and the specification were written against revision 2, so neither showed the shapes of revision 3 when it was written. The examples were rewritten to revision 3 afterwards (§ 11).
 
 | Change | Where | Cause |
 | --- | --- | --- |
@@ -834,3 +986,44 @@ An exception expires on a date (§ 5). Three answers accept something until an e
 - **A check about the world outside the candidate, in a candidate gate** (presets 6). One proposed rule fails a pull request when another project has released (agentplugins E4). A candidate gate takes evidence attributable to the candidate; such a check fits an operational gate, which does not block a merge.
 - **A default for a load bound, a sampled tolerance, or a run count of an adoption.** No answer supplies one (numbers; candidate presets § 7). The format requires each to be declared.
 - **An empty help line for the `reference` command group** (spec README, CLI spelling). It is a property of the binding and changes nothing here.
+
+## 11. Changes from revision 3
+
+`G26` to `G29` are the gaps in `examples/README.md` at commit `a94ab83`, [section “New gaps”](https://github.com/beyond10x/ratchet/blob/a94ab83f8afb6dcbb8d987a907b41d93039b535d/examples/README.md#new-gaps), found while the examples were rewritten to revision 3. `contradiction` is a place where revision 3 disagreed with itself, and the row names the two places. `README` is another section of that file as rewritten. `D5` and `D6` are in § 9: a row that names one is written under its default.
+
+| Change | Where | Cause |
+| --- | --- | --- |
+| The evidence of an operational gate is a window: each of its requirements names a time-window plan; `ratchet evaluate --gate <operational>` takes no candidate, assesses those plans, and reads neither the last run alone nor the runs since the previous evaluation | § 1, § 5 | G26 (D5) |
+| `window` is `{length}`, `{last}`, or both; `population` is `{runs_of, from}` or `{filter}`; `min_samples` is required; the window ends when the plan is assessed, where revision 3 said at the evaluation | § 3 | G26 |
+| A per-candidate plan feeds an operational gate only as the population of a window plan, read by the built-in assessor `record-series@1`; only runs that qualified under the source plan count; the window plan declares no conditions; an `adoption` counts windows | § 3, § 5 | G26 |
+| A time-window plan declares a `selection` only when its population is the candidate’s alone; without one it serves an operational gate | § 3 | G26 (the plan that fed the gate had `selection: candidate`) |
+| `ratchet validate` reports a requirement whose plan does not fit the kind of its gate, a `when` in an operational gate, and a time-window plan without `window`, `population`, or `min_samples` | § 3, § 5 | G26 |
+| Illustrative YAML: subject `build-pool` and plan `pool-queue-wait`; `queue-wait-budget` names that plan and no longer the per-candidate plan `test-step` | § 3 | G26 |
+| The next step of a fail in an operational gate is `system`; its gate decision records window bounds in place of a candidate | § 3, § 5, § 6 | contradiction: § 5 verdicts put every fail “on the candidate”, § 5 gate kinds give an operational gate none |
+| Third placement of integration 2: the series is judged through a time-window plan; a time window has a shape that integration 2 uses first | § 7 | G26 (§ 7 said “on the trusted branch” and named no plan) |
+| Local input: an assessor declares it, with the type `path`; `[inputs.<assessment>]` in `ratchet.toml` supplies it; the specification cannot set it; the local config cannot set another input (`input_not_local`); the run records the resolved value; a missing one is `not_assessable_here` | § 1, § 2, § 4, § 5, § 6 | G27 (D6) |
+| A preset input is never local | § 4 | G27 |
+| An item of a set’s reference record is `{identity, reason, owner}`; one illustrative record; the set is one per requirement; an `identity` with other fields than the key is `reference_not_comparable` | § 3, § 5 | G28 |
+| The exception of the illustrative YAML names the whole `environment`, as an `identity` does | § 3 | G28 |
+| Coverage belongs to the plan; its counts count the assessor’s coverage unit, declared once per assessor and not per output; the evidence names the unit | § 1, § 3, § 4, § 6 | G29; contradiction: § 3 had one `coverage` block per plan, § 4 had coverage counts per output |
+| An item of a reference with no value in the run is `coverage_below_plan` for that requirement | § 3 | G29 |
+| A scenario is a scope item and a walk is a coverage unit; the 30 walks are no longer cited as 30 scenarios; the 168 values are read as 12 scenarios with 14 keys | § 3, § 5 | contradiction: § 3 “the 30 walks” as one result per scenario, § 5 “168 values” as pairs of a scenario and a key; README numbers (`executed: 30`) |
+| The check before a local run reads the load at that moment and decides only whether the run starts; the run is judged by the mean over the run | § 3, § 5 | contradiction: § 5 local config rule 4 compared conditions before the run, § 3 defines `host_load_per_cpu` as a mean over the run |
+| A number has a `unit` exactly when the assessor declares one for the output; an output without a unit takes none on the measurement, the `condition`, the tolerance, or a record | § 3, § 4 | contradiction: § 3 “a `condition` carries the unit of its measurement”, § 3 operators on a number of items with no unit; README values (`unit: score`) |
+| The gaps G1 to G25 are cited at commit `b7cd992` | § 10 | contradiction: § 10 named sections of `examples/README.md` that the rewrite renamed or replaced |
+| Value lists: next step, run source (`from`), coverage unit, population filter fields | § 3 | G26, G27, G29 |
+| CLI table: `validate`, `evaluate`, and `doctor` rows; records table: assessment run and gate decision rows; a window over the runs of a plan is a reason to build the ref | § 5, § 6 | G26, G27, G29 |
+| Questions D5 and D6, each with three options and a default | § 9 | G26, G27 |
+
+### Counts
+
+- All four gaps are closed here. G26 and G27 are closed under a default that the owner has not confirmed: D5 and D6 (§ 9).
+- Five contradictions are resolved: four that the rewritten examples exposed (the citations of § 10, walks and scenarios, the check before a local run, a number without a unit), and the next step of a fail in an operational gate, found while closing G26.
+- The examples and the specification do not show the shapes of this revision yet.
+
+### Not changed
+
+- **Shapes that no example uses** (README, below “Values not shown in the design”): `statements` with `meaning` and `serves`, a `presets` binding, `planted_defects`, `paired`, `aggregation` on a measurement, `executed_ids`, `value` on an exception, and `skip` in `ratchet.toml`. They are unchanged and untested. `window` and `population` have a shape now and no example yet.
+- **A comparison of two windows** (§ 10, not changed). A window plan gives one value per window.
+- **A default for a window length or for `min_samples`.** No answer supplies one. The format requires both to be declared, as it does for a load bound.
+- **A scope item that is new in a run.** § 5 rule 3 covers a requirement that has no reference. It does not say what a gate returns for one new scenario under a requirement that has accepted values for the others, and no evidence from before the candidate can exist for a scenario that the candidate adds. No example adds a scenario, so this is left for the next round of examples.
