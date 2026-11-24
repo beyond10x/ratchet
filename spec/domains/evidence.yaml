@@ -119,7 +119,10 @@ types:
           (format § 1, § 3).
       - name: window
         type: Optional<ratchet.evidence.Window>
-        summary: Present exactly on a run of a time-window plan.
+        summary: >-
+          Present exactly on a run of a time-window plan. No invariant says so: the kind of the
+          observation is in the plan, not in this struct, so the reader checks it against the
+          plan (format § 8).
     invariants:
       - any: ["kind != document", "defined(identifiers)"]
       - any: ["kind != document", "not defined(revision)"]
@@ -302,7 +305,8 @@ types:
         type: Json
         summary: >-
           Exactly the fields of the result's `key`; a field can be a map, as
-          `environment: {viewport: narrow}` in § 3.
+          `environment: {viewport: narrow}` in § 3. No invariant says so: an invariant selects
+          no member of a `Json`, so the reader checks it (format § 8).
       - name: fields
         type: Optional<Map<String, Json>>
         summary: >-

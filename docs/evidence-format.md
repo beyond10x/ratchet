@@ -578,10 +578,12 @@ From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/
 24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run. **Left out of 0.1.0**, as item 15 is: ESS has no such projection. `Assessor.format` is declared with the invariant `format == "ratchet-assessor/1"`.
 25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as. **Done in part:** the six reserved arguments are the enum `ratchet.assessor.ReservedArgument`, and the four meanings of an exit status are `ratchet.assessor.AssessorExit` (`ended`, `refused_inputs`, `wrong_invocation`, `broke`). The comment on `assess` in `spec/cli.yaml` and the comment on `AssessorExit` say which completion each is recorded as. **Left out of 0.1.0:** that table as a declaration. ESS declares no map from the values of one enum to those of another, so the CLI implements it from the comment.
 
-Rules of § 4 that are not invariants, and why. A reader of 0.1.0 checks them in code.
+Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1.0 checks them in code.
 
 | Rule | What is not an invariant | Why |
 | --- | --- | --- |
+| § 3 | `target.window` is present exactly for a time-window plan | The kind of the observation is in the plan, which the document does not hold. The rule joins a run and its plan. |
+| § 3 | `items[].identity` holds exactly the fields that the `key` of its result names | Both are members of one result, but `identity` is free JSON, and no invariant reads the names of the members of a JSON value |
 | 3 | At most one result per `output`, `scope`, `item`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
 | 4 | `passed` plus `failed` is at most `executed` | A comparison reads no sum of two facts (item 10) |
 | 4 | `not_executed`, where present, has one entry per unit of `skipped`, `not_run`, and `unsupported` | The rule counts the entries of a list by the value of a member and compares the count with a field |

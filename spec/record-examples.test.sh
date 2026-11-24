@@ -24,6 +24,10 @@
 # `ratchet.evidence.MeasurementResult`; an array of objects with `state` is a list of
 # `ratchet.evidence.NotExecutedUnit`. An example of another shape fails.
 #
+# § 6 holds 3 examples, each a block fenced `json`; `want_examples` below states the number.
+# Another number fails, and so does a fenced block of § 6 that is not fenced `json`, because
+# this script does not read it, and a document without a section "## 6. ".
+#
 # Usage:
 #   sh spec/record-examples.test.sh                       the examples of § 6
 #   sh spec/record-examples.test.sh --json <type> <file>  one JSON file against one type
@@ -31,12 +35,15 @@
 #
 # Exit 0: the last line is
 #   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`.
-# Exit 1: each member that does not decode is named with its example and path.
+# Exit 1: each member that does not decode is named with its example and path; or § 6 is not
+# found, holds another number of examples than stated, or holds a fenced block that is not read.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 doc=$root/docs/evidence-format.md
 work=$root/target/record-examples
+# The number of examples of docs/evidence-format.md § 6.
+want_examples=3
 
 command -v jq > /dev/null 2>&1 || { echo "record-examples: jq is not installed" >&2; exit 1; }
 
@@ -68,16 +75,46 @@ if [ "${1:-}" = "--json" ]; then
   examples=1
 else
   [ -r "$doc" ] || { echo "record-examples: cannot read docs/evidence-format.md" >&2; exit 1; }
+  # The blocks of § 6: one file per block fenced `json`; a line in unread.txt per block fenced
+  # otherwise, and per block that does not close.
+  : > "$work/unread.txt"
+  : > "$work/section.txt"
   awk -v dir="$work" '
-    /^## / { section = ($0 ~ /^## 6\. /) }
+    /^## / {
+      if (inside) { printf "the block that opens at line %d does not close inside § 6\n", opened >> (dir "/unread.txt"); close(out); inside = 0 }
+      skipping = 0
+      section = ($0 ~ /^## 6\. /)
+      if (section) print NR > (dir "/section.txt")
+    }
     !section { next }
-    /^```json$/ { n++; out = dir "/example-" n ".json"; printf "" > out; inside = 1; next }
-    /^```$/ && inside { close(out); inside = 0; next }
+    /^ *(```|~~~)/ {
+      if (inside) { if ($0 ~ /^```$/) { close(out); inside = 0 } else print > out; next }
+      if (skipping) { skipping = 0; next }
+      if ($0 ~ /^```json$/) { n++; out = dir "/example-" n ".json"; printf "" > out; inside = 1; opened = NR; next }
+      fence = $0; sub(/^ */, "", fence)
+      printf "line %d: a block fenced \"%s\"\n", NR, fence >> (dir "/unread.txt")
+      skipping = 1
+      next
+    }
     inside { print > out }
+    END { if (inside) printf "the block that opens at line %d does not close\n", opened >> (dir "/unread.txt") }
   ' "$doc"
+  [ -s "$work/section.txt" ] || { echo "record-examples: docs/evidence-format.md has no section \"## 6. \", which holds the examples"; exit 1; }
+  if [ -s "$work/unread.txt" ]; then
+    sed 's/^/not read: § 6, /' "$work/unread.txt"
+    echo "record-examples: § 6 of docs/evidence-format.md holds a fenced block this script does not read; an example is fenced \`json\`"
+    exit 1
+  fi
+  found=0
+  for f in "$work"/example-*.json; do
+    [ -r "$f" ] && found=$((found + 1))
+  done
+  if [ "$found" -ne "$want_examples" ]; then
+    echo "record-examples: § 6 of docs/evidence-format.md holds $found example(s), and spec/record-examples.test.sh states $want_examples"
+    exit 1
+  fi
   examples=0
   for f in "$work"/example-*.json; do
-    [ -r "$f" ] || { echo "record-examples: § 6 of docs/evidence-format.md holds no json block"; exit 1; }
     examples=$((examples + 1))
     label="§ 6 example $examples"
     type=$(jq -r '

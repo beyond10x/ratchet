@@ -1,7 +1,7 @@
 # Ratchet
 
 **Proposed repository:** `beyond10x/ratchet`  
-**Status:** Design proposal, revision 4 (2026-11-24), with the nine points taken for 0.1.0 on the same day (§ 12)  
+**Status:** Design proposal, revision 4 (2026-11-24), with the twelve points taken for 0.1.0 on the same day (§ 12)  
 **Evidence:** revision 2 was revised from survey 1 of 2026-11-23 ([synthesis](../research/synthesis.md), [consumer input from `ux-ui`](../research/consumer-input-ux-ui.md)); § 8 lists those changes. Revision 3 was revised from two drafts written against revision 2: five worked examples ([`examples/`](https://github.com/beyond10x/ratchet/blob/main/examples/README.md)) and the ESS specification of Ratchet’s own domain ([`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md)). § 10 lists each change and its cause. Revision 4 was revised from those examples as rewritten to revision 3 (`examples/README.md` at commit `a94ab83`, [section “New gaps”](https://github.com/beyond10x/ratchet/blob/a94ab83f8afb6dcbb8d987a907b41d93039b535d/examples/README.md#new-gaps)): four more gaps, G26 to G29, and the places where revision 3 contradicted itself. § 11 lists each change and its cause. § 9 lists the questions left to the owner: D1 to D4 are decided, and D5 and D6 are open with a default each.
 
 Ratchet specifies how to specify software quality. It defines a versioned YAML format for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. The repository ships the specification, a CLI, a catalog of reusable YAML presets, and assessors that run or wrap existing tools. An agent or developer can use the same format to add a measurement specific to their repository.
@@ -600,7 +600,7 @@ Requirements tend to stay in that state. In 6 answers a written time budget was 
 
 ### Gate entries, deciding evidence, and gate kinds
 
-An entry of `requires` is a requirement name, which means enforce, or a map with `requirement`, `mode`, `since`, and `when`. A gate lists a requirement once, so `<gate>/<requirement>` identifies an entry.
+An entry of `requires` is a requirement name, which means enforce, or a map with `requirement`, `mode`, `since`, and `when`. A map without `mode` means enforce too, as the entry of `generated-docs-current` in the `merge` gate of § 3 does. A gate lists a requirement once, so `<gate>/<requirement>` identifies an entry.
 
 **An entry can apply to some changes.** `when: {changed: [paths]}` makes the entry apply when the change touches a listed path. The change is the difference between the trusted revision and the candidate. One answer runs a full regeneration only when its sources changed (runbook B1). The path list is policy and is read from the trusted revision. An entry that does not apply is not applicable. A path list that misses a source lets a stale file through, so the same requirement belongs without `when` in a later gate, as `promote` shows in § 3.
 
@@ -1040,7 +1040,7 @@ A plan’s `inputs` are part of the specification, which is read from the truste
 
 ## 12. Taken for 0.1.0
 
-Nine points were taken on 2026-11-24 with the specification change that precedes the first generated code. The revision number stays 4: no section was rewritten, and each point is written where it belongs. Each is reversible before the first release.
+Twelve points were taken on 2026-11-24 with the specification change that precedes the first generated code. The revision number stays 4: no section was rewritten, and each point is written where it belongs. The last three are rules for reading a `ratchet/1` file, and they are written in this table and in the README of the specification alone. Each is reversible before the first release.
 
 | Taken | Where | Cause |
 | --- | --- | --- |
@@ -1053,3 +1053,6 @@ Nine points were taken on 2026-11-24 with the specification change that precedes
 | A requirement with no qualifying run is insufficient evidence with the new cause `evidence_missing` | § 5 (“Verdicts”) | The closed list named no cause for it |
 | Without `[records]`, or with a `store` that names no path, the local record directory is `.ratchet/records` under the root | § 5 (“Local config”), § 6 | “Records of a local run stay on the machine” named no place |
 | `ratchet assess` reports the error `candidate_unresolved` and records no run for a plan whose candidate it cannot resolve | § 5 (“Proposed CLI”); `docs/evidence-format.md` § 10 | The format said that the command reports an error there and named none |
+| A requirement may leave `serves` out, and an absent `serves` is the empty list | This table; spec README (“How a `ratchet/1` file differs from the declared entities”) | The illustrative YAML of § 3 and the five examples write requirements without `serves`, and no sentence said what the list then is |
+| A number in a `ratchet/1` file is the decimal of its text as written: `max: 2.125` is `2.125`, and it never passes through a binary float. A scalar in exponent form or with a sign `+` is refused. A quoted decimal text is accepted and means the same. | This table; spec README (the same section) | The files write a limit, a tolerance, and a load bound as a YAML number, and the records hold a decimal as text |
+| A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created`, and `expires` are the text of the scalar, quoted or plain. | This table; spec README (the same section) | The files write a date as a plain scalar, and a YAML 1.1 reader takes that scalar as a date |

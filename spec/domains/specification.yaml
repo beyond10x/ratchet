@@ -29,7 +29,10 @@ types:
     kind: newtype
     of: String
     naming:
-      summary: An ISO 8601 calendar date, `2026-12-15`, as `expires:`, `created:` and `since:` spell it.
+      summary: >-
+        An ISO 8601 calendar date, `2026-12-15`, as `expires:`, `created:` and `since:` spell it.
+        It is the text of the scalar, quoted or plain: a `ratchet/1` file is read by the YAML 1.2
+        core schema, which has no date type (docs/design.md § 12).
 
   - name: ratchet.specification.StatementName
     kind: newtype
@@ -282,9 +285,9 @@ types:
     kind: struct
     naming:
       summary: >-
-        The exact set of executed item ids that qualifies, as a list or as `{file: <path>}`
-        read from the trusted revision (§ 3). The design's bare list is written `{ids: [...]}`
-        here: an ESS shorthand stands only for a scalar.
+        The exact set of executed item ids that qualifies, as `{ids: [...]}` or as
+        `{file: <path>}` read from the trusted revision (§ 3). The list takes the key `ids` and
+        is never written bare: an ESS shorthand stands only for a scalar.
     fields:
       - name: ids
         type: Optional<List<String>>
@@ -320,6 +323,9 @@ types:
     fields:
       - name: max
         type: Decimal
+        summary: >-
+          In a file, the decimal of the number's text as written: `max: 2.125` is `2.125`
+          (docs/design.md § 12).
 
   - name: ratchet.specification.ToolPin
     kind: struct
@@ -499,7 +505,9 @@ types:
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<Decimal>
-        summary: The limit; absent for `no_new_items`, `no_lost_items` and `holds`.
+        summary: >-
+          The limit; absent for `no_new_items`, `no_lost_items` and `holds`. In a file, the
+          decimal of the number's text as written (docs/design.md § 12).
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-
@@ -517,7 +525,8 @@ types:
       summary: >-
         The regression band against an accepted value: `{percent: 10}`, `{absolute: 30}` in the
         unit of the measurement, or both, and then the wider band applies (§ 3). 0 by default
-        for exact measurements; Ratchet ships no default band.
+        for exact measurements; Ratchet ships no default band. In a file, each number is the
+        decimal of its text as written (docs/design.md § 12).
     fields:
       - name: percent
         type: Optional<Decimal>
@@ -908,7 +917,9 @@ entities:
         summary: The requirement in plain words, which `ratchet explain` prints.
       - name: serves
         type: List<ratchet.specification.StatementName>
-        summary: The quality statements this requirement serves; empty when the YAML has no `serves`.
+        summary: >-
+          The quality statements this requirement serves. A file may leave `serves` out, and
+          the list is then empty (docs/design.md § 12).
       - name: assessment
         type: ratchet.specification.AssessmentName
       - name: measurement
@@ -994,7 +1005,8 @@ entities:
     naming:
       summary: >-
         One entry of a gate's `requires:` list: a requirement name, which means enforce, or a
-        map with `requirement`, `mode`, `since` and `when` (§ 5). A report-mode entry is
+        map with `requirement`, `mode`, `since` and `when` (§ 5). A map without `mode` means
+        enforce too. A report-mode entry is
         evaluated and shown with its verdict and does not block. An entry whose `when` does not
         match the change is not applicable: not evaluated, not blocking, and listed with the
         reason.
@@ -1009,7 +1021,9 @@ entities:
         type: ratchet.specification.RequirementName
       - name: mode
         type: ratchet.specification.GateMode
-        summary: "`enforce` when the YAML lists the bare requirement name."
+        summary: >-
+          `enforce` when the file lists the bare requirement name, and when it lists a map
+          without `mode` (§ 5).
       - name: since
         type: Optional<ratchet.specification.CalendarDate>
         summary: >-

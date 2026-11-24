@@ -22,7 +22,10 @@
 # Exit 0: the last line is
 #   `record-types: <n> of <n> field rows as declared, <m> of <m> declared fields have a row`.
 # Exit 1: each row or field that fails is named; a table or a Type cell this script has no rule
-# for fails too, and is never counted as checked.
+# for fails too, and is never counted as checked. So does a section that is not found, and a
+# table that is not found or holds another number of rows than `expect` below states for it:
+# 78 rows in the 13 tables of § 3 and 19 in the 2 tables of § 10. A section that moves to
+# another number, a header that changes, or a row that is added or deleted changes a count.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -39,6 +42,26 @@ awk '
   function is_text(t) { t = base(t); return t == "String" || kind[t] == "enum" }
   function is_struct(t) { return kind[t] == "struct" || kind[t] == "entity" }
   function fail(msg) { print msg; failed++ }
+  # expect(section, label, rows): the field table under `label` in that section holds `rows` rows.
+  function expect(sec, label, n) { want[sec SUBSEP label] = n; exp_sec[++nexp] = sec; exp_label[nexp] = label }
+
+  BEGIN {
+    expect(3, "### Top level", 3)
+    expect(3, "### `evidence`", 12)
+    expect(3, "### `evidence.target`", 6)
+    expect(3, "### `evidence.target.window`", 5)
+    expect(3, "### `evidence.inputs.<name>`", 3)
+    expect(3, "### `evidence.conditions`", 8)
+    expect(3, "### `evidence.coverage`", 12)
+    expect(3, "### `evidence.results[]`", 10)
+    expect(3, "A result of the value type `number`:", 5)
+    expect(3, "A result of the value type `identity_set`:", 4)
+    expect(3, "A result of the value type `digest` or `assertion`:", 2)
+    expect(3, "### `evidence.source`", 2)
+    expect(3, "### `run`", 6)
+    expect(10, "### Declaration `ratchet-assessor/1`", 12)
+    expect(10, "An output, `outputs.<name>`:", 7)
+  }
 
   # The declared type of the member a path names, from the type `t`; "" when a step does not
   # resolve. `why` is set to the reason, `holder` to the struct that declares the last field.
@@ -121,6 +144,7 @@ awk '
     section = 0
     if ($0 ~ /^## 3\. /) { section = 3; doc_root = "ratchet.evidence.AssessmentRun" }
     if ($0 ~ /^## 10\. /) { section = 10; doc_root = "ratchet.assessor.Assessor" }
+    if (section) found[section] = 1
     in_table = 0
   }
   section == 0 { next }
@@ -133,11 +157,16 @@ awk '
     else if (section == 10 && label ~ /^### Declaration `ratchet-assessor\/1`$/) prefix = ""
     else if (section == 10 && label == "An output, `outputs.<name>`:") prefix = "outputs.<name>."
     else { fail("no rule: the field table under \"" label "\" has no path in spec/record-types.test.sh"); known = 0 }
+    if (known && !((section SUBSEP label) in want)) {
+      fail("no rule: the field table under \"" label "\" in § " section " has no number of rows in spec/record-types.test.sh"); known = 0
+    }
+    tables[section SUBSEP label]++
     next
   }
   !/^\|/ { in_table = 0; next }
   in_table && !/^\| --- / {
     rows++
+    held[section SUBSEP label]++
     if (!known) next
     n = split($0, cell, / *\| */)
     name = cell[2]; type_cell = cell[3]; required = cell[4]
@@ -164,6 +193,15 @@ awk '
   }
 
   END {
+    if (!(3 in found)) fail("not found: docs/evidence-format.md has no section \"## 3. \", which holds the fields of `ratchet-evidence/1`")
+    if (!(10 in found)) fail("not found: docs/evidence-format.md has no section \"## 10. \", which holds the fields of `ratchet-assessor/1`")
+    for (i = 1; i <= nexp; i++) {
+      k = exp_sec[i] SUBSEP exp_label[i]
+      if (!(exp_sec[i] in found)) continue
+      if (tables[k] == 0) fail("not found: § " exp_sec[i] " has no field table under \"" exp_label[i] "\", and spec/record-types.test.sh states " want[k] " rows for it")
+      else if (tables[k] > 1) fail("rows: § " exp_sec[i] " has " tables[k] " field tables under \"" exp_label[i] "\", and spec/record-types.test.sh states one")
+      else if (held[k] + 0 != want[k]) fail("rows: the field table under \"" exp_label[i] "\" holds " (held[k] + 0) " rows, and spec/record-types.test.sh states " want[k])
+    }
     if (rows == 0) { print "record-types: no field row found in docs/evidence-format.md"; exit 1 }
     for (t in described) {
       for (i = 1; i <= count[t]; i++) {

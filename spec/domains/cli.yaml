@@ -13,7 +13,8 @@ summary: >-
 # or `LimitRow` in those that are (the gate report). ess-cli also refuses a struct that
 # declares invariants, so the coverage of a run is a `CoverageRow` here and not
 # `ratchet.evidence.EvidenceCoverage`. The row has every field of that struct and none of its
-# invariants; `spec/cli-coverage-row.test.sh` fails when a field is missing.
+# invariants; `spec/cli-coverage-row.test.sh` fails when a field is missing or has another
+# type, or when a result that reports coverage is not typed with the row.
 
 types:
   - name: ratchet.cli.Refusal
