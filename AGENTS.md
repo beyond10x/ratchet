@@ -124,6 +124,11 @@ The test budget (workspace `AGENTS.md` § "Tests stay fast"):
   steps of their own.
 - `.github/scripts/test-budget.test.sh` runs the task `test` with a stand-in for `cargo` and
   refuses a configuration or a task that lost one of the three: the 60 s, the 120 s, the list.
+- A runner of the forge sets `GITHUB_ACTIONS=true`, and `task` then prints a line
+  `::error title=Task '<name>' failed::exit status <n>` before its own
+  `task: Failed to run task ...` when a command fails. A script test that reads the output of
+  `task` makes each run with the variable unset and with `GITHUB_ACTIONS=true`, as
+  `test-budget.test.sh` does, so the gate on a workstation reads the lines the forge prints.
 
 No `.cargo/config.toml` exists: the workspace needs no setting of its own. Do not add `debug`, a
 compiler wrapper or a target directory there (workspace `AGENTS.md` § "One compile cache").

@@ -12,7 +12,9 @@
 #    is built. The stand-in prints twelve test lines in the form cargo-nextest prints them and
 #    exits as told. The task has to call `cargo nextest run` without naming another
 #    configuration file, print the ten slowest of the twelve, slowest first, after the line
-#    `test: the ten slowest tests`, and exit non-zero when the stand-in does.
+#    `test: the ten slowest tests`, and exit non-zero when the stand-in does. Each run is made
+#    twice: with GITHUB_ACTIONS unset and with GITHUB_ACTIONS=true, the environment of the forge,
+#    in which task prints one more line after a failed command.
 #
 # Each broken copy under the ignored target/test-budget-test/<case> holds the two files with one
 # of these missing, and has to be refused.
@@ -125,13 +127,29 @@ limits() {
   ' "$1"
 }
 
-# step <dir> <exit>: 0 when the task `test` of <dir> calls cargo nextest run, lists the ten
-# slowest tests and exits zero exactly when cargo nextest run exits <exit> = 0.
+# step <dir> <exit> <where>: 0 when the task `test` of <dir> calls cargo nextest run, lists the
+# ten slowest tests and exits zero exactly when cargo nextest run exits <exit> = 0.
+#
+# <where> is the environment `task` runs in. It is set here whatever the caller's is, so this
+# script makes the same runs on a workstation and on the forge:
+#   host   GITHUB_ACTIONS is unset. After a failed command task prints one line,
+#          `task: Failed to run task "test": exit status 100`.
+#   forge  GITHUB_ACTIONS=true, as a runner of the forge sets it. task then prints the line
+#          `::error title=Task 'test' failed::exit status 100` before that one.
 step() {
   : > "$work/calls"
   status=0
-  (cd "$1" && PATH="$work/bin:$PATH" BUDGET_CALLS="$work/calls" BUDGET_OUTPUT="$work/nextest-output" \
-    BUDGET_EXIT="$2" task test) > "$work/task-output" 2>&1 < /dev/null || status=$?
+  (
+    cd "$1" || exit 125
+    unset GITHUB_ACTIONS
+    if [ "$3" = forge ]; then
+      GITHUB_ACTIONS=true
+      export GITHUB_ACTIONS
+    fi
+    PATH="$work/bin:$PATH" BUDGET_CALLS="$work/calls" BUDGET_OUTPUT="$work/nextest-output" \
+      BUDGET_EXIT="$2" task test
+  ) > "$work/task-output" 2>&1 < /dev/null || status=$?
+  case $3 in forge) where='GITHUB_ACTIONS=true' ;; *) where='GITHUB_ACTIONS unset' ;; esac
   held=0
   if ! grep '^nextest run' "$work/calls" | grep -q -v -e '--no-run'; then
     echo "Taskfile.yml: the task test does not call cargo nextest run"; held=1
@@ -140,18 +158,19 @@ step() {
     echo "Taskfile.yml: the task test names another configuration file than .config/nextest.toml"; held=1
   fi
   if [ "$2" = 0 ] && [ "$status" != 0 ]; then
-    echo "Taskfile.yml: the task test exits $status when cargo nextest run exits 0"; held=1
+    echo "Taskfile.yml: the task test exits $status when cargo nextest run exits 0 ($where)"; held=1
   fi
   if [ "$2" != 0 ] && [ "$status" = 0 ]; then
-    echo "Taskfile.yml: the task test exits 0 when cargo nextest run exits $2"; held=1
+    echo "Taskfile.yml: the task test exits 0 when cargo nextest run exits $2 ($where)"; held=1
   fi
+  # The list ends at the first line task writes itself: `task: ...` or, on the forge, `::error ...`.
   awk -v header="$header" '
-    listing && /^task: / { exit }
+    listing && (/^task: / || /^::/) { exit }
     listing { print $1, $2, $3 }
     $0 == header { listing = 1 }
   ' "$work/task-output" > "$work/listed"
   if ! cmp -s "$work/listed" "$work/expected"; then
-    echo "Taskfile.yml: the task test does not print the ten slowest of the twelve tests after the line \"$header\" (cargo nextest run exits $2)"; held=1
+    echo "Taskfile.yml: the task test does not print the ten slowest of the twelve tests after the line \"$header\" (cargo nextest run exits $2, $where)"; held=1
   fi
   return $held
 }
@@ -160,8 +179,10 @@ step() {
 budget() {
   kept=0
   limits "$1/.config/nextest.toml" || kept=1
-  step "$1" 0 || kept=1
-  step "$1" 100 || kept=1
+  for environment in host forge; do
+    step "$1" 0 "$environment" || kept=1
+    step "$1" 100 "$environment" || kept=1
+  done
   return $kept
 }
 
