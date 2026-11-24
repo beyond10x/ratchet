@@ -59,8 +59,8 @@ specification, quality requirement, measurement, measurement kind (exact, sample
 identity set, assessment plan, assessor, target, evidence coverage, protected reference
 (generated, accepted value), ratchet policy (a reference's `adoption`), gate (including the
 operational gate), candidate, exception, trade-off, quality statement, preset, local config
-(`ratchet.toml`). A gate verdict is one of pass, fail, insufficient evidence; fail takes precedence
-over insufficient evidence.
+(`ratchet.toml`), local input, coverage unit. A gate verdict is one of pass, fail, insufficient
+evidence; fail takes precedence over insufficient evidence.
 
 ## Boundary
 
