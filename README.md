@@ -2,6 +2,8 @@
 
 Specify software quality, then keep it from going backwards.
 
+Documentation: https://beyond10x.github.io/ratchet/
+
 Ratchet defines a versioned YAML format for declaring what quality means for a project, how to
 assess it, and what evidence a candidate must produce before it can advance. A requirement such as
 "search p95 below 100 ms" or "no new analyzer findings" is bound to an assessor, a target and a
