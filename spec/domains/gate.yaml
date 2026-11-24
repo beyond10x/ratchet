@@ -25,10 +25,49 @@ types:
     kind: enum
     variants: [pass, fail, insufficient_evidence]
 
-  # § 5 "Verdicts": the causes are a closed list. The first seven are causes of a fail (next
-  # step on the candidate, or on the system in an operational gate), the rest causes of
-  # insufficient evidence (next step on the assessment). `too_few_samples` covers a window with
-  # fewer items than `min_samples` (§ 3).
+  # § 5 "Verdicts": the causes are a closed list in two parts. `FailCause` holds the causes of a
+  # fail (next step on the candidate, or on the system in an operational gate).
+  # `InsufficientEvidenceCause` holds the causes of insufficient evidence (next step on the
+  # assessment); an assessment run names one of them on an incomplete result
+  # (`ratchet.evidence.Incomplete`). `VerdictCause` is the two lists together, in that order,
+  # for a row that holds either; an invariant of `RequirementVerdict` ties its cause to the
+  # list of its verdict.
+  - name: ratchet.gate.FailCause
+    kind: enum
+    variants:
+      - limit_crossed
+      - regression
+      - new_items
+      - lost_items
+      - assertion_not_held
+      - generated_reference_differs
+      - stale_reference_not_adopted
+
+  # `too_few_samples` covers a window with fewer items than `min_samples` (§ 3).
+  # `incompatible_target` also covers a run whose assessor refused its inputs
+  # (docs/evidence-format.md E9). `reference_missing` also covers a scope item the evidence
+  # holds and the reference does not, and `coverage_below_plan` a scope item the reference holds
+  # and the evidence does not (§ 5 "Verdicts"). `evidence_missing`: the requirement has no
+  # qualifying run for the candidate, or in an operational gate for the window; a name this
+  # specification adds, because § 5 named no cause for it.
+  - name: ratchet.gate.InsufficientEvidenceCause
+    kind: enum
+    variants:
+      - too_few_samples
+      - assessor_timed_out
+      - assessor_infrastructure_failure
+      - stale_telemetry
+      - incompatible_target
+      - conditions_outside_declared
+      - coverage_below_plan
+      - tool_mismatch
+      - reference_missing
+      - reference_not_comparable
+      - not_attributable_to_candidate
+      - not_assessable_here
+      - skipped_locally
+      - evidence_missing
+
   - name: ratchet.gate.VerdictCause
     kind: enum
     variants:
@@ -52,6 +91,7 @@ types:
       - not_attributable_to_candidate
       - not_assessable_here
       - skipped_locally
+      - evidence_missing
 
   # § 5: a non-pass "says whether the next step is on the candidate or on the assessment". An
   # operational gate has no candidate: the next step of a fail there is on the host or the
@@ -222,6 +262,36 @@ entities:
         type: ratchet.gate.ProofStatus
     invariants:
       - any: ["entry_state == evaluated", "not defined(verdict)"]
+      # Every verdict that is not a pass has a cause. A fail names a cause of `FailCause`,
+      # insufficient evidence one of `InsufficientEvidenceCause`.
+      - any: ["not defined(verdict)", "verdict == pass", "defined(cause)"]
+      - any:
+          - "verdict != fail"
+          - cause:
+              - limit_crossed
+              - regression
+              - new_items
+              - lost_items
+              - assertion_not_held
+              - generated_reference_differs
+              - stale_reference_not_adopted
+      - any:
+          - "verdict != insufficient_evidence"
+          - cause:
+              - too_few_samples
+              - assessor_timed_out
+              - assessor_infrastructure_failure
+              - stale_telemetry
+              - incompatible_target
+              - conditions_outside_declared
+              - coverage_below_plan
+              - tool_mismatch
+              - reference_missing
+              - reference_not_comparable
+              - not_attributable_to_candidate
+              - not_assessable_here
+              - skipped_locally
+              - evidence_missing
     relations:
       - name: requirement
         kind: references

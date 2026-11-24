@@ -20,7 +20,7 @@ assessments:
       conditions:
         all:
           tools: {rustc: {pin: rust-toolchain.toml}}
-      coverage: {executed: 4, skipped: 0}
+      coverage: {executed: {min: 4}, skipped: {max: 0}}
     measurements:
       findings:
         kind: exact
@@ -35,7 +35,7 @@ assessments:
     observation:
       kind: snapshot
       command: task check:unreferenced
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       findings:
         kind: exact
@@ -50,7 +50,7 @@ assessments:
     target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       findings:
         kind: exact
@@ -65,7 +65,7 @@ assessments:
     target: {kind: deployment, environments: [staging]}
     observation:
       kind: snapshot
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       passing-cases:
         kind: exact

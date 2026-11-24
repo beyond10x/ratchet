@@ -16,6 +16,9 @@ How to read them:
   case is listed under [New gaps](#new-gaps).
 - Some values are not shown in the design. They are listed under
   [Values not shown in the design](#values-not-shown-in-the-design).
+- A coverage bound is written `{min: 30}` or `{max: 0}`, and an adoption `{from: same_change}`.
+  The bare number and the bare word of earlier revisions are not part of 0.1.0 (design § 12,
+  taken 2026-11-24).
 - Every number comes from a survey answer. `ux-ui B5` means
   [`research/responses/ux-ui.md`](https://github.com/beyond10x/ratchet/blob/main/research/responses/ux-ui.md),
   question B5. `F5` is a finding in
@@ -53,7 +56,7 @@ How to read them:
   measurements read that one run: steps and layout shift against accepted values, actions per fix
   and cue accuracy against fixed limits, and page-scoped findings of two severities compared by
   identity against an accepted set.
-- `executed: 30` counts walks, the coverage unit of `ux-eval@1` (§ 3, evidence coverage). The plan
+- `executed: {min: 30}` counts walks, the coverage unit of `ux-eval@1` (§ 3, evidence coverage). The plan
   has one set of counts, whatever the scope of a measurement. A scenario is a scope item and holds
   the values. A walk is what the assessor counts as executed.
 - The layout shift has no unit. Its measurement carries no `unit`, and its tolerance of 0.01 is a
@@ -67,7 +70,7 @@ the fold".
 | In the file | Source |
 | --- | --- |
 | every task completes (`completion_miss` = 0) | ux-ui B5 |
-| `not_run: 0` on the completion plan | ux-ui C1 (2 of 3 sub-tasks never done, counted as no miss) |
+| `not_run: {max: 0}` on the completion plan | ux-ui C1 (2 of 3 sub-tasks never done, counted as no miss) |
 | 30 walks, 14 metrics each, in one run | ux-ui B4 |
 | steps, tolerance 5 % | ux-ui B5 |
 | layout shift, tolerance 0.01 | ux-ui B5; spindle B5; slot B5 |
@@ -120,10 +123,10 @@ One reference change per loosened requirement names the trade-off.
   (ux-ui B6).
 - The round measured 20 of 74 gating tests red and filed 12 findings (ux-ui B4). The first adoption
   of those 12 is a change of its own, merged before a candidate is judged by them (D2).
-- A sub-task that is never done is reported as not run. `not_run: 0` then makes that run
+- A sub-task that is never done is reported as not run. `not_run: {max: 0}` then makes that run
   insufficient evidence with the cause `coverage_below_plan`, not a held assertion. This reads the
   coverage unit of `ess-ui-report@1` as a task.
-- A run that executes 29 walks is below `executed: 30`: insufficient evidence with the cause
+- A run that executes 29 walks is below `executed: {min: 30}`: insufficient evidence with the cause
   `coverage_below_plan`, for every requirement of the plan.
 - A run of 30 walks that has no value for one scenario of the reference: `steps-do-not-rise` and
   `layout-shift-does-not-rise` return insufficient evidence with the cause `coverage_below_plan`,
@@ -326,7 +329,7 @@ a permanent false positive, and an accepted item, not an exception.
 - In CI the three source checks return insufficient evidence with the cause `not_assessable_here`
   (§ 3). They are not left out and not passed.
 - The lint run executes 3 crates: insufficient evidence with the cause `coverage_below_plan`.
-  `executed: 4` counts crates, read here as the coverage unit of `clippy-report@1`.
+  `executed: {min: 4}` counts crates, read here as the coverage unit of `clippy-report@1`.
 
 **Left out.**
 
@@ -377,8 +380,8 @@ documents, specification, generated files and code say the same thing.
   requirement, and a fail from either blocks (D3).
 
 **Left out.** The number of scenario files; canon B6 gives none, so the slow lane declares no
-`executed`. `executed: 18` is a minimum. Exactly 18 is `{min: 18, max: 18}`. It counts files, read
-here as the coverage unit of `generator-check@1`.
+`executed`. `executed: {min: 18}` is a minimum. Exactly 18 is `{min: 18, max: 18}`. It counts
+files, read here as the coverage unit of `generator-check@1`.
 
 ## 5. Insufficient evidence on a host-caused limit
 
@@ -387,7 +390,7 @@ here as the coverage unit of `generator-check@1`.
 **Checks.** One plan runs `task test` once and gives two measurements: the test steps within 120 s
 and each test within 60 s, as run time without queue wait. The conditions are per target class: a
 bound on host load for the workstation, a runner for CI. Either class can clear the gate.
-`skipped: 0` counts tests, the coverage unit of `command-timing@1` (§ 3), once for the run and for
+`skipped: {max: 0}` counts tests, the coverage unit of `command-timing@1` (§ 3), once for the run and for
 both measurements.
 
 **Audience.** Coding agents and developers. swell E3: "the gate takes longer or its verdict depends
@@ -459,8 +462,15 @@ workstation checkout of example 5.
   assessment run records the resolved path. The path is the illustration of § 5: the pool prints
   queue wait per job (swell B2) and another answer names the log `jobs.jsonl` (slot B2). A key
   there for an input that is not local is refused with `input_not_local`.
-- The catalog source is this repository. `presets/` does not exist in it yet, and `<commit>` is
-  not a commit, so the entry resolves to nothing.
+- The first catalog source is this repository. `presets/` does not exist in it yet, and
+  `<commit>` is not a commit, so the entry resolves to nothing.
+- The second catalog source has no `git`: it is the directory `quality/assessors` of the checkout,
+  relative to the root. The declaration of an assessor is a file there, such as
+  `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory is an illustration and
+  is not in this repository.
+- `[records] store` names the ref that holds the series, and no path. The records of a local run
+  are therefore kept in `.ratchet/records` under the root, as they are without the section (§ 5,
+  local config; § 6).
 
 ## Decisions D1 to D6
 
@@ -518,6 +528,7 @@ is in this file at commit `b7cd992`,
 [section "Design gaps found"](https://github.com/beyond10x/ratchet/blob/b7cd992deb4192ef8c4d0f89b0f6c12604b68999/examples/README.md#design-gaps-found).
 
 - **G1. Ratchet policy.** `reference.adoption`: `same_change`, or `{from, runs, aggregation}`. § 5.
+  Since 2026-11-24 the first is written `{from: same_change}` (§ 12).
 - **G2. Reference record.** Fields, one illustrative record, one file per requirement. § 3, § 5;
   the place is D1.
 - **G3. Trade-off.** A record of its own with `gains` and `loosens`, each entry
@@ -533,7 +544,8 @@ is in this file at commit `b7cd992`,
 - **G9. An assertion as a measurement.** Assertion is a value type, with the operator `holds`.
   § 3, § 7.
 - **G10. Coverage keys.** `executed`, `skipped`, `not_run`, `unsupported` and `executed_ids`; a
-  bare number is a minimum for `executed` and a maximum for the others. § 3.
+  bare number is a minimum for `executed` and a maximum for the others. § 3. Since 2026-11-24 a
+  bound is written `{min: N}` or `{max: N}` (§ 12).
 - **G11. A filter on findings.** `filter` on a measurement of an identity set. § 3.
 - **G12. An acceptance without a date.** An item of an accepted set can carry `reason` and
   `owner`. § 5. An exception that ends at an event: D4, a date only.
@@ -582,7 +594,7 @@ The full text of each gap is in this file at commit `a94ab83`,
 
 Revision 4 also resolves two things these examples carried as notes: a number without a unit takes
 no `unit`, so `unit: score` is gone from example 1 (§ 3, comparisons), and a walk is a coverage unit
-and not a scenario, so `executed: 30` has a source (§ 3; ux-ui B4).
+and not a scenario, so `executed: {min: 30}` has a source (§ 3; ux-ui B4).
 
 ## New gaps
 

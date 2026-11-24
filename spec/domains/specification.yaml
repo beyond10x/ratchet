@@ -207,10 +207,12 @@ types:
     kind: enum
     variants: [snapshot, controlled_run, time_window]
 
-  # § 3 value lists: Ratchet, closed.
+  # § 3 value lists: Ratchet, closed. `document` is one file identified by the digest of its
+  # bytes, committed or not: a design variant, an `ess-ui/1` document, a report
+  # (docs/evidence-format.md E1, decided A).
   - name: ratchet.specification.TargetKind
     kind: enum
-    variants: [revision, build, deployment, workflow_run, telemetry_population]
+    variants: [revision, build, deployment, workflow_run, telemetry_population, document]
 
   # § 3 value lists: `environments`, Ratchet, closed.
   - name: ratchet.specification.TargetClass
@@ -247,13 +249,16 @@ types:
         # (`search-ui`, `test-step`) and the design states no default. Read here as `candidate`
         # when absent; open question for the owner.
 
+  # The bare spellings of design § 3 and § 5 (`skipped: 0`, `adoption: same_change`) are not
+  # declared in 0.1.0: the ESS Rust target decodes a struct from its object only and refuses a
+  # `shorthand:`. `MinimumBound`, `MaximumBound` and `RatchetPolicy` are therefore written in
+  # the long form. A shorthand added later admits every document written in the long form.
   - name: ratchet.specification.MinimumBound
     kind: struct
-    shorthand: min
     naming:
       summary: >-
-        The coverage bound on `executed`: a bare number is a minimum, `{min, max}` states both
-        (§ 3 "Evidence coverage").
+        The coverage bound on `executed`, `{min: 3}`: `min` is required and `{min, max}` states
+        both (§ 3 "Evidence coverage").
     fields:
       - name: min
         type: Integer
@@ -262,11 +267,10 @@ types:
 
   - name: ratchet.specification.MaximumBound
     kind: struct
-    shorthand: max
     naming:
       summary: >-
-        The coverage bound on `skipped`, `not_run` and `unsupported`: a bare number is a
-        maximum, `{min, max}` states both (§ 3 "Evidence coverage").
+        The coverage bound on `skipped`, `not_run` and `unsupported`, `{max: 0}`: `max` is
+        required and `{min, max}` states both (§ 3 "Evidence coverage").
     fields:
       - name: max
         type: Integer
@@ -528,11 +532,10 @@ types:
 
   - name: ratchet.specification.RatchetPolicy
     kind: struct
-    shorthand: from
     naming:
       summary: >-
         The ratchet policy of a requirement: the `adoption` of its reference (§ 1, § 5).
-        `same_change` (the bare word) has the candidate write the better value with
+        `{from: same_change}` has the candidate write the better value with
         `ratchet reference adopt`, verified against its own qualifying evidence; the default
         for exact measurements. `{from: trusted_revision, runs: N, aggregation}` takes the
         aggregation of the last N qualifying runs on the trusted revision; the default for
@@ -681,17 +684,15 @@ types:
     kind: struct
     naming:
       summary: >-
-        One declared input of an assessor or a preset (§ 4): a name, a type, whether it is
-        required, a default, and whether it is local. A plan passes the assessor inputs that
-        are not local as `inputs`, a binding passes preset inputs as `with`, and
-        `ratchet validate` checks names and types against the declaration. A local input has
-        the type `path` and is not a list.
+        One declared input of an assessor or a preset (§ 4), an entry of `inputs` under the
+        input's name: a type, whether it is required, a default, and whether it is local. A
+        plan passes the assessor inputs that are not local as `inputs`, a binding passes preset
+        inputs as `with`, and `ratchet validate` checks names and types against the
+        declaration. A local input has the type `path` and is not a list.
     invariants:
       - any: ["not defined(local)", "local == false", "type == path"]
       - any: ["not defined(local)", "local == false", "not defined(list)", "list == false"]
     fields:
-      - name: name
-        type: String
       - name: type
         type: ratchet.specification.InputType
       - name: list
@@ -1106,10 +1107,10 @@ entities:
       - name: version
         type: String
       - name: inputs
-        type: List<ratchet.specification.InputDeclaration>
+        type: Map<String, ratchet.specification.InputDeclaration>
         summary: >-
-          The declared inputs, with the shape of an assessor's inputs, none of them local
-          (`preset_input_local`).
+          The declared inputs by name, with the shape of an assessor's inputs, none of them
+          local (`preset_input_local`).
     lifecycle:
       initial: Declared
       states: [Declared]

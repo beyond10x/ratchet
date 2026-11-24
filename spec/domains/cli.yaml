@@ -8,8 +8,11 @@ summary: >-
 # ess-cli projects String, Boolean, Integer, enums, unconstrained newtypes and structs,
 # Optional, List, string-keyed Map, and Json in results only, never in error data. A Timestamp
 # is therefore written here as RFC 3339 text and a decimal as its exact text (§ 5 "Typed
-# reports"). A measured value is the JSON of `ratchet.evidence.MeasuredValue` in results that
-# are never error data, and a `ValueRow` or `LimitRow` in those that are (the gate report).
+# reports"). A measured value is the JSON of the value members of a
+# `ratchet.evidence.MeasurementResult` in results that are never error data, and a `ValueRow`
+# or `LimitRow` in those that are (the gate report). ess-cli also refuses a struct that
+# declares invariants, so the coverage counts of a run are a `CoverageRow` here and not
+# `ratchet.evidence.EvidenceCoverage`.
 
 types:
   - name: ratchet.cli.Refusal
@@ -54,6 +57,28 @@ types:
         type: Optional<String>
       - name: unit
         type: Optional<ratchet.specification.Unit>
+
+  - name: ratchet.cli.CoverageRow
+    kind: struct
+    naming:
+      summary: >-
+        The coverage counts of a run with their unit, as `ratchet.evidence.EvidenceCoverage`
+        holds them, without the lists of ids (§ 3 "Evidence coverage").
+    fields:
+      - name: unit
+        type: ratchet.assessor.CoverageUnit
+      - name: executed
+        type: Integer
+      - name: skipped
+        type: Integer
+      - name: not_run
+        type: Integer
+      - name: unsupported
+        type: Integer
+      - name: passed
+        type: Integer
+      - name: failed
+        type: Integer
 
   # init ---------------------------------------------------------------------------------------
   - name: ratchet.cli.InitInput
@@ -177,11 +202,14 @@ types:
         type: ratchet.specification.MeasurementKind
       - name: scope
         type: ratchet.specification.Scope
-      - name: scope_item
+      - name: item
         type: Optional<String>
+        summary: The scope item; absent at the scope `run`.
       - name: value
         type: Json
-        summary: A `ratchet.evidence.MeasuredValue`.
+        summary: >-
+          The value members of the `ratchet.evidence.MeasurementResult`: `value_type` and the
+          members of that type, with `incomplete` where the result has it.
 
   - name: ratchet.cli.RunSummary
     kind: struct
@@ -192,11 +220,15 @@ types:
         type: ratchet.specification.AssessmentName
       - name: completion
         type: ratchet.evidence.RunCompletion
-        summary: "`skipped_locally` is reported as \"skipped locally by ratchet.toml\" (§ 5)."
+        summary: >-
+          `skipped_locally` is reported as "skipped locally by ratchet.toml" (§ 5). An assessor
+          that exits 1 is recorded as `refused_inputs`; one that exits with another non-zero
+          status, ends on a signal or leaves no valid document as `stopped_by_infrastructure`
+          (`ratchet.assessor.AssessorExit`).
       - name: target_class
         type: ratchet.specification.TargetClass
       - name: coverage
-        type: ratchet.evidence.EvidenceCoverage
+        type: ratchet.cli.CoverageRow
       - name: results
         type: List<ratchet.cli.ResultRow>
       - name: local_inputs
@@ -228,7 +260,8 @@ types:
         type: Optional<ratchet.specification.Revision>
         summary: >-
           The trusted revision whose policy and accepted references judge the candidate, such
-          as `main` (§ 5 rule 1).
+          as `main` (§ 5 rule 1). Absent: the policy is read at the merge base of `HEAD` and
+          `origin/main` (§ 5 "Proposed CLI").
 
   - name: ratchet.cli.WindowRow
     kind: struct
@@ -243,10 +276,10 @@ types:
         type: String
       - name: items
         type: Integer
-      - name: newest_item_at
+      - name: newest_at
         type: Optional<String>
-      - name: runs_left_out
-        type: Optional<Integer>
+      - name: left_out
+        type: Integer
 
   - name: ratchet.cli.VerdictRow
     kind: struct
@@ -290,7 +323,7 @@ types:
       - name: reference_stale
         type: Boolean
       - name: coverage
-        type: Optional<ratchet.evidence.EvidenceCoverage>
+        type: Optional<ratchet.cli.CoverageRow>
       - name: conditions
         type: Optional<Map<String, String>>
       - name: evidence
@@ -369,7 +402,10 @@ types:
     fields:
       - name: requirement
         type: Optional<ratchet.specification.RequirementName>
-        summary: One requirement; every requirement with a stale reference by default.
+        summary: >-
+          One requirement; every requirement with a stale reference by default. A requirement
+          named here that holds a `condition` and no `reference` is refused with
+          `requirement_without_reference`: it has no reference to propose or adopt.
       - name: gains
         type: Optional<List<ratchet.specification.RequirementName>>
         summary: Present for a trade-off, the requirements whose gain it buys (§ 5).

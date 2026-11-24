@@ -2,7 +2,10 @@
 paths = ["host-caused-limit.ratchet.yaml"]
 
 [catalog]
-sources = [{ git = "https://github.com/beyond10x/ratchet", rev = "<commit>", path = "presets" }]
+sources = [
+  { git = "https://github.com/beyond10x/ratchet", rev = "<commit>", path = "presets" },
+  { path = "quality/assessors" },
+]
 
 [records]
 store = "git:refs/ratchet/records"

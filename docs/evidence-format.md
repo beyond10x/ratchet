@@ -1,10 +1,10 @@
 # Evidence format `ratchet-evidence/1`
 
-**Status:** Design proposal, revision 2, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)); § 10 and items 18 to 25 of § 8 are against revision 4. Field names and shapes are proposals, as in the design. The six questions E1 to E6 are decided, all A (the owner's delegate, 2026-11-24). The three questions E7 to E9 are open, and the document is written under their defaults.
+**Status:** Design proposal, revision 2, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)); § 10 and items 18 to 25 of § 8 are against revision 4. Field names and shapes are proposals, as in the design. The six questions E1 to E6 are decided, all A (the owner's delegate, 2026-11-24). The three questions E7 to E9 are taken as A for 0.1.0, 2026-11-24: the defaults the document is written under. Since that day the specification declares both formats, and § 8 says for each of its items how.
 
 An assessment run is an entity of the specification and a row of the records table (design § 6). Neither says how a run is written to a file. The first assessor built against the design, `ux-static@1` of the [`uxui`](https://github.com/beyond10x/uxui) repository, wrote a shape of its own, `ratchet-evidence/draft`, and reported nine gaps, U1 to U9 ([consumer input](../research/consumer-input-ux-ui.md), section “Second input”). This document names the format, lists every field, decides the gaps, and maps the draft onto the format. Six decisions were the owner’s: E1 to E6 in § 5.
 
-**Revision 2.** The consumer then wrote `ratchet-evidence/1` from this document and raised 13 questions, Q1 to Q13. Each answer is written into the rule or the field it belongs to, and § 11 lists where. Two things the questions asked for are new: how Ratchet starts an assessor, and how an assessor is declared (§ 10). Three choices are the owner’s: E7 to E9 in § 5, each with a default.
+**Revision 2.** The consumer then wrote `ratchet-evidence/1` from this document and raised 13 questions, Q1 to Q13. Each answer is written into the rule or the field it belongs to, and § 11 lists where. Two things the questions asked for are new: how Ratchet starts an assessor, and how an assessor is declared (§ 10). Three choices are the owner’s: E7 to E9 in § 5, each with a default, and each taken as A for 0.1.0.
 
 ## 1. Name, version, and file
 
@@ -41,7 +41,7 @@ Every digest is SHA-256 over bytes as they were written (U9). The format fixes n
 
 The column **From** says where a field comes from. `spec`: the field is in the specification with this meaning, and only its place in the JSON may differ. `changed`: it is in the specification with another name, type, or number. `new`: the specification does not have it. `§` is a section of the design. Specification types are in the domain `ratchet.evidence` unless they say otherwise.
 
-There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here.
+There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
 
 ### Top level
 
@@ -235,7 +235,7 @@ The consumer’s rules give one outcome per rule and node, in the terms of the W
 | cantTell | `unsupported`, with an entry in `not_executed` | The results of its scope item are incomplete, with the cause `coverage_below_plan`. A count becomes a lower bound. | Insufficient evidence, `coverage_below_plan`. A fail when the bound alone breaks the limit, or when an item that was found is new (E6). |
 | inapplicable | None. It is not a unit. | The scope item still has its results, both complete: a count of 0 and an empty set. An assertion has no result for it. | None of its own |
 
-A plan that declares `coverage: {unsupported: 0}` returns insufficient evidence as soon as one check is cantTell, for every requirement of the plan that no bound fails (E6). The counts per scope item, in the assessor’s own spelling, belong in `details`.
+A plan that declares `coverage: {unsupported: {max: 0}}` returns insufficient evidence as soon as one check is cantTell, for every requirement of the plan that no bound fails (E6). The counts per scope item, in the assessor’s own spelling, belong in `details`.
 
 **A scope item without a check** has one of two results, and the assessor knows which.
 
@@ -258,7 +258,7 @@ The assessor gives no verdict. It says why a result is incomplete, in the words 
 
 The line between the first two rows is what the assessor knows about the node. It cannot tell whether the node is there: `unsupported`. It can tell that the node is not there: `not_run`.
 
-Of the 13 causes, an assessor can observe seven: `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `coverage_below_plan`, and `tool_mismatch`. The other six are the gate’s. `completion` maps the same way: `timed_out` is `assessor_timed_out`, `stopped_by_infrastructure` is `assessor_infrastructure_failure`, `skipped_locally` is `skipped_locally`, and `refused_inputs` is `incompatible_target` (E9).
+Of the 14 causes, an assessor can observe seven: `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `coverage_below_plan`, and `tool_mismatch`. The other seven are the gate’s; one of them, `evidence_missing`, was added on 2026-11-24 for a requirement with no qualifying run (design § 5, “Verdicts”). `completion` maps the same way: `timed_out` is `assessor_timed_out`, `stopped_by_infrastructure` is `assessor_infrastructure_failure`, `skipped_locally` is `skipped_locally`, and `refused_inputs` is `incompatible_target` (E9).
 
 **One cause per result** (Q3). `incomplete.cause` holds one cause, because the verdict that reads it has one (design § 5). When several apply to one result, the assessor writes the first of them in this order, and `detail` names every one:
 
@@ -299,7 +299,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | --- | --- | --- |
 | A | cantTell is an `unsupported` unit. inapplicable is no unit. The counts per scope item stay in `details`. | Coverage alone does not tell a cantTell node from another unsupported unit; `not_executed` does. |
 | B | Adds the counts `cant_tell` and `inapplicable` to the evidence and to the plan’s `coverage` keys. | Six count keys for every assessor, two of which only a rule-based assessor uses. Changes design § 3. |
-| C | Counts cantTell as executed, with a third outcome beside passed and failed. | `executed` no longer means that the unit gave a result, and `unsupported: 0` no longer catches it. |
+| C | Counts cantTell as executed, with a third outcome beside passed and failed. | `executed` no longer means that the unit gave a result, and `unsupported: {max: 0}` no longer catches it. |
 
 **Decided: A** (2026-11-24). What would change the answer: a requirement that must bound cantTell apart from other unsupported units.
 
@@ -351,7 +351,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | Environment variables for the run (`RATCHET_PROJECT` and so on), and arguments for the inputs. | A run by hand reads variables that nobody set, and the command line alone does not repeat a run. The first assessor changes its command line. |
 | C | One request document, with its path as the only argument. | A third format beside the evidence and the declaration. The first assessor reads a file where it reads arguments today. |
 
-**Default: A.** The first assessor chose it, the command line is the whole request, and it is the spelling of the `ratchet` commands themselves (design § 5). What would change the answer: an input with more structure than a list, such as a matrix of conditions.
+**Default: A. Taken as A for 0.1.0, 2026-11-24.** The first assessor chose it, the command line is the whole request, and it is the spelling of the `ratchet` commands themselves (design § 5). What would change the answer: an input with more structure than a list, such as a matrix of conditions.
 
 ### E8. Where is an assessor declared? (Q11)
 
@@ -361,7 +361,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | The program prints its declaration when asked. | `ratchet validate` runs a program of this machine to check a plan, so what a plan may say is read from a local binary and not from the trusted revision. |
 | C | A block `assessors` in the project’s specification. | Every project that uses a packaged assessor copies its declaration, and `ratchet/1` gets a new top-level key. |
 
-**Default: A.** Design § 4 has the assessor declare its outputs, and the specification has the assessor as an entity of its own with a version. What would change the answer: assessors that only one project uses, where a second file is overhead.
+**Default: A. Taken as A for 0.1.0, 2026-11-24.** Where Ratchet looks for the file is decided with it: `<name>@<version>.assessor.yaml` in a source of `[catalog] sources` (§ 9; design § 5, “Local config”). Design § 4 has the assessor declare its outputs, and the specification has the assessor as an entity of its own with a version. What would change the answer: assessors that only one project uses, where a second file is overhead.
 
 ### E9. What is recorded when an assessor refuses its inputs? (Q12)
 
@@ -370,10 +370,10 @@ In every option the assessor exits 1 and writes no document, as the first assess
 | | Does | Costs |
 | --- | --- | --- |
 | A | The CLI writes the run with a fifth completion, `refused_inputs`. A requirement that reads it returns insufficient evidence with the cause `incompatible_target`. | A fifth value in a list that Ratchet closes. `incompatible_target` then also covers an input that is unreadable. |
-| B | The CLI records nothing. `ratchet assess` reports the refusal and exits non-zero. | The record store has no trace of the run. A gate finds no run for the candidate, and the design has no cause for that. |
+| B | The CLI records nothing. `ratchet assess` reports the refusal and exits non-zero. | The record store has no trace of the run. A gate finds no run for the candidate, and the design had no cause for that when the question was put (`evidence_missing` since 2026-11-24). |
 | C | The CLI writes the run as `stopped_by_infrastructure`. | No new value. The report says `assessor_infrastructure_failure`, which reads as “run it again”, and the same inputs are refused again. |
 
-**Default: A.** None of the four values fits, as the consumer found: the run did not complete, reached no time limit, lost no infrastructure, and was not skipped. What would change the answer: a cause of its own for refused inputs in design § 5, which the completion would then map to.
+**Default: A. Taken as A for 0.1.0, 2026-11-24.** None of the four values fits, as the consumer found: the run did not complete, reached no time limit, lost no infrastructure, and was not skipped. What would change the answer: a cause of its own for refused inputs in design § 5, which the completion would then map to.
 
 ## 6. Example
 
@@ -536,45 +536,59 @@ The consumer made these seven changes in its commit `edbbc27`. What revision 2 a
 
 The format should later be a projection of the specification and not a second definition. Items 1 to 17 are against revision 3 of [`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md). Revision 4 has since brought the coverage unit (10, 14), `local_inputs` (3), and the window counts (11, as `WindowItems` on the run, with other names). Items 18 to 25 are from revision 2 of this document, against revision 4.
 
+**Status, 2026-11-24.** The specification now declares both formats. Each item ends with what was done about it: **Done**, with the spelling in the specification, or **Left out of 0.1.0**, with the reason. 19 items are done, 3 are done in part (4, 10, 25), and 3 are left out (15, 17, 24), all three because they are ESS’s to supply. `spec/record-fields.test.sh` reads every field row of § 3 and § 10 and fails the gate when the specification does not declare one under the name the row gives.
+
 In [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
 
-1. **Two parts.** `AssessmentRun` holds `evidence` and an optional `run`, each a struct: `started_at`, `ended_at`, `queue_wait`, `run_time`, `artifacts`, and the new `local_inputs` in the second, every other field in the first. The projection then writes the two members, and the evidence digest has one subtree.
-2. **`candidate`.** Optional, and a candidate identity that is a commit id or a digest, where it is a required `Revision`. An invariant: present exactly when `target.selection` is.
-3. **`inputs`.** A map from an input name to `{value, digest, digest_form}`, and `local_inputs` as a map from an input name to text.
-4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, boundary, and aggregation.
-5. **`MeasurementResult`.** `scope_item` is written `item`. New fields `incomplete` (`{cause, detail}`) and `details` (`Json`). The cause is one of the 13 causes of insufficient evidence, which are part of `ratchet.gate.VerdictCause` today: the list is split into the causes of a fail and the causes of insufficient evidence, so that the evidence domain can name the second.
-6. **`MeasuredValue`.** Its members are written in the result, beside `value_type`, and not one level down under `value`.
-7. **`NumberValue`.** `value` is optional, for an incomplete result. `at_least` is optional and absent means false. `samples` moves here from `AssessmentRun`. A new optional `aggregation`, of the type the plan uses.
-8. **`IdentitySet.items`.** A list of `{identity, fields}`, where it is a list of `Json`. `identity` has the shape of the reference record’s item in revision 4 (G28).
-9. **`DigestValue.digest` and `AssertionValue.holds`.** Optional, for an incomplete result.
-10. **`EvidenceCoverage`.** A new `unit`. A new optional `not_executed`, a list of `{id, state, reason}`, with `state` one of `skipped`, `not_run`, and `unsupported`. Two invariants: the four counts do not overlap, and `passed` plus `failed` is at most `executed`.
-11. **`Window`.** New `items`, `newest_at`, and `left_out`.
-12. **`RunId`.** Its summary says which bytes the digest is over (E4).
+1. **Two parts.** `AssessmentRun` holds `evidence` and an optional `run`, each a struct: `started_at`, `ended_at`, `queue_wait`, `run_time`, `artifacts`, and the new `local_inputs` in the second, every other field in the first. The projection then writes the two members, and the evidence digest has one subtree. **Done:** `AssessmentRun` holds `format`, `evidence` (the struct `ratchet.evidence.Evidence`), and an optional `run` (the struct `ratchet.evidence.RunDetails`). The record id is its identity, written `run_id`, because `run` is now a member.
+2. **`candidate`.** Optional, and a candidate identity that is a commit id or a digest, where it is a required `Revision`. An invariant: present exactly when `target.selection` is. **Done:** `Evidence.candidate` is `Optional<ratchet.evidence.CandidateIdentity>`, with two invariants on `Evidence` for rule 1.
+3. **`inputs`.** A map from an input name to `{value, digest, digest_form}`, and `local_inputs` as a map from an input name to text. **Done:** `Evidence.inputs` is `Optional<Map<String, ratchet.evidence.ResolvedInput>>`, and `RunDetails.local_inputs` is `Optional<Map<String, String>>`.
+4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, boundary, and aggregation. **Done in part:** `Evidence.results` is `List<ratchet.evidence.MeasurementResult>`. **Left out of 0.1.0:** the invariant, rule 3. An ESS `distinct` takes one member as its key and not five, so the reader checks the rule.
+5. **`MeasurementResult`.** `scope_item` is written `item`. New fields `incomplete` (`{cause, detail}`) and `details` (`Json`). The cause is one of the 13 causes of insufficient evidence, which are part of `ratchet.gate.VerdictCause` today: the list is split into the causes of a fail and the causes of insufficient evidence, so that the evidence domain can name the second. **Done:** `MeasurementResult.item`, `incomplete` (the struct `ratchet.evidence.Incomplete`), and `details`. The list is split into `ratchet.gate.FailCause`, with 7 values, and `ratchet.gate.InsufficientEvidenceCause`, with 14: the 13 and `evidence_missing`, which only a gate names. `VerdictCause` keeps both lists for a row that holds either.
+6. **`MeasuredValue`.** Its members are written in the result, beside `value_type`, and not one level down under `value`. **Done:** `MeasuredValue` and its four structs are gone. `MeasurementResult` holds `value_type` and every value member as an optional field, and invariants say which members a value type has. An ESS union would write its payload one level down.
+7. **`NumberValue`.** `value` is optional, for an incomplete result. `at_least` is optional and absent means false. `samples` moves here from `AssessmentRun`. A new optional `aggregation`, of the type the plan uses. **Done:** `MeasurementResult.value` (`Optional<Decimal>`), `unit`, `at_least` (`Optional<Boolean>`), `samples`, and `aggregation` (`Optional<ratchet.specification.Aggregation>`), with the invariants of rules 5 and 6.
+8. **`IdentitySet.items`.** A list of `{identity, fields}`, where it is a list of `Json`. `identity` has the shape of the reference record’s item in revision 4 (G28). **Done:** `MeasurementResult.key` and `MeasurementResult.items`, an `Optional<List<ratchet.evidence.IdentityItem>>`.
+9. **`DigestValue.digest` and `AssertionValue.holds`.** Optional, for an incomplete result. **Done:** `MeasurementResult.digest` (`Optional<ratchet.evidence.Digest>`) and `MeasurementResult.holds` (`Optional<Boolean>`).
+10. **`EvidenceCoverage`.** A new `unit`. A new optional `not_executed`, a list of `{id, state, reason}`, with `state` one of `skipped`, `not_run`, and `unsupported`. Two invariants: the four counts do not overlap, and `passed` plus `failed` is at most `executed`. **Done in part:** `EvidenceCoverage.unit` and `not_executed` (a list of `ratchet.evidence.NotExecutedUnit`, with `state` a `ratchet.evidence.NotExecutedState`). The overlap is the invariant of item 19. `passed` and `failed` are each at most `executed`. **Left out of 0.1.0:** the sum. An ESS comparison reads one fact on each side and no sum of two, so `passed + failed <= executed` is refused, and the reader checks it.
+11. **`Window`.** New `items`, `newest_at`, and `left_out`. **Done:** `Window.items`, `newest_at`, and `left_out`, with an invariant: a window with items names the newest. `WindowItems` is gone.
+12. **`RunId`.** Its summary says which bytes the digest is over (E4). **Done:** the summary of `ratchet.evidence.RunId`.
 
 In the other domains:
 
-13. [`specification.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/specification.yaml): `TargetKind` gets `document` (E1).
-14. [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml): one coverage unit on `Assessor`, in place of `coverage` on each `AssessorOutput` (G29).
+13. [`specification.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/specification.yaml): `TargetKind` gets `document` (E1). **Done:** `ratchet.specification.TargetKind` has `document`.
+14. [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml): one coverage unit on `Assessor`, in place of `coverage` on each `AssessorOutput` (G29). **Done**, since revision 4: `Assessor.coverage_unit` and `Assessor.coverage`.
 
 From ESS, and not from this specification:
 
-15. A projection of an entity as one JSON document with a constant `format` member: `Decimal` as text, `Timestamp` as UTC text, `Duration` as decimal seconds, and an absent member for an empty `Optional`.
-16. A way to say that a reader rejects an unknown member in one struct and ignores it in another (E5).
-17. A canonical form of a document (U9). The consumer has filed it.
+15. A projection of an entity as one JSON document with a constant `format` member: `Decimal` as text, `Timestamp` as UTC text, `Duration` as decimal seconds, and an absent member for an empty `Optional`. **Left out of 0.1.0:** ESS has no such projection. `ess generate synthesize --target rust` writes the types, a check for each invariant, and JSON helpers, and the first reader binds them to the file form of § 1 by hand. `AssessmentRun.format` is declared with the invariant `format == "ratchet-evidence/1"`. One difference is open until that reader exists: ESS writes a `Duration` as an ISO 8601 duration, such as `P30D`, and § 1 writes decimal seconds for `run.queue_wait` and `run.run_time`. § 1 stands until then.
+16. A way to say that a reader rejects an unknown member in one struct and ignores it in another (E5). **Done:** ESS has it. `Evidence` and the structs under it are closed, which is the default, and `RunDetails` declares `undeclared_fields: ignored`.
+17. A canonical form of a document (U9). The consumer has filed it. **Left out of 0.1.0:** ESS defines none, so every digest stays over bytes (§ 2).
 
 From revision 2, in [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
 
-18. **`RunCompletion`.** A fifth value, `refused_inputs`, which maps to the cause `incompatible_target` (E9). The comment above the type says which completions the CLI writes and which the assessor writes (§ 10).
-19. **`EvidenceCoverage`.** An invariant: no id is twice in `executed_ids` and `not_executed` taken together (rule 4). Its summary says that a unit is counted once.
-20. **`ObservedConditions`.** Its summary says that an absent value is unknown only for a condition that the plan or the assessor declares (Q13).
-21. **`ResolvedTarget.identifiers`.** Its summary names the identifiers of a `document`: `digest`, `digest_form`, and `path`, which is absent for a document outside the tree (Q8).
-22. **The input of item 3.** `value` is optional, for a path outside the tree.
+18. **`RunCompletion`.** A fifth value, `refused_inputs`, which maps to the cause `incompatible_target` (E9). The comment above the type says which completions the CLI writes and which the assessor writes (§ 10). **Done:** the value and the comment, and five invariants on `Evidence` for rule 7: every result of a run that did not complete is incomplete, and for each of the four other completions its results name the cause of that completion.
+19. **`EvidenceCoverage`.** An invariant: no id is twice in `executed_ids` and `not_executed` taken together (rule 4). Its summary says that a unit is counted once. **Done:** three invariants (the ids of `not_executed` are distinct, those of `executed_ids` are distinct, and none is in both) and the summary.
+20. **`ObservedConditions`.** Its summary says that an absent value is unknown only for a condition that the plan or the assessor declares (Q13). **Done:** the summary. `tools` and `other` are optional, as § 3 has them.
+21. **`ResolvedTarget.identifiers`.** Its summary names the identifiers of a `document`: `digest`, `digest_form`, and `path`, which is absent for a document outside the tree (Q8). **Done:** the summary, and two invariants: a target of the kind `document` has `identifiers` and no `revision`.
+22. **The input of item 3.** `value` is optional, for a path outside the tree. **Done:** `ResolvedInput.value` is `Optional<Json>`, with the invariants that an input has `value` or `digest`, and `digest_form` exactly with `digest`.
 
 From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml) and the CLI binding:
 
-23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`.
-24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run.
-25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as.
+23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`. **Done:** the specification takes the names of the declaration. `Assessor` has `format`, `name`, `version`, `command`, `targets`, `target_input`, `inputs` (a map from an input name to `ratchet.specification.InputDeclaration`, which no longer has a `name`), `conditions`, `coverage_unit`, `coverage`, `outputs` (a map from an output name to `ratchet.assessor.AssessorOutput`), and `population_fields`. The invariant is on `AssessorOutput`, and one more is on `Assessor`: `target_input` is present exactly when `targets` holds `document`.
+24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run. **Left out of 0.1.0**, as item 15 is: ESS has no such projection. `Assessor.format` is declared with the invariant `format == "ratchet-assessor/1"`.
+25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as. **Done in part:** the six reserved arguments are the enum `ratchet.assessor.ReservedArgument`, and the four meanings of an exit status are `ratchet.assessor.AssessorExit` (`ended`, `refused_inputs`, `wrong_invocation`, `broke`). The comment on `assess` in `spec/cli.yaml` and the comment on `AssessorExit` say which completion each is recorded as. **Left out of 0.1.0:** that table as a declaration. ESS declares no map from the values of one enum to those of another, so the CLI implements it from the comment.
+
+Rules of § 4 that are not invariants, and why. A reader of 0.1.0 checks them in code.
+
+| Rule | What is not an invariant | Why |
+| --- | --- | --- |
+| 3 | At most one result per `output`, `scope`, `item`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
+| 4 | `passed` plus `failed` is at most `executed` | A comparison reads no sum of two facts (item 10) |
+| 4 | `not_executed`, where present, has one entry per unit of `skipped`, `not_run`, and `unsupported` | The rule counts the entries of a list by the value of a member and compares the count with a field |
+| 4 | A unit is counted once and has the same id in every run | It needs the inputs or a second run (§ 4) |
+| 8 | A result for every scope item that the run was to evaluate | The scope items come from the inputs, which the document does not hold |
+| 9 | No absolute path in `evidence` | A path is text, and no invariant reads the form of a text. That `evidence` holds no time outside `target.window` holds by declaration: no other member of `Evidence` is a `Timestamp`. |
+| § 10 | A result against the assessor’s declaration: `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields` | Each joins a run and a declaration, and an invariant reads one of them |
 
 ## 9. Not in version 1
 
@@ -584,7 +598,7 @@ From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/
 - **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
 - **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
 - **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision` or `document` and the selection `candidate`. It does not say how an assessor learns the observation of a plan (`scenarios`, `workload`, `command`, `runs`, `min_samples`), a `merge_result` selection, a plan without a selection, or a target of another kind. The first assessor needs none of these.
-- **Where a declaration is found**, and whether a plan pins it by digest as a binding pins a preset (design § 4).
+- **A digest pin on a declaration.** Where a declaration is found is decided (2026-11-24): the file `<name>@<version>.assessor.yaml` in a source of `[catalog] sources` of the local config, and a source without `git` is a directory relative to the root (design § 5, “Local config”). Whether a plan pins the declaration by digest, as a binding pins a preset (design § 4), is not.
 
 ## 10. The assessor contract
 
@@ -700,7 +714,7 @@ outputs:
     item_fields: [reason]
 ```
 
-A plan then reads it like this. The plan is an illustration, and `document` as a target kind is not in the value list of design § 3 yet (E1).
+A plan then reads it like this. The plan is an illustration. `document` is a target kind of design § 3 and of the specification (E1).
 
 ```yaml
 assessments:
@@ -714,7 +728,7 @@ assessments:
     target: {kind: document, environments: [local, ci], selection: candidate}
     observation:
       kind: snapshot
-      coverage: {not_run: 0, unsupported: 0}
+      coverage: {not_run: {max: 0}, unsupported: {max: 0}}
     measurements:
       names-missing:
         {kind: exact, output: a11y.accessible_names@1, scope: page, unit: nodes, better: lower}
@@ -738,6 +752,6 @@ The 13 questions of the consumer, from its implementation at `edbbc27`, and wher
 | Q8 | What is `identifiers.path` for a document outside the tree? | Left out. The digest identifies the document. | § 1 Types; § 3 `evidence.target`; § 10 | Accepts a target document outside `--root` and leaves `path` out, where it refuses today |
 | Q9 | Who fills `target.revision`? | The assessor, from `--revision`. Ratchet passes none for a `document`, and the CLI edits no document. | § 3 `evidence.target`; § 10 | No change |
 | Q10 | How does Ratchet pass the project, the assessment, and the root? | As the arguments `--project`, `--assessment`, and `--root`, with `--class`, `--out`, and one argument per input | § 10 Invocation; E7 | No change |
-| Q11 | How does an assessor declare its outputs, units, scopes, coverage unit, and item fields? | In a document `ratchet-assessor/1` | § 10 Declaration; E8 | Adds the file, once E8 is decided |
+| Q11 | How does an assessor declare its outputs, units, scopes, coverage unit, and item fields? | In a document `ratchet-assessor/1` | § 10 Declaration; E8 | Adds the file `ux-static@1.assessor.yaml`: E8 is taken as A |
 | Q12 | Inputs that do not belong together: exit 1 and no document? | Yes. The CLI records the run as `refused_inputs`. | § 10 Exit status; E9 | No change. An unknown `--class` and an empty `--project` or `--assessment` are exit 2, where they are exit 1 today. |
 | Q13 | Does an absent condition read as unknown for a static run? | No. Only a declared condition can be unknown, and the assessor declares none. | § 3 `evidence.conditions` | No change |

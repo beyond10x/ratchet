@@ -2,9 +2,19 @@ domain: ratchet.assessor
 
 summary: >-
   Assessors: built-in or separately packaged adapters that run a check or read an existing
-  result and return structured evidence (docs/design.md § 1, § 2, § 4). A project pins the
-  assessor versions it uses; no Ratchet command creates an assessor.
+  result and return structured evidence (docs/design.md § 1, § 2, § 4). An assessor is declared
+  in one document of the format `ratchet-assessor/1` per assessor and version
+  (docs/evidence-format.md § 10, E8). A project pins the assessor versions it uses; no Ratchet
+  command creates an assessor.
 
+# Sources: `§` is a section of docs/design.md; `format §` is a section of
+# docs/evidence-format.md, whose § 10 lists every member of the declaration, the invocation and
+# the exit statuses. `spec/record-fields.test.sh` checks that every field row of the two
+# declaration tables is declared here under the name the row gives.
+#
+# Where a declaration is found: the file `<name>@<version>.assessor.yaml` in a source of
+# `[catalog] sources` of the local config (`ratchet.config.CatalogSource`).
+#
 # Built-in assessor `record-series@1` (design § 3 "A series of runs as a population"): it reads
 # the runs of a source plan (`population: {runs_of, from}`) from the record store. Its outputs
 # are the measurements of the source plan, by name, so it declares no fixed output list: a
@@ -32,26 +42,60 @@ types:
     kind: enum
     variants: [executed, skipped, not_run, unsupported, passed, failed]
 
+  # format § 10 "Invocation" (E7, taken as A): Ratchet runs the assessor's command once per run
+  # of a plan, in the root of the tree that is assessed, and every value is an argument,
+  # `--name value`. These six names are Ratchet's: `--project` and `--assessment` (the
+  # assessor writes them as `evidence.project` and `evidence.assessment`), `--root` (paths in
+  # `evidence` are relative to it), `--class` (`evidence.target.class`), `--out` (the file the
+  # document is written to), and for a target of the kind `revision`, `--revision`
+  # (`evidence.candidate` and `evidence.target.revision`). Beside them Ratchet passes one
+  # `--<input>` per declared input that has a value, and nothing else. An assessor declares no
+  # input with one of these names, and a new reserved argument is a new version of the
+  # declaration format.
+  - name: ratchet.assessor.ReservedArgument
+    kind: enum
+    variants: [project, assessment, root, class, out, revision]
+
+  # format § 10 "Exit status": what an assessor's exit means, and the completion the CLI records
+  # for it (`ratchet.evidence.RunCompletion`). The exit status is no verdict: a document with
+  # findings is written with exit 0.
+  #   ended (0): the document is at `--out`; the CLI records that document after it checks the
+  #     rules of format § 4 and the declaration. A missing document, or one that breaks a rule,
+  #     is recorded as `stopped_by_infrastructure`.
+  #   refused_inputs (1): a file is unreadable or malformed, or the inputs do not belong
+  #     together; no document; recorded as `refused_inputs` (E9, taken as A).
+  #   wrong_invocation (2): an argument the assessor does not know, a required one missing, a
+  #     value a reserved argument cannot have; no document; recorded as
+  #     `stopped_by_infrastructure`: the declaration and the program do not match.
+  #   broke (any other status, or a signal): the assessor or a tool under it broke; no
+  #     document; recorded as `stopped_by_infrastructure`.
+  # Two completions have no exit status, because the CLI decides them: `timed_out` for an
+  # assessor it ended at its time limit, and `skipped_locally` for one it did not start.
+  - name: ratchet.assessor.AssessorExit
+    kind: enum
+    variants: [ended, refused_inputs, wrong_invocation, broke]
+
   - name: ratchet.assessor.AssessorOutput
     kind: struct
     naming:
       summary: >-
-        One output an assessor declares (§ 4 "Outputs"): the value type, the kind, the scopes,
+        One output an assessor declares (§ 4 "Outputs"), an entry of `outputs` under the
+        output's name, such as `findings` or `duration`: the value type, the kind, the scopes,
         the unit or that the output has none, the boundaries of a duration, and the identity
         key of a set and the fields of its items. `ratchet validate` checks a measurement's
-        output, scope, unit, boundary and filter fields against it. Coverage is declared once
-        for the assessor, not per output (§ 4 "Coverage").
+        output, scope, unit, boundary and filter fields against it, and the CLI checks each
+        result of an evidence document against it. Coverage is declared once for the assessor,
+        not per output (§ 4 "Coverage").
     fields:
-      - name: name
-        type: ratchet.specification.OutputName
-        summary: The output a measurement reads, such as `findings` or `duration`.
       - name: value_type
         type: ratchet.specification.ValueType
       - name: kind
         type: ratchet.specification.MeasurementKind
       - name: scopes
         type: List<ratchet.specification.Scope>
-        summary: The scopes a result of this output can belong to; `run` is always one.
+        summary: >-
+          The scopes a result of this output can belong to, beside `run`, which every assessor
+          has. The scope items are not declared: they come from the inputs of a run.
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-
@@ -64,47 +108,72 @@ types:
           `request_start_to_response_complete` (§ 3).
       - name: identity_key
         type: Optional<List<String>>
-        summary: The identity key of each set the output returns (§ 4).
+        summary: >-
+          The fields of an item's `identity`; present exactly for the value type
+          `identity_set` (§ 4).
       - name: item_fields
         type: Optional<List<String>>
         summary: >-
-          The fields of the items of a set, which a measurement's `filter` may read, such as
-          `severity` (§ 3, § 4).
+          The names an item of a set may have under `fields`, which a measurement's `filter`
+          may read, such as `severity` (§ 3, § 4).
+    invariants:
+      - any: ["value_type != identity_set", "defined(identity_key)"]
+      - any: ["value_type == identity_set", "not defined(identity_key)"]
 
 entities:
   - name: ratchet.assessor.Assessor
     naming:
       summary: >-
         A tool or adapter that runs a check or reads an existing result and returns structured
-        evidence (§ 1). It declares supported targets, configuration inputs, output types, a
-        coverage unit and a version (§ 4). A review assessor imports a review's findings as an
-        identity set tied to the revision the review judged. The built-in `record-series@1`
-        reads the runs of another plan (comment at the top of this file).
+        evidence (§ 1). Its declaration is one YAML document of the format `ratchet-assessor/1`
+        per assessor and version, kept with the assessor: supported targets, inputs, outputs, a
+        coverage unit and a version (§ 4; format § 10). `ratchet validate` checks a plan against
+        it, and the CLI checks every evidence document against it, so a declaration that
+        disagrees with its program is an error at the first run and not a wrong verdict. A
+        review assessor imports a review's findings as an identity set tied to the revision the
+        review judged. The built-in `record-series@1` reads the runs of another plan (comment
+        at the top of this file).
     provided: true
     identity:
       name: assessor
       type: ratchet.specification.AssessorRef
     fields:
+      - name: format
+        type: String
+        summary: "`ratchet-assessor/1`. The version covers the invocation too."
       - name: name
         type: String
+        summary: The part of `ux-static@1` before the `@`.
       - name: version
         type: String
-      - name: supported_targets
-        type: List<ratchet.specification.TargetKind>
-      - name: configuration_inputs
-        type: List<ratchet.specification.InputDeclaration>
+        summary: The part after the `@`.
+      - name: command
+        type: Optional<String>
         summary: >-
-          The inputs a plan passes as `inputs`: the workflow to read, the path of a report, an
-          exclusion the tool applies (§ 4). An input declared `local` is not passed by the plan;
-          the local config supplies it under `[inputs.<assessment>]`, such as `job_log` of
-          `command-timing@1` (§ 3, § 5 rule 6).
+          The program, for an assessor that Ratchet runs. `[tools]` of the local config says
+          how it is started on one machine (§ 5).
+      - name: targets
+        type: List<ratchet.specification.TargetKind>
+        summary: The target kinds it supports.
+      - name: target_input
+        type: Optional<String>
+        summary: >-
+          The input that holds the path of the target document; present exactly when `targets`
+          holds `document`. The assessor writes the digest of that file as `candidate` and
+          under `target.identifiers`, and does not repeat it under `inputs`.
+      - name: inputs
+        type: Optional<Map<String, ratchet.specification.InputDeclaration>>
+        summary: >-
+          The inputs by name: the workflow to read, the path of a report, an exclusion the tool
+          applies (§ 4). A plan passes those that are not local as `inputs`. An input declared
+          `local` is not passed by the plan; the local config supplies it under
+          `[inputs.<assessment>]`, such as `job_log` of `command-timing@1` (§ 3, § 5 rule 6).
+          No input is named as a `ReservedArgument`.
       - name: conditions
         type: Optional<List<String>>
         summary: >-
           The observation conditions it declares beyond `host_load_per_cpu`, `tools` and
-          `runner`, such as `cache` (§ 3).
-      - name: outputs
-        type: List<ratchet.assessor.AssessorOutput>
+          `runner`, such as `cache` (§ 3). Absent or empty: it declares none.
       - name: coverage_unit
         type: ratchet.assessor.CoverageUnit
         summary: >-
@@ -114,13 +183,28 @@ entities:
         type: List<ratchet.assessor.CoverageCount>
         summary: >-
           The coverage counts it reports, for the assessor as a whole: a run has one set of
-          counts, whichever outputs a plan reads (§ 4 "Coverage").
+          counts, whichever outputs a plan reads (§ 4 "Coverage"). A count it does not report
+          is 0 in its documents.
+      - name: outputs
+        type: Map<String, ratchet.assessor.AssessorOutput>
+        summary: >-
+          The outputs a measurement can read, by output name
+          (`ratchet.specification.OutputName`).
       - name: population_fields
         type: Optional<List<String>>
         summary: >-
           The fields a time-window plan's `population: {filter}` may name, for an assessor that
           reads a population outside the record store, such as `service` and `region` of
           production telemetry (§ 3 "Time windows", value lists).
+    invariants:
+      - "format == \"ratchet-assessor/1\""
+      - any:
+          - "not defined(target_input)"
+          - exists: {in: targets, as: t, that: "t == document"}
+      - any:
+          - "defined(target_input)"
+          - not:
+              exists: {in: targets, as: t, that: "t == document"}
     lifecycle:
       initial: Declared
       states: [Declared]
