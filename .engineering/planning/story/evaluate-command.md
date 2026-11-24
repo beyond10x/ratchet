@@ -19,7 +19,7 @@ scope:
   path: crates/ratchet/tests/evaluate.rs
 - confidence: cited
   path: crates/ratchet/tests/fixtures/evaluate
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6}
@@ -55,8 +55,8 @@ id of the evidence record; exits 1 with the code `insufficient_evidence` and the
 
 ## Notes
 
-- `crates/ratchet/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited: the skeleton
-  declared the test module and wired the command. The trusted revision is read through the `git`
+- `crates/ratchet/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited:
+  `story:workspace-cli-contract` declared the test module and wired the command. The trusted revision is read through the `git`
   binary, in `gate.rs`, and handed to the `spec` module as a source of file contents;
   `crates/ratchet-core/src/spec.rs` is not edited.
 - `docs/design.md` is not edited: the default of `--trusted` (the merge base of `HEAD` and

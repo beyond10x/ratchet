@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-24T18:13:07Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:cli-skeleton-validate",
+  "kind": "story",
+  "revision": 26,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:acceptance-split-round-2",
+    "reference": ".engineering/planning/story/cli-skeleton-validate.md:82",
+    "review": "review-result:acceptance-split-round-2",
+    "outcome": "fixed"
+  }
+}

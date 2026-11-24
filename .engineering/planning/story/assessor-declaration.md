@@ -20,7 +20,9 @@ scope:
   path: crates/ratchet-core/tests/assessor.rs
 - confidence: cited
   path: crates/ratchet-core/tests/fixtures/assessor
-revision: 7
+- confidence: cited
+  path: crates/ratchet-core/tests/invariants/assessor.txt
+revision: 9
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":1}}}
@@ -52,16 +54,19 @@ from the first in one member exits 1 with a finding of that code at that member'
 - `crates/ratchet-core/src/validate/assessor.rs`: the plan against the declaration
 - `crates/ratchet-core/src/validate.rs`: one call to the check above
 - `crates/ratchet-core/tests/assessor.rs`, fixtures under
-  `crates/ratchet-core/tests/fixtures/assessor/`
+  `crates/ratchet-core/tests/fixtures/assessor/`, `crates/ratchet-core/tests/invariants/assessor.txt`
 
 ## Notes
 
 - No specification file and no generated file changes here. `crates/ratchet-core/tests/main.rs`,
-  `Cargo.toml` and `Cargo.lock` are not edited: the skeleton declared the test module.
+  `Cargo.toml` and `Cargo.lock` are not edited: `story:cli-skeleton-validate`
+  declared the test module.
 - No other story of this wave edits `crates/ratchet-core/src/validate.rs`.
 - The invariants of `ratchet.assessor.AssessorOutput` each have a fixture that breaks only it, and
   the test step fails when the specification holds an invariant of that type that no fixture
-  names (`review-result:adversary-record-formats-pass-2`, finding 4).
+  names (`review-result:adversary-record-formats-pass-2`, finding 4). The comparison is the test
+  `invariants` of `story:cli-skeleton-validate`; this story adds the list
+  `crates/ratchet-core/tests/invariants/assessor.txt` and edits no file of that test.
 - Red first: each fixture fails before the check exists.
 - Budget: no test over 60 s, the step within 120 s.
 - No `CHANGELOG.md` line here: `story:acceptance-in-gate` writes the lines of the slice.

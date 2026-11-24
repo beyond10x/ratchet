@@ -15,7 +15,7 @@ scope:
   path: ROADMAP.md
 - confidence: cited
   path: acceptance
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
@@ -58,7 +58,7 @@ and the gate `merge`.
   `ratchet.yaml`, `quality/assessors/ui-loop@1.assessor.yaml`, a POSIX sh assessor that writes a
   prepared `ratchet-evidence/1` document chosen by an input, the prepared documents, `run.sh`
 - `acceptance/Taskfile.yml`: the task `ui-loop` (the root `Taskfile.yml` includes this file as
-  `acceptance` since `story:cli-skeleton-validate`); `check` does not call it in this story
+  `acceptance` since `story:workspace-cli-contract`); `check` does not call it in this story
 - `ROADMAP.md`: the line with the count
 
 ## Notes
