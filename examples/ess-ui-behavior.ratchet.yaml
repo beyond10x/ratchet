@@ -39,7 +39,7 @@ assessments:
       cue-accuracy:
         {kind: exact, output: cue_accuracy, scope: journey, unit: percent, better: higher}
       layout-shift:
-        {kind: exact, output: layout_shift, scope: journey, unit: score, better: lower}
+        {kind: exact, output: layout_shift, scope: journey, better: lower}
       findings:
         kind: exact
         output: findings

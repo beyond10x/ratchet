@@ -16,3 +16,6 @@ observe_only = ["test-budget"]
 
 [tools]
 nextest = "cargo nextest"
+
+[inputs.test-steps]
+job_log = "/var/lib/build-pool/jobs.jsonl"
