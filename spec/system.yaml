@@ -1,0 +1,11 @@
+format: ess/37
+system: ratchet
+version: v1
+
+domains:
+  - ratchet.specification
+  - ratchet.assessor
+  - ratchet.evidence
+  - ratchet.reference
+  - ratchet.gate
+  - ratchet.cli

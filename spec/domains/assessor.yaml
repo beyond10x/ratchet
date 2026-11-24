@@ -1,0 +1,65 @@
+domain: ratchet.assessor
+
+summary: >-
+  Assessors: built-in or separately packaged adapters that run a check or read an existing
+  result and return structured evidence (docs/design.md § 1, § 2, § 4). A project pins the
+  assessor versions it uses; no Ratchet command creates an assessor.
+
+types:
+  # The counts § 3 "Evidence coverage" names, next to passed and failed.
+  - name: ratchet.assessor.CoverageCount
+    kind: enum
+    variants: [executed, skipped, not_run, unsupported, passed, failed]
+
+  - name: ratchet.assessor.AssessorOutput
+    kind: struct
+    naming:
+      summary: >-
+        One output an assessor declares: its kind, its scope, the identity key of a set and
+        the coverage counts it reports (§ 4 "custom assessor").
+    fields:
+      - name: name
+        type: String
+        summary: The output a measurement reads, such as `findings` or `duration`.
+      - name: kind
+        type: ratchet.specification.MeasurementKind
+      - name: scope
+        type: ratchet.specification.Scope
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+      - name: identity_key
+        type: Optional<List<String>>
+        summary: The identity key of each set the output returns (§ 4).
+      - name: coverage
+        type: List<ratchet.assessor.CoverageCount>
+
+entities:
+  - name: ratchet.assessor.Assessor
+    naming:
+      summary: >-
+        A tool or adapter that runs a check or reads an existing result and returns structured
+        evidence (§ 1). It declares supported targets, configuration inputs, output types and
+        a version (§ 4). A review assessor imports a review's findings as an identity set tied
+        to the revision the review judged.
+    provided: true
+    identity:
+      name: assessor
+      type: ratchet.specification.AssessorRef
+    fields:
+      - name: name
+        type: String
+      - name: version
+        type: String
+      - name: supported_targets
+        type: List<ratchet.specification.TargetKind>
+      - name: configuration_inputs
+        type: List<String>
+        summary: The names of the configuration inputs the assessor takes.
+        # UNMAPPED: § 4 says an assessor "declares ... configuration inputs" and gives them no
+        # type or shape; names only are a placeholder.
+      - name: outputs
+        type: List<ratchet.assessor.AssessorOutput>
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
