@@ -33,7 +33,7 @@ scope:
   path: crates
 - confidence: cited
   path: rust-toolchain.toml
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
@@ -113,6 +113,10 @@ copy of the tree and gets a non-zero exit from `task check:generated`.
   slowest tests. No cargo test calls `ess`: `check:generated` and its script test are gate steps
   outside the test step. The story times both and reports the two times.
 - The story reports the text and the exit status of the unavailable answer.
+- Each invariant of a type `validate` reads (`ratchet.specification`, `ratchet.config`) has a test
+  with a value that breaks only it, and the test step fails when the specification holds an
+  invariant of those types that no test names (`review-result:adversary-record-formats-pass-2`,
+  finding 4). The story reports how it compares the two lists.
 - A later story that needs a dependency this story did not declare names it in its report, and
   its change merges after the other stories of its wave.
 - `rust-toolchain.toml` pins one rustc for the local gate and CI.

@@ -17,9 +17,17 @@ scope:
 - confidence: cited
   path: examples
 - confidence: cited
+  path: research/candidate-presets.md
+- confidence: cited
   path: spec/README.md
 - confidence: cited
+  path: spec/cli-coverage-row.test.sh
+- confidence: cited
+  path: spec/cli-errors.test.sh
+- confidence: cited
   path: spec/cli.yaml
+- confidence: cited
+  path: spec/contract-examples.test.sh
 - confidence: cited
   path: spec/domains/assessor.yaml
 - confidence: cited
@@ -35,8 +43,14 @@ scope:
 - confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
+  path: spec/gate-inputs.test.sh
+- confidence: cited
+  path: spec/record-examples.test.sh
+- confidence: cited
   path: spec/record-fields.test.sh
-revision: 7
+- confidence: cited
+  path: spec/record-types.test.sh
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 7, decided_on: {"recorded":{"review_outcome":4}}}
