@@ -11,8 +11,8 @@ what is specific to ratchet.
 
 The repository is in the design phase.
 
-- No planning ahead: no epics, stories or tasks in the store until Timo opens implementation
-  planning. Timo, 2026-11-23: "do not do any planning ahead … we're just in the design phase".
+- No planning ahead: no epics, stories or tasks in the store until the owner opens implementation
+  planning. The owner, 2026-11-23: "do not do any planning ahead … we're just in the design phase".
 - No implementation code yet. Changes go to `docs/design.md`, `vision.md`, `research/` and this
   file.
 - Survey answers arrive through the operator session of `~/.claude/CLAUDE.md` § Host operator.
@@ -23,7 +23,7 @@ The repository is in the design phase.
 
 ## Specification first (ESS)
 
-Timo, 2026-11-24: "when you're building this tool, the CLI tool, remember, just do ESS upfront.
+The owner, 2026-11-24: "when you're building this tool, the CLI tool, remember, just do ESS upfront.
 So we specify stuff before we're building it … There's also a CLI spec for the CLI surface, which
 you should utilize, and then you should use the ESS synthesizer to actually build the boilerplate".
 

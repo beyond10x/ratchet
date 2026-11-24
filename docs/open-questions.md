@@ -1,7 +1,7 @@
 # Open questions: options and a default for each
 
 Status: recommendations, 2026-11-24. Nothing here is decided. Each default is a recommendation
-that awaits the owner (Timo); until he answers, the six questions of
+that awaits the owner; until the owner answers, the six questions of
 [product-brainstorm.md](product-brainstorm.md) § 10 stay open.
 
 Citations: `F<n>` and implication numbers are in `research/synthesis.md`; `design § n` is
@@ -29,7 +29,7 @@ the export of Q4 and the consumer of Q6 read CI artifacts and lose history past 
 | --- | --- | --- |
 | A | YAML for the specification (`ratchet.yaml`), TOML for the local config (`ratchet.toml`) | Two parsers and two schemas. An author has to know which file takes which key. |
 | B | TOML for both | Rewrites every shape of design § 3 and the consumer's draft `ux-ui/presets/web-ux.ratchet.yaml`. The specification nests up to 6 levels (`assessments.test-step-time.observation.conditions.host_load_per_cpu.max`) and mixes names and maps in one list (`gates.merge.requires`). The vision says "One versioned YAML format". |
-| C | YAML for both (`ratchet.local.yaml`) | One parser. Drops Timo's TOML idea. A local file that looks like the policy file invites policy keys in it. |
+| C | YAML for both (`ratchet.local.yaml`) | One parser. Drops the owner's TOML idea. A local file that looks like the policy file invites policy keys in it. |
 
 **Default: A.** The file type then shows the authority: YAML is policy, judged from the trusted
 revision; TOML is per machine and carries none (brainstorm § 2, design § 5). Most siblings split
