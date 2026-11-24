@@ -37,6 +37,18 @@ const pages: Record<string, Page> = {
     lede: `${designPhase} Field names, document shapes and CLI commands on this page are proposals, not settled.`,
     status: 'planned',
   },
+  'docs/product-brainstorm.md': {
+    slug: '/product-brainstorm',
+    title: 'Product brainstorm',
+    lede: `${designPhase} What Ratchet is beyond the specification: binary, local config, record store, views and integrations. Nothing on this page is decided.`,
+    status: 'planned',
+  },
+  'docs/open-questions.md': {
+    slug: '/open-questions',
+    title: 'Open questions',
+    lede: `${designPhase} Six product questions with lettered options and a recommended default each.`,
+    status: 'planned',
+  },
   'research/README.md': {
     slug: '/research',
     title: 'Research',
@@ -121,6 +133,8 @@ const config: Config = {
           include: [
             'vision.md',
             'docs/design.md',
+            'docs/product-brainstorm.md',
+            'docs/open-questions.md',
             'research/*.md',
             'research/responses/*.md',
           ],

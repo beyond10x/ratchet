@@ -7,7 +7,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Ratchet',
       collapsed: false,
-      items: ['vision', 'docs/design'],
+      items: ['vision', 'docs/design', 'docs/product-brainstorm', 'docs/open-questions'],
     },
     {
       type: 'category',
