@@ -1,0 +1,11 @@
+format: ess-inputs/2
+requires: ess 0.98
+specification:
+  - system.yaml
+  - domains/specification.yaml
+  - domains/assessor.yaml
+  - domains/evidence.yaml
+  - domains/reference.yaml
+  - domains/gate.yaml
+  - domains/cli.yaml
+scenarios: []

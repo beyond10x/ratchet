@@ -1,0 +1,109 @@
+format: ratchet/1
+project: explainer-page
+
+subjects:
+  reader-tasks:
+    kind: user-interaction
+    audiences: [end-user]
+  page:
+    kind: user-interaction
+    audiences: [end-user]
+
+assessments:
+  keyboard-task-completion:
+    subject: reader-tasks
+    assessor: ess-ui-report@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      scenario: ess-ui:explainer-page/keyboard-only
+      coverage: {skipped: 0, unsupported: 0}
+    measurement:
+      kind: exact
+      output: completion_miss
+      scope: journey
+
+  keyboard-task-steps:
+    subject: reader-tasks
+    assessor: ux-eval@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      scenario: ess-ui:explainer-page/keyboard-only
+      coverage: {skipped: 0, unsupported: 0}
+    measurement:
+      kind: exact
+      output: steps
+      scope: journey
+      unit: steps
+
+  fix-actions:
+    subject: reader-tasks
+    assessor: ux-eval@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      scenario: ess-ui:explainer-page/keyboard-only
+      coverage: {skipped: 0, unsupported: 0}
+    measurement:
+      kind: exact
+      output: actions_per_fix
+      scope: journey
+      unit: actions
+
+  cue-accuracy:
+    subject: reader-tasks
+    assessor: ux-eval@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      scenario: ess-ui:explainer-page/keyboard-only
+      coverage: {skipped: 0, unsupported: 0}
+    measurement:
+      kind: exact
+      output: cue_accuracy
+      scope: journey
+      unit: percent
+
+  page-findings:
+    subject: page
+    assessor: ux-eval@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      scenario: ess-ui:explainer-page/keyboard-only
+      coverage: {skipped: 0, unsupported: 0}
+    measurement:
+      kind: exact
+      output: findings
+      scope: page
+      identity: [rule, node_path, environment]
+
+requirements:
+  every-task-completes:
+    assessment: keyboard-task-completion
+    condition: {operator: lte, value: 0}
+  steps-do-not-rise:
+    assessment: keyboard-task-steps
+    reference: {kind: accepted-value, tolerance: {percent: 5}}
+  fix-within-two-actions:
+    assessment: fix-actions
+    condition: {operator: lte, value: 2, unit: actions}
+  cues-are-accurate:
+    assessment: cue-accuracy
+    condition: {operator: gte, value: 95, unit: percent}
+  no-new-page-findings:
+    assessment: page-findings
+    condition: {operator: no-new-items}
+    reference: {kind: accepted-value}
+
+gates:
+  merge:
+    stage: pre-merge
+    qualifying_environments: [local]
+    requires:
+      - every-task-completes
+      - fix-within-two-actions
+      - cues-are-accurate
+      - no-new-page-findings
+      - steps-do-not-rise

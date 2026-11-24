@@ -1,0 +1,18 @@
+[spec]
+paths = ["host-caused-limit.ratchet.yaml"]
+
+[catalog]
+presets = ["git+https://github.com/beyond10x/ratchet-presets#<commit>"]
+
+[records]
+store = "git:refs/ratchet/records"
+
+[environment]
+class = "local"
+
+[local]
+skip_sampled_when_load_above = 2.125
+observe_only = ["test-budget"]
+
+[tools]
+nextest = "cargo nextest"

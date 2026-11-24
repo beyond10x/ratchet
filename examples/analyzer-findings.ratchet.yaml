@@ -1,0 +1,94 @@
+format: ratchet/1
+project: workflow-driver
+
+subjects:
+  source-tree:
+    kind: codebase
+    audiences: [developer, coding-agent]
+  service-contract:
+    kind: api-operation
+    audiences: [api-consumer]
+
+assessments:
+  lint-findings:
+    subject: source-tree
+    assessor: clippy-report@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      command: cargo clippy --locked --all-targets -- -D warnings
+      conditions: {toolchain: pinned}
+      coverage: {skipped: 0}
+    measurement:
+      kind: exact
+      output: findings
+      scope: run
+      identity: [rule, path]
+
+  unreferenced-files:
+    subject: source-tree
+    assessor: project-command@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: snapshot
+      command: task check:unreferenced
+      coverage: {skipped: 0}
+    measurement:
+      kind: exact
+      output: findings
+      scope: run
+      identity: [rule, path]
+
+  failing-conformance-cases:
+    subject: service-contract
+    assessor: ess-conformance-report@1
+    target: {kind: deployment, environment: staging}
+    observation:
+      kind: snapshot
+      coverage: {skipped: 0}
+    measurement:
+      kind: exact
+      output: failing_cases
+      scope: run
+      identity: [case_id]
+
+requirements:
+  no-lint-findings:
+    assessment: lint-findings
+    condition: {operator: lte, value: 0}
+  no-new-unreferenced-files:
+    assessment: unreferenced-files
+    condition: {operator: no-new-items}
+    reference: {kind: accepted-value}
+  no-new-failing-cases:
+    assessment: failing-conformance-cases
+    condition: {operator: no-new-items}
+    reference: {kind: accepted-value}
+
+gates:
+  merge:
+    stage: pre-merge
+    qualifying_environments: [local]
+    requires:
+      - no-lint-findings
+      - no-new-unreferenced-files
+  promote:
+    stage: pre-promotion
+    requires: [no-new-failing-cases]
+
+exceptions:
+  - requirement: no-new-failing-cases
+    item: {case_id: known-failing-a}
+    reason: Fails on the deployed build. The fix is tracked in the owner story.
+    owner: story:known-failing-a
+    expires: 2026-11-30
+  - requirement: no-new-failing-cases
+    item: {case_id: known-failing-b}
+    reason: Fails on the deployed build. The fix is tracked in the owner story.
+    owner: story:known-failing-b
+    expires: 2026-11-30
+  - requirement: no-new-failing-cases
+    item: {case_id: known-failing-c}
+    reason: Fails on the deployed build. The fix is tracked in the owner story.
+    owner: story:known-failing-c
+    expires: 2026-11-30

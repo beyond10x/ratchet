@@ -1,6 +1,6 @@
 # Ratchet beyond the specification: brainstorm
 
-Status: brainstorm, 2026-11-24. Nothing here is decided. It answers Timo's question "what is
+Status: brainstorm, 2026-11-24. Nothing here is decided. It answers the owner's question "what is
 Ratchet beyond the specification?" and starts from his ideas: a binary `ratchet`, a local TOML
 config that points at specs and metric settings and can ignore one, validation of the quality
 gates, and a UI that shows each gate, what it means, its latest evaluation, when it was last
@@ -14,10 +14,10 @@ Citations: `F<n>` and implication numbers are in `research/synthesis.md`; `§ n`
 | Part | What it is | From |
 |---|---|---|
 | Specification | `ratchet/1` YAML: requirements, plans, gates, references, exceptions | design § 1–5 |
-| `ratchet` binary | validate, assess, evaluate, propose, prove, render, show | Timo; design § 5 |
-| Local config | `ratchet.toml`: where specs, presets, records and tools are; local choices | Timo |
+| `ratchet` binary | validate, assess, evaluate, propose, prove, render, show | the owner; design § 5 |
+| Local config | `ratchet.toml`: where specs, presets, records and tools are; local choices | the owner |
 | Record store | assessment runs, gate decisions, reference changes, exceptions over time | design § 6; F11 |
-| Views | a web UI and a terminal view of requirements, meaning, verdicts, history | Timo; design § 6 |
+| Views | a web UI and a terminal view of requirements, meaning, verdicts, history | the owner; design § 6 |
 | Integrations | CI, pre-push, the build pool, agents (skill, MCP), the docs site | F3, F10; implication 16 |
 
 ## 2. Two files with different authority
@@ -74,21 +74,21 @@ From the design (§ 5): `init`, `validate`, `assess`, `evaluate`, `reference pro
 
 | Command | What it answers | Why |
 |---|---|---|
-| `ratchet status` | Every requirement: verdict, value against limit or reference, last checked, by which run, in which environment | Timo's "last checked"; F11 |
-| `ratchet explain <req>` | What it means in plain words, which audience cares, how it is measured, where the evidence is | Timo's "described and their meaning"; E1 |
-| `ratchet history <req>` | The series with the reference line, reference changes and exceptions marked | Timo's "over time"; § 6 |
+| `ratchet status` | Every requirement: verdict, value against limit or reference, last checked, by which run, in which environment | the owner's "last checked"; F11 |
+| `ratchet explain <req>` | What it means in plain words, which audience cares, how it is measured, where the evidence is | the owner's "described and their meaning"; E1 |
+| `ratchet history <req>` | The series with the reference line, reference changes and exceptions marked | the owner's "over time"; § 6 |
 | `ratchet diff` | Candidate against reference, item by item: new findings, lost passing cases | F7, F9 |
 | `ratchet doctor` | Config, specs, tools, record store reachable; sampled plans without conditions | F10 |
 | `ratchet import` | Pull history that exists elsewhere: forge runs, build-pool job logs, JUnit files | F11; slot B7 |
 | `ratchet exceptions` | Active, expiring and expired exceptions | F12 |
-| `ratchet serve` | The web UI over the record store | Timo |
+| `ratchet serve` | The web UI over the record store | the owner |
 
 Every non-pass result names its cause and the next step: what to fix or which evidence to
 recover (§ 5). The coding agent is the main reader of that output (implication 16).
 
 ## 4. Validation, in layers
 
-Timo's "validate our gates and the specs for them" splits into four checks of increasing cost:
+The owner's "validate our gates and the specs for them" splits into four checks of increasing cost:
 
 1. **Shape.** The YAML matches the schema; references resolve; units and kinds agree.
    `ratchet validate`, no I/O beyond the files.
@@ -177,7 +177,7 @@ files, docs numbers rendered from records. It is the first place the UI shows re
 ## 10. Open questions
 
 Options, a recommended default and what would change it, per question:
-[open-questions.md](open-questions.md). Recommendations only; they await Timo.
+[open-questions.md](open-questions.md). Recommendations only; they await the owner.
 
 1. TOML for the local config, YAML for the specification: two formats, or TOML for both?
 2. Can a local TOML ever affect a gate, for example on a developer's pre-push?

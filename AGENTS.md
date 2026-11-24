@@ -11,10 +11,10 @@ what is specific to ratchet.
 
 The repository is in the design phase.
 
-- No planning ahead: no epics, stories or tasks in the store until Timo opens implementation
-  planning. Timo, 2026-11-23: "do not do any planning ahead … we're just in the design phase".
-- No implementation code yet. Changes go to `docs/design.md`, `vision.md`, `research/`,
-  `website/` and this file.
+- No planning ahead: no epics, stories or tasks in the store until the owner opens implementation
+  planning. The owner, 2026-11-23: "do not do any planning ahead … we're just in the design phase".
+- No implementation code yet. Changes go to `docs/`, `vision.md`, `research/`, `spec/`,
+  `examples/`, `website/` and this file.
 - Survey answers arrive through the operator session of `~/.claude/CLAUDE.md` § Host operator.
   An answer about work outside beyond10x names nothing of that work (`research/README.md`
   § Confidentiality); check every answer against that list before committing it.
@@ -23,7 +23,7 @@ The repository is in the design phase.
 
 ## Specification first (ESS)
 
-Timo, 2026-11-24: "when you're building this tool, the CLI tool, remember, just do ESS upfront.
+The owner, 2026-11-24: "when you're building this tool, the CLI tool, remember, just do ESS upfront.
 So we specify stuff before we're building it … There's also a CLI spec for the CLI surface, which
 you should utilize, and then you should use the ESS synthesizer to actually build the boilerplate".
 
@@ -44,6 +44,7 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `vision.md` | why Ratchet exists, its outcomes and what it does not do |
 | `docs/design.md` | the design proposal: domain language, YAML shapes, CLI, records, ESS integration |
 | `research/` | surveys and their answers, `synthesis.md`, `candidate-presets.md`, consumer input; confidentiality rules in `research/README.md` |
+| `spec/` | ESS specification of Ratchet's nouns (`system.yaml`, `domains/`) and the `ess-cli/2` binding of the `ratchet` commands (`cli.yaml`); proposals; `UNMAPPED:` markers are open design questions; nothing generated from it is committed yet |
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`), no artifacts yet |
 | `website/` | the public documentation site at `https://beyond10x.github.io/ratchet/` (Docusaurus on `@beyond10x/docs-system`, pinned by commit in `package.json`). Its docs pages are `vision.md`, `docs/design.md`, `research/*.md` and `research/responses/*.md`, read in place; `docusaurus.config.ts` gives each its route, title and header (`pages`), the files stay unchanged. `product.json` is the landing page, drawn by `src/pages/index.tsx` (not withProductSite's `landing` option, which ships the build machine's path in the bundle). `.npmrc` sets `allow-git=root`: npm 12 otherwise refuses the Git-pinned dependency. A new file in `research/` (other than `responses/`) needs an entry in `pages` and in `sidebars.ts`; a new file in `docs/` also needs an `include` pattern. A Markdown link to a file the site does not publish fails the build, so link such files by GitHub URL |
 | `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths` |
