@@ -733,6 +733,8 @@ An exception is an entry of the specification and not a record of its own. A gat
 
 An authored entry has the id its author gave it: the key of its map. A record gets its id from the CLI when it is written, as its type and a digest of its content, such as `run:<digest>`. Two writers then need no coordination.
 
+The file form of an assessment run is drafted as `ratchet-evidence/1` in [`docs/evidence-format.md`](https://github.com/beyond10x/ratchet/blob/main/docs/evidence-format.md), which lists its fields, decides the first assessor’s gaps U1 to U9, and leaves six questions to the owner.
+
 **The record store** has two parts with one role each (open questions Q3). Records are versioned JSON.
 
 - **Hand-over.** A run writes its records as a CI artifact. A pull-request job needs no push rights.
