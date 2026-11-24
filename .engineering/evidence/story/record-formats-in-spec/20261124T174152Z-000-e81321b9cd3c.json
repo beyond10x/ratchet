@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T17:41:52Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:record-formats-in-spec",
+  "kind": "story",
+  "revision": 14,
+  "change": {
+    "change": "evidence",
+    "kind": "verification",
+    "source": "slot task check",
+    "reference": "7673482: sh spec/record-fields.test.sh exit 1, 45 of 97 field rows declared vs 773be17: slot task check exit 0, 97 of 97, 211 capabilities 0 refused"
+  }
+}

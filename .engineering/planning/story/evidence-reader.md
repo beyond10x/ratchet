@@ -22,7 +22,7 @@ scope:
   path: crates/ratchet-core/tests/fixtures/evidence
 - confidence: cited
   path: crates/ratchet-core/tests/store.rs
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
@@ -64,6 +64,11 @@ runs of its assessment under its record id and read back byte-identical, in the 
   member of `evidence` the reader does not know is rejected, a member of `run` it does not know
   is ignored (§ 1 "Version").
 - Decimals stay text; no value passes through a float.
+- Each invariant of a `ratchet.evidence` type in the specification has a fixture that breaks only it
+  and is rejected (`samples` of a sampled number and the rule-6 pair among them), and the test
+  step fails when the specification holds an invariant of those types that no fixture names. No
+  gate step read an invariant before this story (`review-result:adversary-record-formats-pass-2`,
+  finding 4). The story reports how it compares the two lists.
 - Red first: the tests fail before the reader exists.
 - Budget: no test over 60 s, the step within 120 s; these tests read files only.
 - The check of a document against an assessor's declaration is in `story:assess-command`.

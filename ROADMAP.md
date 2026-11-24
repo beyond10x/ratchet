@@ -37,6 +37,9 @@ The order is the one `aep plan artifact waves --kind story` derives.
 
 Acceptance run `ui-loop`: not built yet (0 of 7 steps).
 
+Wave 1 is delivered (2026-11-24): the specification 0.1.0 is built from, with seven checks of it in
+`task check:spec`. Record: `.engineering/waves/0.1.0-wave-1.md`.
+
 ## Releases
 
 - **0.1.0**: `validate`, `assess`, `reference adopt` (first adoption and tightening of an exact

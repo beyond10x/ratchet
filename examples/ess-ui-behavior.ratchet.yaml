@@ -15,7 +15,7 @@ assessments:
     observation:
       kind: snapshot
       scenarios: [ess-ui:explainer-page/keyboard-only]
-      coverage: {skipped: 0, not_run: 0, unsupported: 0}
+      coverage: {skipped: {max: 0}, not_run: {max: 0}, unsupported: {max: 0}}
     measurements:
       task-completes:
         kind: exact
@@ -30,7 +30,7 @@ assessments:
     observation:
       kind: snapshot
       scenarios: ["ess-ui:explainer-page/*"]
-      coverage: {executed: 30, skipped: 0, not_run: 0, unsupported: 0}
+      coverage: {executed: {min: 30}, skipped: {max: 0}, not_run: {max: 0}, unsupported: {max: 0}}
     measurements:
       steps:
         {kind: exact, output: steps, scope: journey, unit: steps, better: lower}

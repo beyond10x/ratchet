@@ -95,7 +95,7 @@ requirements:
 assessments:
   test-step-instructions:
     assessor: perf-stat@1
-    observation: {kind: controlled-run, command: task test, runs: 3, conditions: {toolchain: pinned}}
+    observation: {kind: controlled-run, command: task test, runs: 3, conditions: {tools: {rustc: {pin: rust-toolchain.toml}}}}
     measurement: {kind: exact, output: instructions, scope: step, aggregation: median, unit: instructions}
 requirements:
   test-step-instructions-hold:
@@ -137,7 +137,7 @@ requirements:
 assessments:
   conformance-cases:
     assessor: ess-conformance-report@1
-    observation: {kind: snapshot, report: conformance/report.json, coverage: {skipped: 0, unsupported: 0}}
+    observation: {kind: snapshot, report: conformance/report.json, coverage: {skipped: {max: 0}, unsupported: {max: 0}}}
     measurement: {kind: exact, output: passing_cases, scope: case, identity: [case_id]}
 requirements:
   no-case-lost:
@@ -181,7 +181,7 @@ requirements:
 assessments:
   read-path-cost:
     assessor: callgrind@1
-    observation: {kind: controlled-run, scenario: scenarios/read.yaml, conditions: {toolchain: pinned, loader: pinned}}
+    observation: {kind: controlled-run, scenario: scenarios/read.yaml, conditions: {tools: {rustc: {pin: rust-toolchain.toml}}, loader: pinned}}
     measurement: {kind: exact, output: instructions, scope: scenario, unit: instructions}
 requirements:
   read-path-cost-holds:
@@ -225,7 +225,7 @@ assessments:
   docs-ux:
     assessor: ux-eval@1
     target: {kind: revision, environment: [local, ci]}
-    observation: {kind: snapshot, scenario: ess-ui:docs/find-command, coverage: {skipped: 0, unsupported: 0}}
+    observation: {kind: snapshot, scenario: ess-ui:docs/find-command, coverage: {skipped: {max: 0}, unsupported: {max: 0}}}
     measurement: {kind: exact, output: actions_per_task, scope: journey, unit: actions}
 requirements:
   actions-do-not-rise:
@@ -246,7 +246,7 @@ requirements:
 assessments:
   generated-docs:
     assessor: generator-check@1
-    observation: {kind: snapshot, command: task generate, conditions: {toolchain: pinned}}
+    observation: {kind: snapshot, command: task generate, conditions: {tools: {rustc: {pin: rust-toolchain.toml}}}}
     measurement: {kind: exact, output: digest, scope: file}
 requirements:
   generated-docs-current:

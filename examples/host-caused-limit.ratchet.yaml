@@ -20,7 +20,7 @@ assessments:
           tools: {rustc: {pin: rust-toolchain.toml}}
         local: {host_load_per_cpu: {max: 2.125}}
         ci: {runner: ci-standard}
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       step-time:
         {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}

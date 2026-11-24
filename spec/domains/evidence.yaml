@@ -2,15 +2,27 @@ domain: ratchet.evidence
 
 summary: >-
   Observations: what one assessment run produced, with its resolved target, conditions,
-  coverage and values per measurement (docs/design.md § 3, § 6), and the proof records
-  `ratchet prove` writes (§ 4). Records are stored apart from gate decisions and reference
-  changes, so old evidence can be re-evaluated against a new requirement (§ 6).
+  coverage and results (docs/design.md § 3, § 6), written as one document of the format
+  `ratchet-evidence/1` (docs/evidence-format.md), and the proof records `ratchet prove` writes
+  (§ 4). Records are stored apart from gate decisions and reference changes, so old evidence can
+  be re-evaluated against a new requirement (§ 6).
 
-# Who writes a record: the `ratchet` commands of the CLI binding (`spec/cli.yaml`). They are
+# Sources: `§` is a section of docs/design.md; `format §` is a section of
+# docs/evidence-format.md, whose § 3 lists every member of the document and whose § 4 lists the
+# rules a reader checks. `spec/record-fields.test.sh` checks that every field row of format § 3
+# is declared here under the name the row gives.
+#
+# Who writes a record: an assessor writes the document of a run that ended, and the `ratchet`
+# commands of the CLI binding (`spec/cli.yaml`) write every other one (format § 10). They are
 # local actions; this specification declares no ESS command that creates a record, so each
-# record has one lifecycle state. A record gets its id from the CLI when it is written, as its
-# type and a digest of its content, `run:<digest>` (§ 6). Records reach the series on
-# `refs/ratchet/records` as described in `domains/config.yaml`.
+# record has one lifecycle state. A record gets its id from its bytes when it is written,
+# `run:<digest>` (§ 6). Records reach the series on `refs/ratchet/records` as described in
+# `domains/config.yaml`.
+#
+# Rules of format § 4 that are invariants here: 1 (`Evidence`), 2, 5 and 6
+# (`MeasurementResult`), the parts of 4 that read the counts (`EvidenceCoverage`), and 7
+# (`Evidence`). Rule 9 holds by declaration for a time: `Evidence` holds no `Timestamp` outside
+# `Window`. The rules a reader checks without an invariant are listed in spec/README.md.
 
 types:
   - name: ratchet.evidence.RunId
@@ -18,8 +30,10 @@ types:
     of: String
     naming:
       summary: >-
-        The id of an assessment run record, `run:<digest of its content>`, citable from prose
-        (§ 6).
+        The id of an assessment run record, `run:<hex>`: the SHA-256 digest of the bytes of the
+        file that holds the document, the member `run` included (§ 6; format § 2, E4). Not a
+        member of the document, and citable from prose. The same `evidence` written with two
+        `run` members has two ids.
 
   - name: ratchet.evidence.ProofId
     kind: newtype
@@ -27,37 +41,50 @@ types:
     naming:
       summary: The id of a proof record, its type and a digest of its content (§ 6).
 
+  - name: ratchet.evidence.Digest
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A SHA-256 digest over bytes as they were written, `sha256:` and 64 lowercase hex digits
+        (format § 1, § 2).
+
+  - name: ratchet.evidence.CandidateIdentity
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The identity evidence is attributable to: the commit id for a target of the kind
+        `revision`, the digest of the document for `document`, the artifact digest for `build`
+        (§ 3; format § 3).
+
   - name: ratchet.evidence.Window
     kind: struct
     naming:
       summary: >-
-        The exact bounds of a time-window observation (§ 3). The window ends when the plan is
-        assessed; for an operational gate, at the evaluation (§ 5).
+        The window a time-window run read (§ 3, § 6): its exact bounds, the number of
+        population items, the time of the newest, and the number of runs left out. The window
+        ends when the plan is assessed; for an operational gate, at the evaluation (§ 5). Fewer
+        items than the plan's `min_samples` is insufficient evidence with the cause
+        `too_few_samples`.
     fields:
       - name: starts_at
         type: Timestamp
       - name: ends_at
         type: Timestamp
-
-  - name: ratchet.evidence.WindowItems
-    kind: struct
-    naming:
-      summary: >-
-        What a time-window run read (§ 3, § 6): the number of population items, the time of
-        the newest, and the number of runs left out. Fewer items than the plan's `min_samples`
-        is insufficient evidence with the cause `too_few_samples`.
-    fields:
       - name: items
         type: Integer
-      - name: newest_item_at
+        summary: The number of population items in the window.
+      - name: newest_at
         type: Optional<Timestamp>
-        summary: Absent when the window holds no item.
-      - name: runs_left_out
-        type: Optional<Integer>
+        summary: The time of the newest item; present when `items` is above 0.
+      - name: left_out
+        type: Integer
         summary: >-
-          For a population over `runs_of`: the runs of the source plan in the window that did
-          not qualify under it (outside its conditions or below its coverage). Absent for a
-          population read outside the record store.
+          Runs left out because they did not qualify under the source plan (outside its
+          conditions or below its coverage); 0 for a population read outside the record store.
+    invariants:
+      - any: ["items <= 0", "defined(newest_at)"]
 
   - name: ratchet.evidence.ResolvedTarget
     kind: struct
@@ -65,7 +92,8 @@ types:
       summary: >-
         The target the evidence was collected from, recorded beside the expected target of the
         plan (§ 3): a commit and lockfile, an environment id with an artifact digest and a
-        workload version, or a telemetry population with exact window bounds.
+        workload version, a telemetry population with exact window bounds, or a document with
+        its digest.
     fields:
       - name: kind
         type: ratchet.specification.TargetKind
@@ -74,15 +102,57 @@ types:
         summary: Where the evidence was produced; `ci` when a CI environment is detected (§ 5).
       - name: selection
         type: Optional<ratchet.specification.Selection>
+        summary: Absent when the evidence is attributable to no candidate (§ 3).
       - name: revision
         type: Optional<ratchet.specification.Revision>
+        summary: >-
+          The repository revision the target was read at, where there is one. The assessor
+          writes the revision it is given and looks none up; absent for `document`
+          (format § 10).
       - name: identifiers
-        type: Map<String, String>
+        type: Optional<Map<String, String>>
         summary: >-
           The identifiers § 3 lists per target kind, by name: `lockfile`, `environment_id`,
-          `artifact_digest`, `workload_version`, `service`, `region`, `cohort`.
+          `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For the kind
+          `document`: `digest`, `digest_form`, and `path` where the document is a file of the
+          tree. A document outside the tree has no `path`: its digest identifies it
+          (format § 1, § 3).
       - name: window
         type: Optional<ratchet.evidence.Window>
+        summary: >-
+          Present exactly on a run of a time-window plan. No invariant says so: the kind of the
+          observation is in the plan, not in this struct, so the reader checks it against the
+          plan (format § 8).
+    invariants:
+      - any: ["kind != document", "defined(identifiers)"]
+      - any: ["kind != document", "not defined(revision)"]
+
+  - name: ratchet.evidence.ResolvedInput
+    kind: struct
+    naming:
+      summary: >-
+        The resolved value of one input of the plan that is not local and is not the target
+        (format § 3, § 10): the value the plan passed, after defaults, and for a path that was
+        read the digest of the file. An input file outside the tree has the digest and no
+        `value`.
+    fields:
+      - name: value
+        type: Optional<Json>
+        summary: >-
+          Text, a count, a boolean, or a list of these; a path and a decimal are text. Absent
+          only for a path outside the tree.
+      - name: digest
+        type: Optional<ratchet.evidence.Digest>
+        summary: For a path that was read, the digest of the file at that path.
+      - name: digest_form
+        type: Optional<String>
+        summary: >-
+          Which form of the file the digest is over, `bytes` in version 1; a label compared for
+          equality (format § 2). Present exactly with `digest`.
+    invariants:
+      - any: ["defined(value)", "defined(digest)"]
+      - any: ["not defined(digest)", "defined(digest_form)"]
+      - any: ["defined(digest)", "not defined(digest_form)"]
 
   - name: ratchet.evidence.HostLoad
     kind: struct
@@ -104,118 +174,158 @@ types:
     naming:
       summary: >-
         The conditions the evidence was observed under (§ 3, § 6): runner, host load, tools and
-        cache profile, and every further condition the plan or the assessor declares. A value
-        the source does not hold, such as the host load of an imported run, is absent, which
-        records it as unknown; evidence with an unknown value for a declared condition does not
-        qualify for a gate and still extends a series (§ 6).
+        cache profile, and every further condition the plan or the assessor declares. A
+        condition is read only where it is declared: by the plan, for the class of the run, or
+        by the assessor in its declaration. A declared condition the document does not hold,
+        such as the host load of an imported run, is unknown; evidence with an unknown value
+        for a declared condition does not qualify for a gate and still extends a series (§ 6).
+        A condition that neither declares does not apply, and its absence says nothing
+        (format § 3).
     fields:
       - name: runner
         type: Optional<String>
       - name: host_load_per_cpu
         type: Optional<ratchet.evidence.HostLoad>
       - name: tools
-        type: Map<String, String>
-        summary: The resolved version of each tool the plan's `tools` names (§ 3).
+        type: Optional<Map<String, String>>
+        summary: >-
+          The resolved version of each tool the plan's `tools` names, the assessor's own
+          included (§ 3).
       - name: cache_profile
         type: Optional<String>
       - name: other
-        type: Map<String, String>
+        type: Optional<Map<String, String>>
         summary: Every further condition by name, such as the C library or the CPU model.
+
+  # format § 3: the three states of a unit that did not execute.
+  - name: ratchet.evidence.NotExecutedState
+    kind: enum
+    variants: [skipped, not_run, unsupported]
+
+  - name: ratchet.evidence.NotExecutedUnit
+    kind: struct
+    naming:
+      summary: >-
+        One unit that did not execute, with its state and reason (format § 3, U3). The id is in
+        the assessor's spelling, unique within the run, and the same for the same unit in every
+        run.
+    fields:
+      - name: id
+        type: String
+      - name: state
+        type: ratchet.evidence.NotExecutedState
+      - name: reason
+        type: Optional<String>
 
   - name: ratchet.evidence.EvidenceCoverage
     kind: struct
     naming:
       summary: >-
-        How much of the plan a run executed: executed, skipped, not run and unsupported items,
+        How much of the plan a run executed: executed, skipped, not run and unsupported units,
         next to passed and failed (§ 1, § 3). One set of counts per run, whichever measurements
-        read it; the items are of the assessor's coverage unit, which the evidence names.
+        read it; the units are of the assessor's coverage unit, which the evidence names. A
+        unit is one piece of work and is counted once, in one of the four counts, however often
+        the inputs name it. `passed` plus `failed` is at most `executed`: a unit that is
+        counted and not judged, such as a step, is executed and neither (format § 4 rule 4).
     fields:
       - name: unit
         type: ratchet.assessor.CoverageUnit
-        summary: The assessor's coverage unit, such as `walk` or `test` (§ 3, § 6).
+        summary: The assessor's coverage unit, such as `walk`, `test` or `check` (§ 3, § 6).
       - name: executed
         type: Integer
+        summary: Units that ran and gave a result.
       - name: skipped
         type: Integer
+        summary: Units that the run left out on purpose.
       - name: not_run
         type: Integer
+        summary: Units that should have run and did not.
       - name: unsupported
         type: Integer
+        summary: Units that the assessor cannot evaluate.
       - name: passed
         type: Integer
+        summary: Executed units whose own outcome is a pass.
       - name: failed
         type: Integer
+        summary: Executed units whose own outcome is a fail.
       - name: executed_ids
         type: Optional<List<String>>
         summary: >-
-          The ids of the executed items, ids of the coverage unit, where the plan declares
+          The ids of the executed units, ids of the coverage unit, where the plan declares
           `executed_ids`.
+      - name: not_executed
+        type: Optional<List<ratchet.evidence.NotExecutedUnit>>
+        summary: >-
+          The units that were not executed; where present, one entry per unit of `skipped`,
+          `not_run` and `unsupported`. No id is twice in `executed_ids` and `not_executed`
+          taken together.
+    invariants:
+      - "passed <= executed"
+      - "failed <= executed"
+      - any:
+          - "not defined(not_executed)"
+          - distinct: {in: not_executed, as: u, by: u.id}
+      - any:
+          - "not defined(executed_ids)"
+          - distinct: {in: executed_ids, as: e}
+      - any:
+          - "not defined(not_executed)"
+          - "not defined(executed_ids)"
+          - not:
+              exists:
+                in: not_executed
+                as: u
+                that:
+                  exists: {in: executed_ids, as: e, that: "u.id == e"}
 
-  - name: ratchet.evidence.IdentitySet
+  - name: ratchet.evidence.Incomplete
     kind: struct
     naming:
       summary: >-
-        A set of items with stable identities, such as findings or passing cases, compared item
-        by item (§ 1, § 4). Each item is keyed by the set's identity key.
+        Why a result has no value, or less than the whole value (format § 3, U5, U6). The
+        assessor gives no verdict: it names the cause in the words the gate will use. One
+        cause, also when several apply; `detail` then names every one (format § 5).
     fields:
-      - name: key
-        type: List<String>
-        summary: The identity key, such as `[rule, node_path, environment]`.
-      - name: items
-        type: List<Json>
-        summary: >-
-          The items, each an object with the key's members and the item fields the assessor
-          declares. A member may be nested, as `environment: {viewport: narrow}` in § 3.
+      - name: cause
+        type: ratchet.gate.InsufficientEvidenceCause
+      - name: detail
+        type: Optional<String>
+        summary: One sentence for the reader of a report.
 
-  - name: ratchet.evidence.NumberValue
-    kind: struct
-    fields:
-      - name: value
-        type: Decimal
-      - name: unit
-        type: Optional<ratchet.specification.Unit>
-        summary: >-
-          Present exactly when the assessor declares a unit for the output; a value without a
-          unit has no `unit` key (§ 3).
-      - name: at_least
-        type: Boolean
-        summary: >-
-          The run reached the limit and was stopped there under qualifying conditions, so the
-          value is "at least the limit" (§ 3).
-
-  - name: ratchet.evidence.DigestValue
-    kind: struct
-    fields:
-      - name: digest
-        type: String
-        summary: The digest of a generated file, compared with a fresh generation (§ 5).
-
-  - name: ratchet.evidence.AssertionValue
+  - name: ratchet.evidence.IdentityItem
     kind: struct
     naming:
       summary: >-
-        An assertion holds or does not hold for each item of its scope (§ 3); a value is one
-        item's result.
+        One item of an identity set in the evidence, `{identity, fields}` (format § 3, U4). A
+        reference record's accepted item has the same `identity`
+        (`ratchet.reference.AcceptedItem`).
     fields:
-      - name: holds
-        type: Boolean
-
-  # The value types of § 3 "Comparisons"; the tag is the value type.
-  - name: ratchet.evidence.MeasuredValue
-    kind: union
-    tag: value_type
-    variants:
-      number: ratchet.evidence.NumberValue
-      identity_set: ratchet.evidence.IdentitySet
-      digest: ratchet.evidence.DigestValue
-      assertion: ratchet.evidence.AssertionValue
+      - name: identity
+        type: Json
+        summary: >-
+          Exactly the fields of the result's `key`; a field can be a map, as
+          `environment: {viewport: narrow}` in § 3. No invariant says so: an invariant selects
+          no member of a `Json`, so the reader checks it (format § 8).
+      - name: fields
+        type: Optional<Map<String, Json>>
+        summary: >-
+          The item fields the assessor declares, such as severity, message and location; a
+          measurement's `filter` reads them.
 
   - name: ratchet.evidence.MeasurementResult
     kind: struct
     naming:
       summary: >-
-        One result at the scope where it was observed, with its kind and value type (§ 6).
-        Aggregation does not repeat a result outside its scope (§ 3 "Scope and aggregation").
+        One result at the scope where it was observed (§ 6; format § 3): the output of the
+        assessor it belongs to, its kind and value type, and the members of that value type,
+        written beside `value_type` and not one level down. A number has `value`, `unit`,
+        `at_least`, `samples` and `aggregation`; an identity set `key` and `items`; a digest
+        `digest`; an assertion `holds`. A result is complete or incomplete: a complete one has
+        the value of its type and no `incomplete`; an incomplete one has `incomplete`, and
+        either no value or less than the whole one, a number with `at_least` or the items of a
+        set that were found (format § 4 rule 5). Aggregation does not repeat a result outside
+        its scope (§ 3 "Scope and aggregation").
     fields:
       - name: output
         type: ratchet.specification.OutputName
@@ -223,20 +333,109 @@ types:
         type: ratchet.specification.MeasurementKind
       - name: scope
         type: ratchet.specification.Scope
-      - name: scope_item
+        summary: "`run`, or a scope the assessor declares."
+      - name: item
         type: Optional<String>
-        summary: The page, journey, test, scenario or variant the result belongs to.
+        summary: >-
+          The scope item: the page, journey, test, scenario or variant the result belongs to,
+          in the same spelling in every run. Absent exactly when `scope` is `run`.
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
+      - name: value_type
+        type: ratchet.specification.ValueType
+        summary: Decides which of the value members below the result has.
+      - name: incomplete
+        type: Optional<ratchet.evidence.Incomplete>
+      - name: details
+        type: Optional<Json>
+        summary: >-
+          What the assessor wants kept beside the result. Ratchet stores it and compares
+          nothing in it.
       - name: value
-        type: ratchet.evidence.MeasuredValue
+        type: Optional<Decimal>
+        summary: The value of a number; absent on an incomplete result without a lower bound.
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Present exactly when the assessor declares a unit for the output; a value without a
+          unit has no `unit` key (§ 3).
+      - name: at_least
+        type: Optional<Boolean>
+        summary: >-
+          `true`: the value is a lower bound, as when a run reached its limit or the assessor
+          could not count everything (§ 3; format § 5, U6). Only on an incomplete result;
+          absent means `false`.
+      - name: samples
+        type: Optional<Integer>
+        summary: >-
+          The number of samples or runs behind the value; present with `aggregation`, and on
+          every number whose `kind` is `sampled` (format § 3).
+      - name: aggregation
+        type: Optional<ratchet.specification.Aggregation>
+        summary: The aggregation the value already is, in the plan's shape.
+      - name: key
+        type: Optional<List<String>>
+        summary: The identity key of a set, such as `[rule, node_path, environment]`.
+      - name: items
+        type: Optional<List<ratchet.evidence.IdentityItem>>
+        summary: >-
+          The items of a set found for this scope item. Empty when nothing was found: on a
+          complete result the item was evaluated, on an incomplete one it was not, or not
+          wholly (format § 4 rule 8).
+      - name: digest
+        type: Optional<ratchet.evidence.Digest>
+        summary: The digest of a generated file, compared with a fresh generation (§ 5).
+      - name: holds
+        type: Optional<Boolean>
+        summary: Whether the assertion holds for this scope item (§ 3).
+    invariants:
+      # format § 4 rule 2.
+      - any: ["scope != \"run\"", "not defined(item)"]
+      - any: ["scope == \"run\"", "defined(item)"]
+      # The value members belong to their value type.
+      - any: ["value_type == number", "not defined(value)"]
+      - any: ["value_type == number", "not defined(unit)"]
+      - any: ["value_type == number", "not defined(at_least)"]
+      - any: ["value_type == number", "not defined(samples)"]
+      - any: ["value_type == number", "not defined(aggregation)"]
+      - any: ["value_type == identity_set", "not defined(key)"]
+      - any: ["value_type == identity_set", "not defined(items)"]
+      - any: ["value_type == digest", "not defined(digest)"]
+      - any: ["value_type == assertion", "not defined(holds)"]
+      # format § 4 rule 5: a complete result has the value of its type.
+      - any: ["defined(incomplete)", "value_type != number", "defined(value)"]
+      - any: ["value_type != identity_set", "defined(key)"]
+      - any: ["value_type != identity_set", "defined(items)"]
+      - any: ["defined(incomplete)", "value_type != digest", "defined(digest)"]
+      - any: ["defined(incomplete)", "value_type != assertion", "defined(holds)"]
+      # format § 4 rule 5: an incomplete result has no value, or a number with `at_least`.
+      - any:
+          - "not defined(incomplete)"
+          - "not defined(value)"
+          - all: ["defined(at_least)", "at_least == true"]
+      - any: ["not defined(incomplete)", "not defined(digest)"]
+      - any: ["not defined(incomplete)", "not defined(holds)"]
+      # format § 4 rule 6.
+      - any: ["not defined(at_least)", "at_least == false", "defined(incomplete)"]
+      # format § 3: `samples` with `aggregation`, and for a sampled result.
+      - any: ["not defined(aggregation)", "defined(samples)"]
+      - any: ["kind != sampled", "value_type != number", "defined(samples)"]
 
   # § 5 "Verdicts": a timed-out assessor and an assessor stopped by its infrastructure return
   # no result about the subject; § 3: a killed run is never recorded as such a result. § 5
   # "Local config" rule 2: a skipped assessment is recorded as a run that executed nothing.
+  # format § 10: an assessor writes `completed` in the document it leaves with exit 0, and the
+  # CLI writes the other four: `refused_inputs` for exit 1, `stopped_by_infrastructure` for
+  # exit 2, any other status, a signal, and a missing or rule-breaking document, `timed_out`
+  # for an assessor it ended at its time limit, `skipped_locally` for one it did not start. One
+  # exception: an assessor that ended a tool under it and still has results to keep writes
+  # `timed_out` or `stopped_by_infrastructure` itself, with every result incomplete.
+  # A completion maps to a cause of insufficient evidence: `timed_out` to `assessor_timed_out`,
+  # `stopped_by_infrastructure` to `assessor_infrastructure_failure`, `skipped_locally` to
+  # `skipped_locally`, `refused_inputs` to `incompatible_target` (format § 5, E9).
   - name: ratchet.evidence.RunCompletion
     kind: enum
-    variants: [completed, timed_out, stopped_by_infrastructure, skipped_locally]
+    variants: [completed, timed_out, stopped_by_infrastructure, skipped_locally, refused_inputs]
 
   # The sources § 5 "Proposed CLI" names for `ratchet import`.
   - name: ratchet.evidence.ImportSourceKind
@@ -254,100 +453,153 @@ types:
         type: String
         summary: The forge run, the job log or the JUnit file read.
 
-entities:
-  - name: ratchet.evidence.AssessmentRun
+  - name: ratchet.evidence.Evidence
+    kind: struct
     naming:
       summary: >-
-        The record of one run of an assessment plan (§ 6): candidate, resolved target and its
-        class, assessor and protocol versions, timestamps or window bounds, values per
-        measurement, sample or run count, coverage counts with their unit, observed conditions,
-        queue wait and run time, the resolved value of each local input, artifact references,
-        and for an imported run where it came from; for a window, the number of population
-        items, the time of the newest and the number of runs left out. A run that
-        `ratchet.toml` skipped locally is recorded as a run that executed nothing. An
-        operational gate's evaluation writes the windows it assesses as runs (§ 5).
-    identity:
-      name: run
-      type: ratchet.evidence.RunId
+        The member `evidence` of an assessment run: what was assessed and what was found, the
+        part under the evidence digest (format § 2, § 3). For exact results it is a function of
+        the inputs: it holds no time of day, no duration of the assessor's own run, no machine
+        name and no absolute path. The bounds of a time window and a duration that is a
+        measured value are data. A reader of version 1 rejects a member of it that it does not
+        know (E5), so this struct is closed.
     fields:
       - name: project
         type: ratchet.specification.ProjectName
+        summary: The `project` of the quality specification that holds the plan.
       - name: assessment
         type: ratchet.specification.AssessmentName
-      - name: candidate
-        type: Optional<ratchet.specification.Revision>
-        summary: >-
-          The candidate identity the evidence is attributable to (§ 3). Absent on a run of a
-          time-window plan without `selection`, whose evidence is attributable to no candidate.
-      - name: target
-        type: ratchet.evidence.ResolvedTarget
+        summary: The key of the plan under `assessments`.
       - name: assessor
         type: ratchet.specification.AssessorRef
+        summary: The assessor and its version, `ux-static@1`.
       - name: protocol_version
         type: Optional<String>
         summary: >-
           The version of the assessment protocol; a change that affects comparability starts a
           new evidence series (§ 5).
-      - name: started_at
-        type: Optional<Timestamp>
-      - name: ended_at
-        type: Optional<Timestamp>
+      - name: candidate
+        type: Optional<ratchet.evidence.CandidateIdentity>
+        summary: >-
+          The candidate identity the evidence is attributable to (§ 3). Present exactly when
+          `target.selection` is: a run of a time-window plan without `selection` is
+          attributable to no candidate.
+      - name: target
+        type: ratchet.evidence.ResolvedTarget
+      - name: inputs
+        type: Optional<Map<String, ratchet.evidence.ResolvedInput>>
+        summary: >-
+          The resolved value of each input of the plan that is not local and is not the target,
+          by input name (§ 4, § 6; format § 10).
       - name: completion
         type: ratchet.evidence.RunCompletion
+      - name: conditions
+        type: ratchet.evidence.ObservedConditions
+      - name: coverage
+        type: ratchet.evidence.EvidenceCoverage
       - name: results
-        type: Map<String, List<ratchet.evidence.MeasurementResult>>
+        type: List<ratchet.evidence.MeasurementResult>
         summary: >-
-          The results per measurement, keyed by the plan's measurement name; one result per
-          scope item.
-      - name: samples
-        type: Optional<Integer>
-        summary: The sample or run count behind an aggregated value.
-      - name: window_items
-        type: Optional<ratchet.evidence.WindowItems>
+          One result per output, scope item, boundary and aggregation; at most one for each
+          (format § 4 rule 3). Empty when nothing ran. A measurement of the plan reads the
+          results whose `output`, `scope`, `boundary` and `aggregation` are its own; the CLI
+          binds them when it judges (E3).
+      - name: source
+        type: Optional<ratchet.evidence.ImportSource>
+        summary: Present exactly on an imported run, which is an assessment run record (§ 6).
+    invariants:
+      # format § 4 rule 1.
+      - any: ["not defined(candidate)", "defined(target.selection)"]
+      - any: ["defined(candidate)", "not defined(target.selection)"]
+      # format § 4 rule 7: a run that did not complete has incomplete results only, each with
+      # the cause of its completion.
+      - any:
+          - "completion == completed"
+          - forall: {in: results, as: r, that: "defined(r.incomplete)"}
+      - any:
+          - "completion != timed_out"
+          - forall: {in: results, as: r, that: "r.incomplete.cause == assessor_timed_out"}
+      - any:
+          - "completion != stopped_by_infrastructure"
+          - forall:
+              in: results
+              as: r
+              that: "r.incomplete.cause == assessor_infrastructure_failure"
+      - any:
+          - "completion != skipped_locally"
+          - forall: {in: results, as: r, that: "r.incomplete.cause == skipped_locally"}
+      - any:
+          - "completion != refused_inputs"
+          - forall: {in: results, as: r, that: "r.incomplete.cause == incompatible_target"}
+
+  - name: ratchet.evidence.RunDetails
+    kind: struct
+    undeclared_fields: ignored
+    naming:
+      summary: >-
+        The member `run` of an assessment run: what differs between two runs over the same
+        inputs, outside the evidence digest (format § 2, § 3). Nothing in it changes how the
+        results of the run are judged. A window over the runs of a plan reads `ended_at` to
+        place a run. A reader of version 1 ignores a member of it that it does not know (E5),
+        so this struct is open.
+    fields:
+      - name: started_at
+        type: Optional<Timestamp>
+        summary: When the run started; present with a sampled result.
+      - name: ended_at
+        type: Optional<Timestamp>
+        summary: When the run ended; present with a sampled result.
+      - name: queue_wait
+        type: Optional<Duration>
         summary: >-
-          On a time-window run: the population items it read; its bounds are
-          `target.window`.
+          How long the run waited before it started, where the runner or build pool reports it
+          (§ 3).
+      - name: run_time
+        type: Optional<Duration>
+        summary: How long the run ran.
       - name: local_inputs
-        type: Map<String, String>
+        type: Optional<Map<String, String>>
         summary: >-
           The resolved value of each local input, by input name, as `[inputs.<assessment>]` of
           `ratchet.toml` supplied it on the machine that ran (§ 5 rule 6). A wrong path gives
-          evidence from the wrong file, and only this record shows it (§ 9, D6). Empty when the
-          assessor declares no local input.
-      - name: coverage
-        type: ratchet.evidence.EvidenceCoverage
-      - name: conditions
-        type: ratchet.evidence.ObservedConditions
-      - name: queue_wait
-        type: Optional<Duration>
-      - name: run_time
-        type: Optional<Duration>
+          evidence from the wrong file, and only this record shows it (§ 9, D6).
       - name: artifacts
-        type: List<String>
-        summary: Pointers to the relevant logs, traces or findings (§ 5, § 6).
-      - name: source
-        type: Optional<ratchet.evidence.ImportSource>
-        summary: Present on an imported run, which is an assessment run record (§ 6).
+        type: Optional<List<String>>
+        summary: Pointers to the relevant logs, traces or reports (§ 5, § 6).
+
+entities:
+  - name: ratchet.evidence.AssessmentRun
+    naming:
+      summary: >-
+        The record of one run of an assessment plan (§ 6), one document of the format
+        `ratchet-evidence/1` (docs/evidence-format.md): `format`, `evidence` and, with a
+        sampled result, `run`. One document per run: every measurement of the plan reads that
+        run, and the document holds all its results and one set of coverage counts. A run that
+        `ratchet.toml` skipped locally is recorded as a run that executed nothing. An
+        operational gate's evaluation writes the windows it assesses as runs (§ 5). A document
+        whose results are all exact can leave `run` out; the same inputs then give the same
+        file, byte for byte.
+    identity:
+      name: run_id
+      type: ratchet.evidence.RunId
+    fields:
+      - name: format
+        type: String
+        summary: "`ratchet-evidence/1`."
+      - name: evidence
+        type: ratchet.evidence.Evidence
+      - name: run
+        type: Optional<ratchet.evidence.RunDetails>
     invariants:
-      - any: ["not defined(window_items)", "defined(target.window)"]
-    relations:
-      # references, not owns: a record outlives the document that governed it, so old evidence
-      # can be re-evaluated against a new requirement (§ 6).
-      - name: project
-        kind: references
-        target: ratchet.specification.QualitySpecification
-        cardinality: one
-        via: project
-      - name: assessment
-        kind: references
-        target: ratchet.specification.AssessmentPlan
-        cardinality: one
-        via: assessment
-      - name: assessor
-        kind: references
-        target: ratchet.assessor.Assessor
-        cardinality: one
-        via: assessor
+      - "format == \"ratchet-evidence/1\""
+      # format § 2: a document with a sampled result has `run.started_at` and `run.ended_at`.
+      - any:
+          - all: ["defined(run.started_at)", "defined(run.ended_at)"]
+          - forall: {in: evidence.results, as: r, that: "r.kind == exact"}
+    # The project, the plan and the assessor of a run are members of `evidence`, which a
+    # relation's `via:` cannot name, so these three links have no relation entry
+    # (spec/README.md). A record outlives the document that governed it, so they are references
+    # and not ownership: old evidence can be re-evaluated against a new requirement (§ 6).
     lifecycle:
       initial: Recorded
       states: [Recorded]

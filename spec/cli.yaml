@@ -43,9 +43,25 @@ callables:
     result: ratchet.cli.AssessResult
     # `input_not_local`: `[inputs.<assessment>]` in `ratchet.toml` sets an input that the plan's
     # assessor does not declare as local (design § 5 "Local config" rule 6).
+    #
+    # How `assess` runs an assessor (docs/evidence-format.md § 10): once per run of a plan, in
+    # the root of the tree, with the reserved arguments of `ratchet.assessor.ReservedArgument`
+    # and one `--<input>` per declared input that has a value. It maps the assessor's exit
+    # (`ratchet.assessor.AssessorExit`) to the completion of the run it records
+    # (`ratchet.evidence.RunCompletion`): 0 with a valid document is the document's own
+    # completion; 1 is `refused_inputs`; any other status, a signal, or 0 without a valid
+    # document is `stopped_by_infrastructure`; an assessor ended at its time limit is
+    # `timed_out`. None of these is an error of `assess`: the run is recorded and reported
+    # (`ratchet.cli.RunSummary.completion`), and a gate returns insufficient evidence for it.
+    #
+    # `candidate_unresolved`: the candidate of a plan cannot be resolved, as for a target
+    # document that does not exist. The command records no run for that plan, because a run
+    # without its candidate is evidence about nothing (docs/evidence-format.md § 10). A name
+    # this specification proposes.
     errors:
       input_not_local: ratchet.cli.Refusal
       unknown_assessment: ratchet.cli.Refusal
+      candidate_unresolved: ratchet.cli.Refusal
       assessor_unavailable: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
   evaluate:
@@ -57,7 +73,8 @@ callables:
     # section is not ignored (design § 5 "Local config" rule 3). An operational gate takes no
     # candidate and assesses its time-window plans first, each window ending at the evaluation
     # (design § 5 "Gate kinds"); `--candidate` with one is `operational_gate_takes_no_candidate`,
-    # a name this specification proposes.
+    # a name this specification proposes. Without `--trusted` the policy is read at the merge
+    # base of `HEAD` and `origin/main` (design § 5 "Proposed CLI").
     errors:
       gate_failed: ratchet.cli.GateReport
       insufficient_evidence: ratchet.cli.GateReport
@@ -67,12 +84,15 @@ callables:
       local_skips_refused: ratchet.cli.Refusal
   # `reference propose` writes nothing; `reference adopt` writes what propose prints, into the
   # working tree (design § 5 "Reference records"; D1 decided A: files in the tree).
+  # `requirement_without_reference`: the requirement named holds a `condition` and no
+  # `reference`, so there is no reference to propose or adopt (design § 5 "Proposed CLI").
   reference-propose:
     target: {kind: local, owner: ratchet.cli, action: reference-propose}
     input: ratchet.cli.ProposeInput
     result: ratchet.cli.ReferenceProposal
     errors:
       unknown_requirement: ratchet.cli.Refusal
+      requirement_without_reference: ratchet.cli.Refusal
       no_qualifying_evidence: ratchet.cli.Refusal
       not_better: ratchet.cli.Refusal
       gain_not_shown: ratchet.cli.Refusal
@@ -83,6 +103,7 @@ callables:
     result: ratchet.cli.AdoptResult
     errors:
       unknown_requirement: ratchet.cli.Refusal
+      requirement_without_reference: ratchet.cli.Refusal
       no_qualifying_evidence: ratchet.cli.Refusal
       not_better: ratchet.cli.Refusal
       gain_not_shown: ratchet.cli.Refusal

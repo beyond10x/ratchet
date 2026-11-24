@@ -18,7 +18,10 @@ types:
     kind: newtype
     of: String
     naming:
-      summary: The `[records] store` value, `git:refs/ratchet/records` (§ 5, § 6).
+      summary: >-
+        The `[records] store` value (§ 5, § 6). `git:refs/ratchet/records` names the git ref
+        that holds the series and no path. Any other value is the path of the local record
+        directory, relative to the root.
 
   - name: ratchet.config.SpecSection
     kind: struct
@@ -35,19 +38,23 @@ types:
     kind: struct
     naming:
       summary: >-
-        One preset source, `{ git, rev, path }`, such as this repository's `presets/` at a
-        commit (§ 5). It says where to look and cannot change what is found: a binding's
-        digest decides (§ 4).
+        One source of presets and assessor declarations (§ 5). With `git` it is
+        `{ git, rev, path }`: the directory `path` of that repository at the commit `rev`, such
+        as this repository's `presets/`. Without `git` it is `{ path }`: a directory relative
+        to the root, such as `quality/assessors`. An assessor declaration is the file
+        `<name>@<version>.assessor.yaml` in a source (docs/evidence-format.md § 9). A source
+        says where to look and cannot change what is found: a binding's digest decides (§ 4).
     fields:
       - name: git
         type: Optional<String>
+        summary: Absent for a directory of the checkout.
       - name: rev
         type: Optional<String>
+        summary: The commit of a git source.
       - name: path
         type: String
-    # UNMAPPED: § 4 says a consumer's own preset family "binds the same way from its own
-    # directory", and § 5 shows only the git form of a source. Whether a source without `git`
-    # is a local directory, as these optional fields allow, is open for the owner.
+    invariants:
+      - any: ["defined(git)", "not defined(rev)"]
 
   - name: ratchet.config.CatalogSection
     kind: struct
@@ -57,9 +64,14 @@ types:
 
   - name: ratchet.config.RecordsSection
     kind: struct
+    naming:
+      summary: >-
+        `[records]`: where records are kept (§ 5, § 6). The local record directory holds the
+        records this machine writes. Without the section, or with a `store` that names no
+        path, it is `.ratchet/records` under the root.
     fields:
       - name: store
-        type: ratchet.config.RecordStoreLocation
+        type: Optional<ratchet.config.RecordStoreLocation>
 
   - name: ratchet.config.EnvironmentSection
     kind: struct
@@ -116,7 +128,9 @@ entities:
       - name: catalog
         type: Optional<ratchet.config.CatalogSection>
       - name: records
-        type: ratchet.config.RecordsSection
+        type: Optional<ratchet.config.RecordsSection>
+        summary: >-
+          Without the section the local record directory is `.ratchet/records` under the root.
       - name: environment
         type: Optional<ratchet.config.EnvironmentSection>
       - name: local
@@ -148,9 +162,10 @@ entities:
         a run writes its records as a CI artifact, and a pull-request job needs no push rights.
         Series: one job on the trusted branch appends the handed-over records to the git ref
         `refs/ratchet/records`; it is the only writer, and gates, views and `ratchet history`
-        read the ref. Records of a local run stay on the machine that produced them. The push
-        right of the writer, the author of its commits and any retention are the owner's to set
-        outside this specification.
+        read the ref. Records of a local run stay on the machine that produced them, in the
+        local record directory: `.ratchet/records` under the root unless `[records] store`
+        names a path. The push right of the writer, the author of its commits and any retention
+        are the owner's to set outside this specification.
     provided: true
     identity:
       name: store

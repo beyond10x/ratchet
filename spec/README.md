@@ -1,18 +1,20 @@
 # Ratchet executable specification
 
-Design phase. This directory declares Ratchet's domain in ESS before any code exists
-(`AGENTS.md` § Specification first). It follows `docs/design.md` revision 4. Every entity,
-field, enum value, command and flag here is a proposal taken from the design; none of them is
-settled. Each `UNMAPPED:` comment marks a question the design does not answer yet.
+This directory declares Ratchet's domain in ESS before any code exists (`AGENTS.md`
+§ Specification first). It follows `docs/design.md` revision 4 and the two record formats of
+`docs/evidence-format.md`: the assessment run `ratchet-evidence/1` and the assessor declaration
+`ratchet-assessor/1`. Every entity, field, enum value, command and flag here is a proposal taken
+from those documents; each can still change before the first release. Each `UNMAPPED:` comment
+marks a question the design does not answer yet.
 
 | File | Declares |
 |---|---|
 | `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, unit, boundary, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window` as `{length, last}`, `population` as `{runs_of, from}` or `{filter}`, `min_samples`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, input declarations with `local`, preset and preset binding |
-| `domains/assessor.yaml` | assessor, its typed configuration inputs, its coverage unit and coverage counts, its population fields, and the outputs it declares (value type, kind, scopes, unit or none, boundaries, identity key, item fields); the built-in `record-series@1` |
-| `domains/evidence.yaml` | assessment run record: resolved target with window bounds, observed conditions (host load as mean, min and max; tools), evidence coverage with its unit, results per measurement, queue wait and run time, resolved local inputs, window items (items, newest item, runs left out), import source; proof record with the defect ids refused and accepted |
+| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
+| `domains/evidence.yaml` | the assessment run `ratchet-evidence/1` in two parts. `evidence`: project, assessment, assessor, candidate, resolved target with the window (bounds, items, newest item, runs left out), resolved inputs, completion, observed conditions (host load as mean, min and max; tools), coverage with its unit and the units not executed, the list of results (complete or incomplete, the value members beside `value_type`), import source. `run`: start and end, queue wait and run time, resolved local inputs, artifacts. Proof record with the defect ids refused and accepted |
 | `domains/reference.yaml` | reference record (generated or accepted value; `values`, or `items` as `{identity, reason, owner}`), reference change, trade-off with `gains` and `loosens` |
-| `domains/gate.yaml` | gate decision (a candidate, or for an operational gate none) and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause, its next step (`candidate`, `assessment`, `system`) and in an operational gate its window |
-| `domains/config.yaml` | the local config `ratchet.toml` with `[inputs.<assessment>]`, and the record store it names |
+| `domains/gate.yaml` | gate decision (a candidate, or for an operational gate none) and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause from the list of its verdict (`FailCause`, `InsufficientEvidenceCause`), its next step (`candidate`, `assessment`, `system`) and in an operational gate its window |
+| `domains/config.yaml` | the local config `ratchet.toml` with `[inputs.<assessment>]`, a catalog source as a git repository or a directory of the checkout, the record store it names and the local record directory |
 | `domains/cli.yaml` | the typed inputs, results and refusals of the `ratchet` commands |
 | `cli.yaml` | the `ess-cli/2` presentation binding of the `ratchet` command surface |
 
@@ -34,10 +36,54 @@ task check:spec
 ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
-`task check:spec` runs `ess specify validate --path spec --strict-requires` and
-`ess specify cli --path spec --binding spec/cli.yaml --strict-requires`; `task check` calls it.
-Nothing generated is committed yet. When implementation starts, the parser and process adapter
-come from `ess generate cli` and are drift-checked in the gate.
+`task check:spec` needs `ess` and `jq`, and fails with a named message when `jq` is missing. It
+runs ten steps, and `task check` calls it:
+
+1. `ess specify validate --path spec --strict-requires`;
+2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
+3. `sh spec/record-fields.test.sh`, which reads every field row of `docs/evidence-format.md`
+   § 3 and § 10 and fails when one is not declared in `domains/evidence.yaml` or
+   `domains/assessor.yaml` under the name the row gives. Its last line is
+   `record-fields: <n> of <n> field rows declared`;
+4. `sh spec/record-types.test.sh`, which compares the same rows with the declarations in both
+   directions: the struct a row names, whether the field is required, and its type; and every
+   declared field of a struct that the two documents hold has a row. Its last line is
+   `record-types: <n> of <n> field rows as declared, <m> of <m> declared fields have a row`;
+5. `sh spec/record-examples.test.sh`, which reads the JSON examples of
+   `docs/evidence-format.md` § 6 with `jq` and fails when a member is not declared, a required
+   member is absent, or a value does not have the declared type. Its last line is
+   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`;
+6. `sh spec/contract-examples.test.sh`, which reads the two YAML examples of
+   `docs/evidence-format.md` § 10 and fails when a key is no declared field of the type it
+   stands in. Its last line is
+   `contract-examples: <k> of <k> keys of <n> example(s) are declared fields`;
+7. `sh spec/cli-coverage-row.test.sh`, which fails when a field of
+   `ratchet.evidence.EvidenceCoverage` is missing from `ratchet.cli.CoverageRow` or has another
+   type there, or when `RunSummary.coverage` or `VerdictRow.coverage` is not that row. Its last
+   line is `cli-coverage-row: <n> of <n> coverage fields reported with their type, in 2 of 2 places`;
+8. `sh spec/cli-errors.test.sh`, which fails when an error or refusal that the command table of
+   `docs/design.md` § 5 names for a command is not in `errors:` of that command in `cli.yaml`.
+   Its last line is `cli-errors: <n> of <n> named errors declared on their command`;
+9. `sh spec/gate-inputs.test.sh`, which copies `spec/` and the two documents into the ignored
+   `target/gate-inputs/`, hides one defect per copy behind a change of form, and fails when
+   the six scripts above accept a copy. Its last line is
+   `gate-inputs: <n> of <n> broken inputs refused`;
+10. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
+    `target/check-spec/`, which fails when the Rust target refuses a declaration. Its line
+    `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
+
+Each script states how much it reads and fails on another number, so that a section, a table
+or an example which an edit moves out of the form the script looks for is not skipped: 78 field
+rows in 13 tables of § 3 and 19 in 2 tables of § 10 (`record-fields`, `record-types`, a number
+per table), 3 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
+places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
+table or an example that is added or removed needs the new number in the script.
+
+Nothing generated is committed yet. The parser and process adapter come from `ess generate cli`.
+The crate from `ess generate synthesize` holds the types, a `broken_constraint` check on each
+type with invariants, the lifecycles of the entities, and the JSON helpers of `json.rs`. It
+holds nothing that reads a file into the types: what does is settled by the story that builds
+the workspace. Both are drift-checked in the gate once they are in the tree.
 
 ## Resolved in design revision 4
 
@@ -59,7 +105,38 @@ ESS checks these rules as invariants:
 - a local input has the type `path` and is not a list;
 - a gate decision has a candidate exactly when its gate is a candidate gate;
 - a reference record has `values` or `items`, not both;
-- a run with window items has window bounds.
+- a window with items names the time of the newest;
+- a verdict that is not a pass has a cause, from `FailCause` for a fail and from
+  `InsufficientEvidenceCause` for insufficient evidence.
+
+And these rules of `docs/evidence-format.md` § 4 and § 10. The Rust types that
+`ess generate synthesize` writes carry each as a check (`broken_constraint` on a struct,
+`broken_invariant` on an entity):
+
+- an assessment run has the `format` `ratchet-evidence/1`, an assessor declaration
+  `ratchet-assessor/1`;
+- rule 1: `candidate` is present exactly when `target.selection` is;
+- rule 2: a result has `item` exactly when its `scope` is not `run`;
+- rule 4, in part: `passed` and `failed` are each at most `executed`, and no id is twice in
+  `executed_ids` and `not_executed`, within one list or across the two;
+- rule 5: a complete result has the value of its type, an incomplete one has none or a number
+  with `at_least`, and a result has only the value members of its `value_type`;
+- rule 6: `at_least: true` only on an incomplete result;
+- rule 7: when `completion` is not `completed`, every result is incomplete with the cause of
+  that completion;
+- a document with a sampled result has `run.started_at` and `run.ended_at`;
+- a number has `samples` when it has `aggregation`, and when its `kind` is `sampled`
+  (format § 3);
+- a resolved input has `value` or `digest`, and `digest_form` exactly with `digest`; a target
+  of the kind `document` has `identifiers` and no `revision`;
+- an output declares `identity_key` exactly for the value type `identity_set`, and an assessor
+  declares `target_input` exactly when its `targets` hold `document`.
+
+Rule 9 holds by declaration for a time: `Evidence` has no `Timestamp` outside the window of its
+target. `Evidence` is a closed struct and `RunDetails` an open one (`undeclared_fields:
+ignored`), which is E5: a reader rejects an unknown member of `evidence` and ignores one of
+`run`. That is a declaration, and the reader's to apply: the key changes nothing in the
+synthesized crate.
 
 ## What ESS cannot express here
 
@@ -84,19 +161,105 @@ in the domain files, and is the implementation's to check.
   comment in `domains/assessor.yaml` and the invariant on the assessment plan.
 - **`runs_of`.** It sits inside the observation plan, which a relation's `via:` cannot name, so
   the link to the source plan has no relation entry.
+- **The project, plan and assessor of a run.** They are members of `evidence`, and a relation's
+  `via:` cannot name a member of a struct (`evidence.project`), so the three links of an
+  assessment run have no relation entry.
+
+Rules of `docs/evidence-format.md` § 3, § 4 and § 10 that stay the reader's to check; § 8 of
+that document lists the same rules:
+
+- **§ 3, a window exactly for a time-window plan.** `evidence.target.window` is present exactly
+  on a run of a time-window plan. The kind of the observation is in the plan, and
+  `ratchet.evidence.ResolvedTarget` does not hold it: the rule joins a run and its plan.
+- **§ 3, `identity` against `key`.** Each `items[].identity` of an identity set holds exactly
+  the fields that the `key` of the same result names. Both are members of one result, but
+  `identity` is a `Json`, and an invariant selects no member of one (`defined(i.identity.rule)`
+  is refused: "cannot select `rule` from `Json`").
+- **Rule 3, one result per output, scope, item, boundary and aggregation.** `distinct` takes one
+  member as its key and no combination of five.
+- **Rule 4, the sum.** `passed` plus `failed` is at most `executed`: a comparison reads one fact
+  on each side and a constant, not the sum of two facts
+  (`passed + failed <= executed` is refused). The two single comparisons are declared.
+- **Rule 4, the entries.** Where `not_executed` is present it holds one entry per unit of
+  `skipped`, `not_run` and `unsupported`: the rule counts the entries of a list by a member's
+  value and compares the count with a field. That a unit is counted once and has the same id in
+  every run is a statement about the assessor's work, not about one document.
+- **Rule 8, a result for every scope item.** The scope items come from the inputs of the run,
+  which the document does not hold.
+- **Rule 9, no absolute path.** The paths are text; no invariant reads the form of a text.
+- **§ 10, a result against its declaration.** Output, kind, scope, value type, unit, boundary,
+  identity key and item fields of a result against the assessor's declaration: each joins a
+  run and an assessor.
+- **The exit status of an assessor.** Which completion the CLI records for which exit is a
+  comment on `ratchet.assessor.AssessorExit` and on `assess` in `cli.yaml`: ESS declares no
+  map from an enum value to another.
+
+Two limits of the generators shape the declarations:
+
+- **`shorthand:`.** The Rust target of `ess generate synthesize` refuses a struct that declares
+  a shorthand. No struct declares one.
+- **A struct with invariants in a command payload.** `ess specify cli` refuses it. The coverage
+  of a run summary and of a verdict row is therefore `ratchet.cli.CoverageRow`, which has every
+  field of `ratchet.evidence.EvidenceCoverage`, the lists `executed_ids` and `not_executed`
+  included, and none of its invariants. `spec/cli-coverage-row.test.sh` fails when a field is
+  missing or has another type, or when one of the two places does not use the row.
+
+## How a `ratchet/1` file differs from the declared entities
+
+A `ratchet/1` file is not the entities of `domains/specification.yaml` written out. What reads
+the file applies the rules below and infers no other. Each row names the line of
+`docs/design.md` that states the rule; where no sentence states it, the line is that of the
+illustrative YAML of § 3 which shows it, marked "YAML". Three rules were taken on 2026-11-24
+and are stated in § 12 of the design alone; their row names that section. The example member is
+from `examples/`, or from the design where no example file uses the form.
+
+| Rule | `docs/design.md` | Example member |
+| --- | --- | --- |
+| **The root.** A file holds `format`, `project`, and one map per kind of entity: `statements`, `subjects`, `assessments`, `requirements`, `gates`, `exceptions` and `presets`. `project` is the identity of the `QualitySpecification` and `format` its field. The maps are no field of it. | 690; YAML 218, 219 | `format: ratchet/1` (`examples/analyzer-findings.ratchet.yaml:1`) |
+| **An entity is an entry of the map of its kind, and its identity is the key.** `statements.<statement>` is a `QualityStatement`, `subjects.<subject>` a `Subject`, `assessments.<assessment>` an `AssessmentPlan`, `requirements.<requirement>` a `QualityRequirement`, `gates.<gate>` a `Gate`, `exceptions.<exception>` an `Exception`, and `presets.<binding>` a `PresetBinding`. The identity is not a member of the entry. | YAML 222, 227, 241, 340, 377, 398, 510 | `subjects.source-tree` (`examples/analyzer-findings.ratchet.yaml:5`) |
+| **`project` is written once.** Every one of these entities declares the field `project`. The file states it at the root, and no entry repeats it. | 690; YAML 219 | `project: workflow-driver` (`examples/analyzer-findings.ratchet.yaml:2`) |
+| **Several files form one specification.** The files of `[spec] paths` declare one `format` and one `project`, and an id is unique across them. | 690 | `paths = ["ratchet.yaml", "quality/*.ratchet.yaml"]` (design, line 658; each example is one file) |
+| **A gate holds its entries.** `requires` is a list under the gate, and `Gate` declares no such field: each element is a `GateRequirement`. Its `gate` is the gate that holds the list, and its identity is `<gate>/<requirement>`. | 603; YAML 380 | `gates.merge.requires` (`examples/analyzer-findings.ratchet.yaml:97`) |
+| **A bare requirement name is an entry.** It stands for `{requirement: <name>, mode: enforce}`. | 603 | `- no-lint-findings` (`examples/analyzer-findings.ratchet.yaml:98`) |
+| **An entry written as a map may leave `mode` out.** It then means `enforce`; `GateRequirement.mode` is required in the entity. | 603; YAML 385 | `{requirement: scenario-files-current, when: {changed: [...]}}` (`examples/generated-artifact.ratchet.yaml:52`) |
+| **A decimal is written as a YAML number.** `condition.value`, `tolerance.percent`, `tolerance.absolute` and `host_load_per_cpu.max` are `Decimal`, which the record formats write as text. | YAML 344, 297 | `condition: {operator: lte, value: 0}` (`examples/analyzer-findings.ratchet.yaml:79`) |
+| **A number is the decimal of its text as written.** `max: 2.125` is `2.125`; the number never passes through a binary float. A scalar in exponent form or with a sign `+` is refused. A quoted decimal text is accepted and means the same. | § 12 | `max: 2.125` (`examples/host-caused-limit.ratchet.yaml:21`) |
+| **A requirement may leave `serves` out.** An absent `serves` is the empty list; `QualityRequirement.serves` is a required list in the entity. | § 12 | `requirements.no-lint-findings` (`examples/analyzer-findings.ratchet.yaml:77`) |
+| **A date is the text of its scalar.** A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created` and `expires` are the text of the scalar, quoted or plain. | § 12 | `expires: 2026-11-30` (`examples/analyzer-findings.ratchet.yaml:113`) |
+| **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`. Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | 506, 518 | `presets.ux.use: web-ux@1` (design, line 511; no example binds a preset) |
+
+No gate step reads `examples/*.ratchet.yaml`: `task check:spec` has no YAML reader, and the
+files are in the form above, not in that of the entities.
 
 ## Where this specification still departs from docs/design.md
 
 Each point is a proposal for the owner to accept or reject before anything generated from this
 specification is committed.
 
-- **Bare spellings without a scalar.** An ESS shorthand stands only for a required scalar, so
-  two design spellings take a key here: a tool's bare version (`ess: "0.97.4"`) is
-  `{version: "0.97.4"}`, and a bare list of `executed_ids` is `{ids: [...]}`. The bare number
-  of a coverage bound and the bare `same_change` of `adoption` are shorthands and keep the
-  design's spelling.
-- **`adoption` as a struct.** `same_change` is `{from: same_change}` and the sampled form is
-  `{from: trusted_revision, runs, aggregation}`, one struct with `from` as its shorthand.
+- **No bare spellings in 0.1.0.** A coverage bound is `{min: 18}` or `{max: 0}` and an adoption
+  `{from: same_change}`; the design and the examples are written that way since 2026-11-24. The
+  bare number and the bare `same_change` were ESS shorthands, which the Rust target refuses
+  (above). They can return without breaking a document written in the long form. Two more
+  spellings take a key because an ESS shorthand stands only for a required scalar: a tool's
+  version is `{version: "0.97.4"}`, and a list of `executed_ids` is `{ids: [...]}`. The design
+  and `examples/generated-artifact.ratchet.yaml` write both that way too (design § 12).
+- **`adoption` as a struct.** `{from: same_change}`, and the sampled form
+  `{from: trusted_revision, runs, aggregation}`, are one struct.
+- **A result is one flat struct.** `docs/evidence-format.md` § 8 item 6 asks for the value
+  members beside `value_type`. An ESS union writes its payload one level down, so
+  `MeasurementResult` holds every value member as an optional field and invariants say which
+  belong to which value type.
+- **The id of a run** is the identity `run_id` of `AssessmentRun`, because `run` is now a
+  member of the document.
+- **Three cause lists.** `VerdictCause` repeats the values of `FailCause` and
+  `InsufficientEvidenceCause`; ESS has no enum made of two others, so the three lists are kept
+  in step by hand.
+- **`evidence_missing`.** A requirement with no qualifying run, for the candidate or in an
+  operational gate for the window, is insufficient evidence with this cause. The design named
+  none for it before 2026-11-24.
+- **An input is an entry of a map.** `InputDeclaration` has no `name`: an assessor's and a
+  preset's `inputs` are maps by input name, as the declaration `ratchet-assessor/1` writes
+  them.
 - **Not-applicable entries.** A gate decision keeps one row per entry with `entry_state`
   (`evaluated` or `not_applicable`) and no verdict when not applicable, rather than a separate
   list.
@@ -115,8 +278,20 @@ specification is committed.
   `unit_not_declared`, `population_field_mismatch`, `time_window_incomplete`,
   `window_on_other_kind`, `plan_does_not_fit_gate_kind`, `when_in_operational_gate`,
   `local_input_in_specification`, `preset_input_local`), the refusal
-  `operational_gate_takes_no_candidate` of `ratchet evaluate`, the doctor check `local_inputs`,
-  the assessor's `population_fields`, and the run's `window_items` and `local_inputs`.
+  `operational_gate_takes_no_candidate` of `ratchet evaluate`, the refusal
+  `requirement_without_reference` of `ratchet reference propose` and `ratchet reference adopt`
+  (the requirement holds a `condition` and no `reference`), the error `candidate_unresolved`
+  of `ratchet assess` (the candidate of a plan cannot be resolved, and no run is recorded for
+  that plan), the doctor check `local_inputs`,
+  the assessor's `population_fields`, the run's `local_inputs`, and the type names
+  `Evidence`, `RunDetails`, `ResolvedInput`, `NotExecutedUnit`, `Incomplete`, `IdentityItem`,
+  `ReservedArgument`, `AssessorExit` and `CoverageRow`.
+- **A catalog source without `git`** is a directory relative to the root, and an assessor
+  declaration is the file `<name>@<version>.assessor.yaml` in a source.
+- **The local record directory** is `.ratchet/records` under the root without a `[records]`
+  section or with a `store` that names no path; `store` is optional.
+- **`ratchet evaluate` without `--trusted`** reads the policy at the merge base of `HEAD` and
+  `origin/main`.
 - **A run without a candidate.** `candidate` is optional on an assessment run: a run of a
   time-window plan without `selection` is attributable to no candidate. The design's record
   table still lists "candidate identity" for every run.

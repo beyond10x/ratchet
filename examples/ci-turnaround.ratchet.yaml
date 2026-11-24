@@ -44,7 +44,7 @@ assessments:
       runs: 1
       conditions:
         ci: {runner: ci-standard}
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       run-time:
         {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
@@ -61,7 +61,7 @@ assessments:
         all:
           tools: {rustc: {pin: rust-toolchain.toml}}
         ci: {runner: ci-standard}
-      coverage: {skipped: 0}
+      coverage: {skipped: {max: 0}}
     measurements:
       run-time:
         {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}

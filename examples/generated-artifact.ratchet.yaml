@@ -16,8 +16,8 @@ assessments:
       command: task docs-check
       conditions:
         all:
-          tools: {ess: "0.97.4"}
-      coverage: {executed: 18, skipped: 0}
+          tools: {ess: {version: "0.97.4"}}
+      coverage: {executed: {min: 18}, skipped: {max: 0}}
     measurements:
       digest: {kind: exact, output: digest, scope: file}
 
@@ -30,8 +30,8 @@ assessments:
       command: task test-slow
       conditions:
         all:
-          tools: {ess: "0.97.4"}
-      coverage: {skipped: 0}
+          tools: {ess: {version: "0.97.4"}}
+      coverage: {skipped: {max: 0}}
     measurements:
       digest: {kind: exact, output: digest, scope: file}
 

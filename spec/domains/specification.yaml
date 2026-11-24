@@ -29,7 +29,10 @@ types:
     kind: newtype
     of: String
     naming:
-      summary: An ISO 8601 calendar date, `2026-12-15`, as `expires:`, `created:` and `since:` spell it.
+      summary: >-
+        An ISO 8601 calendar date, `2026-12-15`, as `expires:`, `created:` and `since:` spell it.
+        It is the text of the scalar, quoted or plain: a `ratchet/1` file is read by the YAML 1.2
+        core schema, which has no date type (docs/design.md § 12).
 
   - name: ratchet.specification.StatementName
     kind: newtype
@@ -207,10 +210,12 @@ types:
     kind: enum
     variants: [snapshot, controlled_run, time_window]
 
-  # § 3 value lists: Ratchet, closed.
+  # § 3 value lists: Ratchet, closed. `document` is one file identified by the digest of its
+  # bytes, committed or not: a design variant, an `ess-ui/1` document, a report
+  # (docs/evidence-format.md E1, decided A).
   - name: ratchet.specification.TargetKind
     kind: enum
-    variants: [revision, build, deployment, workflow_run, telemetry_population]
+    variants: [revision, build, deployment, workflow_run, telemetry_population, document]
 
   # § 3 value lists: `environments`, Ratchet, closed.
   - name: ratchet.specification.TargetClass
@@ -247,13 +252,17 @@ types:
         # (`search-ui`, `test-step`) and the design states no default. Read here as `candidate`
         # when absent; open question for the owner.
 
+  # The bare spellings of design § 3 and § 5 (`skipped: 0`, `adoption: same_change`) are not
+  # declared in 0.1.0: the Rust target of `ess generate synthesize` refuses a struct that
+  # declares a `shorthand:`. `MinimumBound`, `MaximumBound` and `RatchetPolicy` are therefore
+  # written in the long form. A shorthand added later admits every document written in the long
+  # form.
   - name: ratchet.specification.MinimumBound
     kind: struct
-    shorthand: min
     naming:
       summary: >-
-        The coverage bound on `executed`: a bare number is a minimum, `{min, max}` states both
-        (§ 3 "Evidence coverage").
+        The coverage bound on `executed`, `{min: 3}`: `min` is required and `{min, max}` states
+        both (§ 3 "Evidence coverage").
     fields:
       - name: min
         type: Integer
@@ -262,11 +271,10 @@ types:
 
   - name: ratchet.specification.MaximumBound
     kind: struct
-    shorthand: max
     naming:
       summary: >-
-        The coverage bound on `skipped`, `not_run` and `unsupported`: a bare number is a
-        maximum, `{min, max}` states both (§ 3 "Evidence coverage").
+        The coverage bound on `skipped`, `not_run` and `unsupported`, `{max: 0}`: `max` is
+        required and `{min, max}` states both (§ 3 "Evidence coverage").
     fields:
       - name: max
         type: Integer
@@ -277,9 +285,9 @@ types:
     kind: struct
     naming:
       summary: >-
-        The exact set of executed item ids that qualifies, as a list or as `{file: <path>}`
-        read from the trusted revision (§ 3). The design's bare list is written `{ids: [...]}`
-        here: an ESS shorthand stands only for a scalar.
+        The exact set of executed item ids that qualifies, as `{ids: [...]}` or as
+        `{file: <path>}` read from the trusted revision (§ 3). The list takes the key `ids` and
+        is never written bare: an ESS shorthand stands only for a scalar.
     fields:
       - name: ids
         type: Optional<List<String>>
@@ -315,15 +323,17 @@ types:
     fields:
       - name: max
         type: Decimal
+        summary: >-
+          In a file, the decimal of the number's text as written: `max: 2.125` is `2.125`
+          (docs/design.md § 12).
 
   - name: ratchet.specification.ToolPin
     kind: struct
     naming:
       summary: >-
         A tool's declared version, or the file that pins it: `{pin: rust-toolchain.toml}`
-        (§ 3). The design's bare version string (`ess: "0.97.4"`) is written
-        `{version: "0.97.4"}` here: an ESS shorthand needs a required field, and a pin has no
-        version.
+        (§ 3). A version is written `{version: "0.97.4"}`, never as a bare string: an ESS
+        shorthand needs a required field, and a pin has no version.
     fields:
       - name: version
         type: Optional<String>
@@ -495,7 +505,9 @@ types:
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<Decimal>
-        summary: The limit; absent for `no_new_items`, `no_lost_items` and `holds`.
+        summary: >-
+          The limit; absent for `no_new_items`, `no_lost_items` and `holds`. In a file, the
+          decimal of the number's text as written (docs/design.md § 12).
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-
@@ -513,7 +525,8 @@ types:
       summary: >-
         The regression band against an accepted value: `{percent: 10}`, `{absolute: 30}` in the
         unit of the measurement, or both, and then the wider band applies (§ 3). 0 by default
-        for exact measurements; Ratchet ships no default band.
+        for exact measurements; Ratchet ships no default band. In a file, each number is the
+        decimal of its text as written (docs/design.md § 12).
     fields:
       - name: percent
         type: Optional<Decimal>
@@ -528,11 +541,10 @@ types:
 
   - name: ratchet.specification.RatchetPolicy
     kind: struct
-    shorthand: from
     naming:
       summary: >-
         The ratchet policy of a requirement: the `adoption` of its reference (§ 1, § 5).
-        `same_change` (the bare word) has the candidate write the better value with
+        `{from: same_change}` has the candidate write the better value with
         `ratchet reference adopt`, verified against its own qualifying evidence; the default
         for exact measurements. `{from: trusted_revision, runs: N, aggregation}` takes the
         aggregation of the last N qualifying runs on the trusted revision; the default for
@@ -681,17 +693,15 @@ types:
     kind: struct
     naming:
       summary: >-
-        One declared input of an assessor or a preset (§ 4): a name, a type, whether it is
-        required, a default, and whether it is local. A plan passes the assessor inputs that
-        are not local as `inputs`, a binding passes preset inputs as `with`, and
-        `ratchet validate` checks names and types against the declaration. A local input has
-        the type `path` and is not a list.
+        One declared input of an assessor or a preset (§ 4), an entry of `inputs` under the
+        input's name: a type, whether it is required, a default, and whether it is local. A
+        plan passes the assessor inputs that are not local as `inputs`, a binding passes preset
+        inputs as `with`, and `ratchet validate` checks names and types against the
+        declaration. A local input has the type `path` and is not a list.
     invariants:
       - any: ["not defined(local)", "local == false", "type == path"]
       - any: ["not defined(local)", "local == false", "not defined(list)", "list == false"]
     fields:
-      - name: name
-        type: String
       - name: type
         type: ratchet.specification.InputType
       - name: list
@@ -907,7 +917,9 @@ entities:
         summary: The requirement in plain words, which `ratchet explain` prints.
       - name: serves
         type: List<ratchet.specification.StatementName>
-        summary: The quality statements this requirement serves; empty when the YAML has no `serves`.
+        summary: >-
+          The quality statements this requirement serves. A file may leave `serves` out, and
+          the list is then empty (docs/design.md § 12).
       - name: assessment
         type: ratchet.specification.AssessmentName
       - name: measurement
@@ -993,7 +1005,8 @@ entities:
     naming:
       summary: >-
         One entry of a gate's `requires:` list: a requirement name, which means enforce, or a
-        map with `requirement`, `mode`, `since` and `when` (§ 5). A report-mode entry is
+        map with `requirement`, `mode`, `since` and `when` (§ 5). A map without `mode` means
+        enforce too. A report-mode entry is
         evaluated and shown with its verdict and does not block. An entry whose `when` does not
         match the change is not applicable: not evaluated, not blocking, and listed with the
         reason.
@@ -1008,7 +1021,9 @@ entities:
         type: ratchet.specification.RequirementName
       - name: mode
         type: ratchet.specification.GateMode
-        summary: "`enforce` when the YAML lists the bare requirement name."
+        summary: >-
+          `enforce` when the file lists the bare requirement name, and when it lists a map
+          without `mode` (§ 5).
       - name: since
         type: Optional<ratchet.specification.CalendarDate>
         summary: >-
@@ -1106,10 +1121,10 @@ entities:
       - name: version
         type: String
       - name: inputs
-        type: List<ratchet.specification.InputDeclaration>
+        type: Map<String, ratchet.specification.InputDeclaration>
         summary: >-
-          The declared inputs, with the shape of an assessor's inputs, none of them local
-          (`preset_input_local`).
+          The declared inputs by name, with the shape of an assessor's inputs, none of them
+          local (`preset_input_local`).
     lifecycle:
       initial: Declared
       states: [Declared]
