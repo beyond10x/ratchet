@@ -1,0 +1,120 @@
+format: ratchet/1
+project: build-pool
+
+subjects:
+  ci-gate:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+  ui-test-step:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+  rust-test-step:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+  local-gate:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+
+assessments:
+  ci-gate-run-time:
+    subject: ci-gate
+    assessor: forge-workflow-timing@1
+    target: {kind: workflow-run, environment: ci, selection: candidate}
+    observation:
+      kind: snapshot
+      conditions: {runner: ci-standard}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      also_record: [queue-wait]
+      scope: run
+      unit: min
+
+  ci-gate-queue-wait:
+    subject: ci-gate
+    assessor: forge-workflow-timing@1
+    target: {kind: workflow-run, environment: ci, selection: candidate}
+    observation:
+      kind: snapshot
+      conditions: {runner: ci-standard}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: queue-wait
+      scope: run
+      unit: min
+
+  ui-test-step-time:
+    subject: ui-test-step
+    assessor: command-timing@1
+    target: {kind: revision, environment: ci}
+    observation:
+      kind: controlled-run
+      command: task ui-ux
+      runs: 1
+      conditions: {runner: ci-standard, toolchain: pinned}
+      coverage: {skipped: 0}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      also_record: [queue-wait]
+      scope: run
+      unit: s
+
+  rust-test-step-time:
+    subject: rust-test-step
+    assessor: command-timing@1
+    target: {kind: revision, environment: ci}
+    observation:
+      kind: controlled-run
+      command: cargo test --workspace --locked
+      runs: 1
+      conditions: {runner: ci-standard, toolchain: pinned}
+      coverage: {skipped: 0}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      also_record: [queue-wait]
+      scope: run
+      unit: s
+
+  local-gate-run-time:
+    subject: local-gate
+    assessor: command-timing@1
+    target: {kind: revision, environment: local}
+    observation:
+      kind: controlled-run
+      command: task check
+      runs: 1
+      conditions: {toolchain: pinned}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      also_record: [queue-wait]
+      scope: run
+      unit: s
+
+requirements:
+  ci-gate-turnaround:
+    assessment: ci-gate-run-time
+    condition: {operator: lt, value: 30, unit: min}
+    reference: {kind: accepted-value, tolerance: {percent: 20}}
+  ui-test-step-budget:
+    assessment: ui-test-step-time
+    condition: {operator: lte, value: 120, unit: s}
+  rust-test-step-budget:
+    assessment: rust-test-step-time
+    condition: {operator: lte, value: 120, unit: s}
+
+gates:
+  merge:
+    stage: pre-merge
+    qualifying_environments: [ci]
+    requires:
+      - ui-test-step-budget
+      - ci-gate-turnaround
+      - {requirement: rust-test-step-budget, mode: report, since: 2026-11-23}
