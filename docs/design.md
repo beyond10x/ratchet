@@ -457,7 +457,7 @@ A stored series can supply the evidence for an adoption, for example the median 
 
 `ratchet validate` reports a sampled measurement with an accepted value and no `adoption`. A first adoption reads the same source (rule 3). The series of runs is read from the record store (§ 6).
 
-**Reference records.** A reference record holds the requirement, the kind, the revision it was adopted at, the values per scope item or the items of a set, the conditions, the evidence ids, and the context of its last change (§ 3 shows one). An item of an accepted set can carry a `reason` and an `owner`. An allowlist entry for a permanent false positive is such an item: one answer scopes an entry by rule and path, another keeps 27 lines with a written reason each (substrate C3, ext-08 C3). Adding an item is a loosening. The proposed place is one JSON file per requirement in the tree, `ratchet/references/<requirement>.json`. The place is the owner’s decision (§ 9, D1).
+**Reference records.** A reference record holds the requirement, the kind, the revision it was adopted at, the values per scope item or the items of a set, the conditions, the evidence ids, and the context of its last change (§ 3 shows one). An item of an accepted set can carry a `reason` and an `owner`. An allowlist entry for a permanent false positive is such an item: one answer scopes an entry by rule and path, another keeps 27 lines with a written reason each (substrate C3, ext-08 C3). Adding an item is a loosening. The place is one JSON file per requirement in the tree, `ratchet/references/<requirement>.json` (§ 9, D1, decided A).
 
 A reference is current or superseded by computation and not by a stored state. It is superseded when a later reference change names it as the previous one. No command moves it.
 
@@ -499,19 +499,19 @@ An entry of `requires` is a requirement name, which means enforce, or a map with
 | `any` | One of its classes returns a pass. Insufficient evidence from another class does not block. |
 | `all` | Each of its classes returns a pass. |
 
-A gate that should be decided by one class lists that class alone. `all` needs the records of one class to be readable where the gate is evaluated in another. Records of a local run stay on the machine that produced them (§ 6), so `all` over `local` and `ci` cannot pass in CI. The default is the owner’s decision (§ 9, D3). This document assumes `any`.
+A gate that should be decided by one class lists that class alone. `all` needs the records of one class to be readable where the gate is evaluated in another. Records of a local run stay on the machine that produced them (§ 6), so `all` over `local` and `ci` cannot pass in CI. The default is `any` (§ 9, D3, decided A).
 
 **Gate kinds.** A gate is `candidate` by default. An `operational` gate judges a host, a build pool, or a population: queue wait, a production window with mixed revisions. Its evidence is not attributable to one candidate, so it never decides whether a candidate advances. Its verdict is for whoever operates the system. A requirement on queue wait belongs in an operational gate (ext-03 C3, ext-08 C3).
 
 ### Policy changes, exceptions, and trade-offs
 
-A candidate’s gate uses policy from a trusted revision. Proposed changes to thresholds, assessor versions, measurement conditions, or protected references are evaluated as policy changes. An explicitly authorized update records the previous value, supporting evidence, and new value. Protocol changes that affect comparability establish a new evidence series or use documented overlap to relate it to the old one. How a loosening is authorized is the owner’s decision (§ 9, D2).
+A candidate’s gate uses policy from a trusted revision. Proposed changes to thresholds, assessor versions, measurement conditions, or protected references are evaluated as policy changes. An explicitly authorized update records the previous value, supporting evidence, and new value. Protocol changes that affect comparability establish a new evidence series or use documented overlap to relate it to the old one. A loosening is a change of its own, merged before the candidate it would affect (§ 9, D2, decided A).
 
 The specification has one identity per project. A gate decision records the revision whose policy and references judged the candidate, so “versioned” means the format version (`ratchet/1`) and the revision the document was read at.
 
 Two updates need no separate authorization, because the gate can verify them: a candidate that regenerates a generated reference, and a candidate that tightens an accepted value its own qualifying evidence meets. Both are still recorded as reference changes.
 
-**Exceptions.** 23 of 26 answers report at least one loosening. 18 of those say it was not tightened again, or that they do not know (F12). The forms are a skipped or ignored test, a raised limit, a known-failing list, an allowlist entry, and a worse accepted value. In the format each is an **exception**: an entry of the specification that names the requirement, the item or value excepted, a reason, an owner reference such as a story or decision id, and an expiry date. `exceptions` is a map, and the key is the exception’s id. For a raised limit, `value` is the condition that holds in place of the requirement’s while the exception applies. 9 answers already require a decision id for a worse value. 3 record a review-by date, and none checks it (F6, F12). `ratchet evaluate` checks the date. Active or expired is computed from the date at evaluation and is not stored. An expired exception no longer applies, so the requirement is evaluated without it. Adding or extending an exception is a policy change. Every gate result lists the active exceptions with their age and expiry. The age is counted from the entry’s `created` date, or from the revision that added the entry when it has none. The list matters because exceptions accumulate: one answer counts 37 acknowledged incompatible changes since the last reset (cortex C3). An exception that ends at an event and not at a date is the owner’s decision (§ 9, D4).
+**Exceptions.** 23 of 26 answers report at least one loosening. 18 of those say it was not tightened again, or that they do not know (F12). The forms are a skipped or ignored test, a raised limit, a known-failing list, an allowlist entry, and a worse accepted value. In the format each is an **exception**: an entry of the specification that names the requirement, the item or value excepted, a reason, an owner reference such as a story or decision id, and an expiry date. `exceptions` is a map, and the key is the exception’s id. For a raised limit, `value` is the condition that holds in place of the requirement’s while the exception applies. 9 answers already require a decision id for a worse value. 3 record a review-by date, and none checks it (F6, F12). `ratchet evaluate` checks the date. Active or expired is computed from the date at evaluation and is not stored. An expired exception no longer applies, so the requirement is evaluated without it. Adding or extending an exception is a policy change. Every gate result lists the active exceptions with their age and expiry. The age is counted from the entry’s `created` date, or from the revision that added the entry when it has none. The list matters because exceptions accumulate: one answer counts 37 acknowledged incompatible changes since the last reset (cortex C3). An exception ends at a date only (§ 9, D4, decided A).
 
 **Trade-offs.** One change can make some values better and others worse on purpose. In the first consumer’s round, a change to in-page navigation moved one value from 23 to 0 and made 20 of 168 values worse (consumer gap 1). With one reference per requirement, that change needs 20 exceptions, and none of them says what was gained. A **trade-off** is a record that lists the values it loosens and the gains it buys:
 
@@ -612,7 +612,7 @@ An authored entry has the id its author gave it: the key of its map. A record ge
 - **Hand-over.** A run writes its records as a CI artifact. A pull-request job needs no push rights.
 - **Series.** One job on the trusted branch appends the handed-over records to the git ref `refs/ratchet/records`. It is the only writer. Gates and views read the ref, and `git fetch` gives a local gate the records that CI reads.
 
-The hand-over can be built first. The ref follows with the first requirement that needs a series, such as a sampled adoption (§ 5). The same job writes a reference change to the ref when its change reaches the trusted revision. Records of a local run stay on the machine that produced them. The push right of the writer and the author of its commits are the owner’s to set. The decision sets no retention for the ref. Where reference records live is a separate question (§ 9, D1).
+The hand-over can be built first. The ref follows with the first requirement that needs a series, such as a sampled adoption (§ 5). The same job writes a reference change to the ref when its change reaches the trusted revision. Records of a local run stay on the machine that produced them. The push right of the writer and the author of its commits are the owner’s to set. The decision sets no retention for the ref. Reference records live in the tree (§ 9, D1).
 
 **Views** (open questions Q4). One page and one JSON data document serve two forms, built together. The static export is written by `ratchet render`: a CI artifact, a committed file, or a page of the docs site. The served app is `ratchet serve`, which answers over the record store. Both show the same page over the same data. `ratchet status` is the terminal form. A committed export is a generated reference, and `ratchet render --check true` fails when it is stale.
 
@@ -699,11 +699,11 @@ Then add deployed browser timing to exercise candidate attribution and controlle
 
 All 26 answers are from one day, and almost all from sessions on one shared host under load. F1 to F3 describe that host on that day (synthesis § 5). The changes that rest on them record conditions and split wait from run time. They do not assume a loaded host. 18 of the 25 projects share one organization’s rules, so a count of a shared convention is not 18 independent choices.
 
-## 9. Open design questions
+## 9. Design questions D1 to D4
 
-Revision 3 does not decide four questions. Each is a decision about authority or a default that every project inherits. Each has a recommended default, and §§ 3 to 6 are written under it. These are separate from the product questions Q1 to Q6 of [open-questions.md](open-questions.md), which are decided.
+Revision 3 left four questions to the owner, each a decision about authority or a default that every project inherits. The owner decided all four on 2026-11-24, each as recommended (A); §§ 3 to 6 are written under those answers. The options are kept as the record of the choice. These are separate from the product questions Q1 to Q6 of [open-questions.md](open-questions.md), which are decided.
 
-| Question | Default | Option |
+| Question | Decided | Option |
 | --- | --- | --- |
 | D1 place of reference records | A | Files in the tree |
 | D2 authorization of a loosening | A | A change of its own, before the candidate |
@@ -720,7 +720,7 @@ Open questions Q3 assumes that reference records are files in the tree and does 
 | B | In the record store, on `refs/ratchet/records`, with runs and decisions. | The ref has one writer, a job on the trusted branch (§ 6). A candidate cannot write there, so “in the same change” (§ 5 rule 4) is no longer one commit, and a tightening waits for that job. |
 | C | Exact values and sets in the tree. Sampled values on the ref, written by the job that holds the series. | Two places to read. A sampled reference changes with no change in the tree for a reviewer to see. |
 
-**Default: A.** § 5 rule 1 reads the trusted copy, and rule 4 has the candidate adopt in the same change. 8 answers commit the new value with the change, and 4 compare with the copy on `main` (F6). A keeps the ref to one kind of content: what was observed and decided.
+**Decided: A** (the owner, 2026-11-24). § 5 rule 1 reads the trusted copy, and rule 4 has the candidate adopt in the same change. 8 answers commit the new value with the change, and 4 compare with the copy on `main` (F6). A keeps the ref to one kind of content: what was observed and decided.
 
 ### D2. How is a loosening authorized?
 
@@ -732,7 +732,7 @@ Open questions Q3 assumes that reference records are files in the tree and does 
 | B | The candidate may carry the loosening when the record names an owner reference. The gate applies it, and its summary line says that the candidate passed under its own policy change. | The candidate changes what it is judged by. Vision outcome 5 then holds only through the reviewer who reads the mark. 9 answers work this way, with a decision id for a worse value (F6). |
 | C | The candidate may carry the loosening when the forge shows an approval of the policy files by a named role, and Ratchet reads that approval. | A ruleset or required reviewer is the owner’s to set. Ratchet depends on one forge’s API. |
 
-**Default: A.** “A candidate cannot loosen the thresholds it is judged by” (vision, outcome 5). In one answer the commit that caused a regression re-recorded the counter it had moved (entity-runtime C1). A measured cost of the second merge would change the answer to B.
+**Decided: A** (the owner, 2026-11-24). “A candidate cannot loosen the thresholds it is judged by” (vision, outcome 5). In one answer the commit that caused a regression re-recorded the counter it had moved (entity-runtime C1). A measured cost of the second merge would change the answer to B.
 
 ### D3. Which evidence decides by default when a gate lists several classes?
 
@@ -744,7 +744,7 @@ Open questions Q3 assumes that reference records are files in the tree and does 
 | B | Default `all`. Every listed class that the plan runs in must pass. | A gate evaluated in one class needs the records of the others. Records of a local run do not reach the ref (§ 6), so a gate over `local` and `ci` cannot pass in CI. A loaded workstation blocks a change the forge passed (swell C2, C3). |
 | C | No default. `ratchet validate` reports a gate with several classes and no `evidence`. | One more key in every such gate. |
 
-**Default: A.** Each evaluation judges by the records it can read, which fits the store as decided (Q3). C costs one key and hides nothing, and is the second choice.
+**Decided: A** (the owner, 2026-11-24). Each evaluation judges by the records it can read, which fits the store as decided (Q3). C costs one key and hides nothing, and is the second choice.
 
 ### D4. Can an exception end at an event?
 
@@ -756,7 +756,7 @@ An exception expires on a date (§ 5). Three answers accept something until an e
 | B | `expires` also takes an event, `{when: closed, ref: <owner reference>}`. A resolver that the project configures answers whether it happened: a tag exists, a story is closed. | Ratchet reads plan or release state, which other tools own. An event that never happens never expires: 18 answers report a loosening that was not tightened again or do not know (F12). |
 | C | An event and a latest date. The exception ends at whichever comes first. | Needs the resolver of B. |
 
-**Default: A.** It is what `ratchet/1` can check without a resolver. C follows when a first consumer brings one.
+**Decided: A** (the owner, 2026-11-24). It is what `ratchet/1` can check without a resolver. C follows when a first consumer brings one.
 
 ## 10. Changes from revision 2
 
@@ -824,7 +824,7 @@ An exception expires on a date (§ 5). Three answers accept something until an e
 
 ### Counts
 
-- Of the 25 gaps, 22 are closed here. G2, G12, and G15 are closed in part: the place of a reference record is D1, an exception that ends at an event is D4, and the default of `evidence` is D3.
+- Of the 25 gaps, 22 are closed here. G2, G12, and G15 were closed in part and left the place of a reference record (D1), an exception that ends at an event (D4) and the default of `evidence` (D3) to the owner, who decided them on 2026-11-24 (§ 9).
 - All 12 markers are closed here. The authorization that the `ReferenceChange` marker also touches is D2.
 - All 12 points of the specification’s list are taken. Two are sharpened: a bare coverage number is a minimum for `executed` and a maximum for the other counts, and the four things “not declared yet” (preset, quality statement, `ratchet.toml`, record store) now have a shape.
 
