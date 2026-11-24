@@ -6,10 +6,11 @@ summary: >-
   preset in the catalog declares (docs/design.md § 1, § 3, § 4, § 5). Every entity here is
   authored in a document and read from the trusted revision; no Ratchet command creates one.
 
-# Sources: docs/design.md revision 3, § 1 (domain language), § 3 (illustrative project YAML,
-# value lists), § 4 (custom assessors, presets, planted defects), § 5 (gates, exceptions). Field
-# names follow that YAML and are proposals (AGENTS.md § Phase: design). An authored entry has the
-# id its author gave it: the key of its map (§ 6).
+# Sources: docs/design.md revision 4, § 1 (domain language), § 3 (time windows, comparisons,
+# illustrative project YAML, value lists), § 4 (custom assessors, local inputs, presets, planted
+# defects), § 5 (gates, gate kinds, exceptions), § 9 (D1 to D4 decided A; D5 and D6 open, written
+# under default A). Field names follow that YAML and are proposals (AGENTS.md § Phase: design).
+# An authored entry has the id its author gave it: the key of its map (§ 6).
 
 types:
   - name: ratchet.specification.ProjectName
@@ -93,7 +94,10 @@ types:
     naming:
       summary: >-
         The unit of a value: `ms`, `s`, `steps`, bytes, money per run or per day, model calls
-        per run (§ 3). The assessor declares it; `ratchet/1` converts no units.
+        per run (§ 3). The assessor declares it per output, or declares that the output has
+        none; `ratchet/1` converts no units. A number has a unit exactly when its output
+        declares one: an output without a unit (a layout shift, a ratio, the number of items of
+        a set) takes no `unit` on the measurement, the `condition` or a record.
 
   # § 3 value lists: Ratchet, closed. Exact gives the same value for the same input under the
   # same conditions; sampled varies between runs.
@@ -154,7 +158,10 @@ types:
       summary: >-
         The value or assertion being evaluated, with a kind, unit, scope and aggregation where
         applicable, and the direction that is better (§ 1). One entry of a plan's
-        `measurements` map; every measurement of a plan reads the plan's one run (§ 3).
+        `measurements` map; every measurement of a plan reads the plan's one run (§ 3). A
+        measurement of a time-window plan over `runs_of` reads a measurement of the source plan
+        by name as its `output`, keeps its scope, unit and direction, and declares an
+        `aggregation` across the runs in the window (§ 3 "A series of runs as a population").
     fields:
       - name: kind
         type: ratchet.specification.MeasurementKind
@@ -164,11 +171,18 @@ types:
         type: ratchet.specification.Scope
       - name: unit
         type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Present exactly when the assessor declares a unit for the output, and then that unit
+          (§ 3 "Comparisons"). `ratchet validate` refuses a missing one (`unit_missing`), another
+          one (`unit_mismatch`) and one on an output without a unit (`unit_not_declared`). The
+          rule reads the assessor's declaration, so ESS does not check it here.
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: >-
           Absent with `runs: 1`: the value is judged as observed (§ 3 "One run per candidate is
-          valid").
+          valid"). On a time-window plan, the aggregation across the runs in the window: one
+          value at the scope `run`, one value per item at any other scope; a window aggregates
+          numbers, and assertions with `pass_rate`.
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
       - name: better
@@ -223,9 +237,15 @@ types:
         summary: The target classes the plan runs in; always a list (§ 3).
       - name: selection
         type: Optional<ratchet.specification.Selection>
-        summary: Which tree or build is assessed (§ 3).
-        # UNMAPPED: the § 3 YAML leaves `selection` out of two of four targets and the design
-        # states no default. Read here as `candidate` when absent; open question for the owner.
+        summary: >-
+          Which tree or build is assessed (§ 3). A time-window plan declares one only when its
+          population is the candidate's alone, such as a cohort only the candidate serves;
+          without one its evidence is attributable to no candidate and the plan serves an
+          operational gate. A window over `runs_of` has none.
+        # UNMAPPED: revision 4 answers the absent `selection` of a time-window plan (attributable
+        # to no candidate). For a snapshot or controlled-run plan the § 3 YAML still leaves it out
+        # (`search-ui`, `test-step`) and the design states no default. Read here as `candidate`
+        # when absent; open question for the owner.
 
   - name: ratchet.specification.MinimumBound
     kind: struct
@@ -340,16 +360,67 @@ types:
       - name: pairs
         type: Integer
 
+  - name: ratchet.specification.WindowLength
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A duration back from the end of a window: a whole number and `m`, `h` or `d`, such as
+        `7d` (§ 3 "Time windows").
+
   - name: ratchet.specification.WindowSpec
     kind: struct
     naming:
       summary: >-
-        The interval of a time-window observation, `{length: 30d}`; it ends at the evaluation
-        and the evidence records the exact bounds (§ 3). Untested by any example (§ 8).
+        The interval of a time-window plan (§ 3 "Time windows"): `{length: 7d}`, `{last: 20}`,
+        or both, and then the window holds the newest `last` items inside `length`. The window
+        ends when the plan is assessed; the evidence records the exact bounds. A gate that
+        should judge the last run declares `{last: 1}` (§ 5). No example uses the shape yet.
     fields:
       - name: length
-        type: String
-        summary: The window's length as the design spells it, such as `30d`.
+        type: Optional<ratchet.specification.WindowLength>
+      - name: last
+        type: Optional<Integer>
+        summary: A number of population items, newest first.
+    invariants:
+      - any: ["defined(length)", "defined(last)"]
+      - any: ["not defined(last)", "last >= 1"]
+
+  # § 3 value lists: run source (`from`), Ratchet, closed. For a population: `trusted_revision`,
+  # the runs on the trusted branch alone, or `any_revision`, the runs of every candidate too. An
+  # adoption takes `trusted_revision` only (`ratchet.specification.AdoptionSource`).
+  - name: ratchet.specification.RunSource
+    kind: enum
+    variants: [trusted_revision, any_revision]
+
+  - name: ratchet.specification.PopulationSpec
+    kind: struct
+    naming:
+      summary: >-
+        The population a time-window plan reads (§ 3 "Time windows"), in one of two forms.
+        `{runs_of: <assessment>, from: any_revision}`: the assessment runs of another plan of
+        the same specification, the source plan, read from the record store by the built-in
+        assessor `record-series@1`; only runs that qualified under the source plan enter, and
+        the evidence counts the runs left out. `{filter: {service: portal, region: eu}}`: a
+        population the assessor reads outside the record store, such as production telemetry
+        or a job log; the fields are those the assessor declares for its population
+        (`ratchet.assessor.Assessor.population_fields`).
+    fields:
+      - name: runs_of
+        type: Optional<ratchet.specification.AssessmentName>
+        summary: >-
+          The source plan. Inside a struct, which a relation's `via:` cannot name, so the link
+          has no relation entry; `ratchet validate` resolves it (`unresolved_reference`).
+      - name: from
+        type: Optional<ratchet.specification.RunSource>
+        summary: Required with `runs_of`, absent with `filter`.
+      - name: filter
+        type: Optional<Map<String, String>>
+    invariants:
+      - any: ["defined(runs_of)", "defined(filter)"]
+      - any: ["not defined(runs_of)", "not defined(filter)"]
+      - any: ["not defined(runs_of)", "defined(from)"]
+      - any: ["defined(runs_of)", "not defined(from)"]
 
   - name: ratchet.specification.ObservationPlan
     kind: struct
@@ -357,7 +428,16 @@ types:
       summary: >-
         How evidence is collected: the observation kind, the scenarios, the workload or command,
         the run or sample count, a paired run or a time window, the conditions that qualify per
-        target class and the coverage that qualifies (§ 3).
+        target class and the coverage that qualifies (§ 3). A time-window plan
+        (`kind: time_window`) declares `window`, `population` and `min_samples`; a plan of
+        another kind declares neither `window` nor `population`. `ratchet validate` reports
+        both (`time_window_incomplete`, `window_on_other_kind`).
+    invariants:
+      - any: ["kind != time_window", "defined(window)"]
+      - any: ["kind != time_window", "defined(population)"]
+      - any: ["kind != time_window", "defined(min_samples)"]
+      - any: ["kind == time_window", "not defined(window)"]
+      - any: ["kind == time_window", "not defined(population)"]
     fields:
       - name: kind
         type: ratchet.specification.ObservationKind
@@ -376,20 +456,23 @@ types:
         summary: One is valid; repeats are needed where the plan aggregates.
       - name: min_samples
         type: Optional<Integer>
+        summary: >-
+          The fewest samples that qualify. On a time-window plan it is required and counts
+          population items: below it the verdict is insufficient evidence with the cause
+          `too_few_samples`. Ratchet ships no default (§ 3, § 11 "Not changed").
       - name: paired
         type: Optional<ratchet.specification.PairedRun>
       - name: window
         type: Optional<ratchet.specification.WindowSpec>
       - name: population
-        type: Optional<String>
-        summary: The population a time window reads, such as a service and a traffic filter.
-        # UNMAPPED: § 3 says a windowed plan declares "a `population`" and gives it no shape;
-        # one text is a placeholder. Open question for the owner.
+        type: Optional<ratchet.specification.PopulationSpec>
       - name: conditions
         type: Optional<Map<String, ratchet.specification.ObservationConditions>>
         summary: >-
           Keyed by target class (`local`, `ci`, …), with `all` for what holds in every class.
-          `ratchet validate` reports a sampled measurement whose plan declares none.
+          `ratchet validate` reports a sampled measurement whose plan declares none, except on
+          a window over `runs_of`, which declares no conditions of its own: only runs that
+          qualified under the source plan enter its population (§ 3).
       - name: coverage
         type: Optional<ratchet.specification.CoverageBounds>
 
@@ -404,8 +487,9 @@ types:
     kind: struct
     naming:
       summary: >-
-        A comparison with a fixed limit (§ 3 "Comparisons"). It carries the unit of its
-        measurement; another unit is a validation error.
+        A comparison with a fixed limit (§ 3 "Comparisons"). It states the unit of its
+        measurement when the measurement has one, and none otherwise; another unit is a
+        validation error.
     fields:
       - name: operator
         type: ratchet.specification.ComparisonOperator
@@ -414,6 +498,9 @@ types:
         summary: The limit; absent for `no_new_items`, `no_lost_items` and `holds`.
       - name: unit
         type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Present exactly when the assessor declares a unit for the measurement's output
+          (`unit_missing`, `unit_mismatch`, `unit_not_declared`).
 
   # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.ReferenceKind
@@ -432,6 +519,8 @@ types:
         type: Optional<Decimal>
       - name: absolute
         type: Optional<Decimal>
+        summary: >-
+          In the unit of the measurement; a bare number on an output without a unit.
 
   - name: ratchet.specification.AdoptionSource
     kind: enum
@@ -447,7 +536,9 @@ types:
         `ratchet reference adopt`, verified against its own qualifying evidence; the default
         for exact measurements. `{from: trusted_revision, runs: N, aggregation}` takes the
         aggregation of the last N qualifying runs on the trusted revision; the default for
-        sampled measurements, and N has no default.
+        sampled measurements, and N has no default. On a time-window plan `runs` counts
+        windows: `runs: 4` is the last four windows an evaluation recorded, and windows that
+        overlap share items (§ 3).
     fields:
       - name: from
         type: ratchet.specification.AdoptionSource
@@ -591,9 +682,13 @@ types:
     naming:
       summary: >-
         One declared input of an assessor or a preset (§ 4): a name, a type, whether it is
-        required, and a default. A plan passes assessor inputs as `inputs`, a binding passes
-        preset inputs as `with`, and `ratchet validate` checks names and types against the
-        declaration.
+        required, a default, and whether it is local. A plan passes the assessor inputs that
+        are not local as `inputs`, a binding passes preset inputs as `with`, and
+        `ratchet validate` checks names and types against the declaration. A local input has
+        the type `path` and is not a list.
+    invariants:
+      - any: ["not defined(local)", "local == false", "type == path"]
+      - any: ["not defined(local)", "local == false", "not defined(list)", "list == false"]
     fields:
       - name: name
         type: String
@@ -609,6 +704,17 @@ types:
       - name: default
         type: Optional<Json>
         summary: A value of the declared type, where a default is meaningful.
+      - name: local
+        type: Optional<Boolean>
+        summary: >-
+          The value differs per machine, such as the place of a build pool's job log (§ 4
+          "Local inputs"; D6 of docs/design.md § 9, open, written under default A). The
+          specification cannot set it (`local_input_in_specification`); the local config
+          supplies it under
+          `[inputs.<assessment>]` (`ratchet.config.LocalConfig.inputs`), and the assessment run
+          records the resolved value. A required local input with no value on a machine makes
+          the requirement not assessable there (`not_assessable_here`). Absent means not local.
+          A preset input is never local (`preset_input_local`).
 
   - name: ratchet.specification.PresetRef
     kind: newtype
@@ -732,7 +838,10 @@ entities:
         The instructions for collecting evidence: binds one or more measurements to an
         assessor, a target and observation conditions (§ 1). The assessor runs once per plan and
         every measurement reads that run (§ 3). An assessment with no requirement in any gate
-        is in observe mode (§ 5).
+        is in observe mode (§ 5). A time-window plan over `runs_of` is assessed by the built-in
+        `record-series@1`, has no `selection` and declares no conditions; its target has the
+        kind of the source plan's target and lists the classes whose runs count, one window per
+        class (§ 3 "A series of runs as a population").
     provided: true
     identity:
       name: assessment
@@ -747,8 +856,10 @@ entities:
       - name: inputs
         type: Optional<Map<String, Json>>
         summary: >-
-          The assessor's declared inputs by name, such as `{report: target/ux-eval/report.json}`
-          (§ 4); each value has the declared type.
+          The assessor's declared inputs that are not local, by name, such as
+          `{report: target/ux-eval/report.json}` (§ 4); each value has the declared type. A
+          local input set here is a validation error (`local_input_in_specification`), so the
+          trusted revision holds no path of one machine (§ 5 rule 6).
       - name: target
         type: ratchet.specification.TargetSpec
       - name: observation
@@ -756,6 +867,11 @@ entities:
       - name: measurements
         type: Map<String, ratchet.specification.Measurement>
         summary: Keyed by measurement name (`ratchet.specification.MeasurementName`).
+    invariants:
+      - any: ["not defined(observation.population.runs_of)", "assessor == \"record-series@1\""]
+      - any: ["assessor != \"record-series@1\"", "defined(observation.population.runs_of)"]
+      - any: ["not defined(observation.population.runs_of)", "not defined(target.selection)"]
+      - any: ["not defined(observation.population.runs_of)", "not defined(observation.conditions)"]
     relations:
       - name: subject
         kind: references
@@ -827,9 +943,9 @@ entities:
       summary: >-
         A decision at a workflow stage, such as merge or promotion, that requires specified
         verdicts before a candidate can advance. It lists each requirement as enforce or report
-        (§ 1, § 5). A candidate gate judges one candidate; an operational gate judges a host or
-        a population and never decides whether a candidate advances. A gate declares no
-        exception, and a preset declares no gate (§ 4).
+        (§ 1, § 5). A candidate gate judges one candidate; an operational gate judges a host, a
+        build pool or a population over a time window and never decides whether a candidate
+        advances. A gate declares no exception, and a preset declares no gate (§ 4).
     provided: true
     identity:
       name: gate
@@ -839,7 +955,14 @@ entities:
         type: ratchet.specification.ProjectName
       - name: kind
         type: Optional<ratchet.specification.GateKind>
-        summary: "`candidate` by default (§ 5 \"Gate kinds\")."
+        summary: >-
+          `candidate` by default (§ 5 "Gate kinds"). Every requirement of an `operational` gate
+          names a time-window plan without `selection`, and its entries carry no `when`, which
+          has no change to match; a `candidate` gate takes no requirement whose plan is a
+          time-window plan without `selection` (D5 of docs/design.md § 9, open, written under
+          default A). `ratchet validate` reports each (`plan_does_not_fit_gate_kind`, `when_in_operational_gate`). The rules
+          join a gate, its entries and their plans, which an ESS invariant cannot read, so ESS
+          does not check them here.
       - name: stage
         type: ratchet.specification.Stage
       - name: qualifying_environments
@@ -893,6 +1016,7 @@ entities:
           enforced (§ 5). `ratchet validate` reports a report-mode entry without it.
       - name: when
         type: Optional<ratchet.specification.ChangedPaths>
+        summary: Never in an operational gate (`when_in_operational_gate`).
     invariants:
       - any: ["mode == enforce", "defined(since)"]
     relations:
@@ -927,8 +1051,9 @@ entities:
       - name: item
         type: Optional<Json>
         summary: >-
-          The excepted item of an identity set, keyed by the set's identity key, such as
-          `{rule, node_path, environment}`.
+          The excepted item of an identity set, with the shape of an accepted item's `identity`:
+          exactly the fields of the set's identity key, such as
+          `{rule, node_path, environment}`, where a field can be a map (§ 3).
       - name: value
         type: Optional<ratchet.specification.Condition>
         summary: >-
@@ -982,7 +1107,9 @@ entities:
         type: String
       - name: inputs
         type: List<ratchet.specification.InputDeclaration>
-        summary: The declared inputs, with the shape of an assessor's inputs.
+        summary: >-
+          The declared inputs, with the shape of an assessor's inputs, none of them local
+          (`preset_input_local`).
     lifecycle:
       initial: Declared
       states: [Declared]

@@ -30,12 +30,34 @@ types:
   - name: ratchet.evidence.Window
     kind: struct
     naming:
-      summary: The exact bounds of a time-window observation (§ 3).
+      summary: >-
+        The exact bounds of a time-window observation (§ 3). The window ends when the plan is
+        assessed; for an operational gate, at the evaluation (§ 5).
     fields:
       - name: starts_at
         type: Timestamp
       - name: ends_at
         type: Timestamp
+
+  - name: ratchet.evidence.WindowItems
+    kind: struct
+    naming:
+      summary: >-
+        What a time-window run read (§ 3, § 6): the number of population items, the time of
+        the newest, and the number of runs left out. Fewer items than the plan's `min_samples`
+        is insufficient evidence with the cause `too_few_samples`.
+    fields:
+      - name: items
+        type: Integer
+      - name: newest_item_at
+        type: Optional<Timestamp>
+        summary: Absent when the window holds no item.
+      - name: runs_left_out
+        type: Optional<Integer>
+        summary: >-
+          For a population over `runs_of`: the runs of the source plan in the window that did
+          not qualify under it (outside its conditions or below its coverage). Absent for a
+          population read outside the record store.
 
   - name: ratchet.evidence.ResolvedTarget
     kind: struct
@@ -105,8 +127,12 @@ types:
     naming:
       summary: >-
         How much of the plan a run executed: executed, skipped, not run and unsupported items,
-        next to passed and failed (§ 1, § 3).
+        next to passed and failed (§ 1, § 3). One set of counts per run, whichever measurements
+        read it; the items are of the assessor's coverage unit, which the evidence names.
     fields:
+      - name: unit
+        type: ratchet.assessor.CoverageUnit
+        summary: The assessor's coverage unit, such as `walk` or `test` (§ 3, § 6).
       - name: executed
         type: Integer
       - name: skipped
@@ -121,7 +147,9 @@ types:
         type: Integer
       - name: executed_ids
         type: Optional<List<String>>
-        summary: The ids of the executed items, where the plan declares `executed_ids`.
+        summary: >-
+          The ids of the executed items, ids of the coverage unit, where the plan declares
+          `executed_ids`.
 
   - name: ratchet.evidence.IdentitySet
     kind: struct
@@ -146,6 +174,9 @@ types:
         type: Decimal
       - name: unit
         type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Present exactly when the assessor declares a unit for the output; a value without a
+          unit has no `unit` key (§ 3).
       - name: at_least
         type: Boolean
         summary: >-
@@ -229,9 +260,12 @@ entities:
       summary: >-
         The record of one run of an assessment plan (§ 6): candidate, resolved target and its
         class, assessor and protocol versions, timestamps or window bounds, values per
-        measurement, sample or run count, coverage counts, observed conditions, queue wait and
-        run time, artifact references, and for an imported run where it came from. A run that
-        `ratchet.toml` skipped locally is recorded as a run that executed nothing.
+        measurement, sample or run count, coverage counts with their unit, observed conditions,
+        queue wait and run time, the resolved value of each local input, artifact references,
+        and for an imported run where it came from; for a window, the number of population
+        items, the time of the newest and the number of runs left out. A run that
+        `ratchet.toml` skipped locally is recorded as a run that executed nothing. An
+        operational gate's evaluation writes the windows it assesses as runs (§ 5).
     identity:
       name: run
       type: ratchet.evidence.RunId
@@ -241,8 +275,10 @@ entities:
       - name: assessment
         type: ratchet.specification.AssessmentName
       - name: candidate
-        type: ratchet.specification.Revision
-        summary: The candidate identity the evidence is attributable to (§ 3).
+        type: Optional<ratchet.specification.Revision>
+        summary: >-
+          The candidate identity the evidence is attributable to (§ 3). Absent on a run of a
+          time-window plan without `selection`, whose evidence is attributable to no candidate.
       - name: target
         type: ratchet.evidence.ResolvedTarget
       - name: assessor
@@ -266,6 +302,18 @@ entities:
       - name: samples
         type: Optional<Integer>
         summary: The sample or run count behind an aggregated value.
+      - name: window_items
+        type: Optional<ratchet.evidence.WindowItems>
+        summary: >-
+          On a time-window run: the population items it read; its bounds are
+          `target.window`.
+      - name: local_inputs
+        type: Map<String, String>
+        summary: >-
+          The resolved value of each local input, by input name, as `[inputs.<assessment>]` of
+          `ratchet.toml` supplied it on the machine that ran (§ 5 rule 6). A wrong path gives
+          evidence from the wrong file, and only this record shows it (§ 9, D6). Empty when the
+          assessor declares no local input.
       - name: coverage
         type: ratchet.evidence.EvidenceCoverage
       - name: conditions
@@ -280,6 +328,8 @@ entities:
       - name: source
         type: Optional<ratchet.evidence.ImportSource>
         summary: Present on an imported run, which is an assessment run record (§ 6).
+    invariants:
+      - any: ["not defined(window_items)", "defined(target.window)"]
     relations:
       # references, not owns: a record outlives the document that governed it, so old evidence
       # can be re-evaluated against a new requirement (§ 6).

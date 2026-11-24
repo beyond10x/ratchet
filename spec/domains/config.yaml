@@ -82,8 +82,11 @@ types:
       - name: skip_sampled_outside_conditions
         type: Optional<Boolean>
         summary: >-
-          Before a sampled assessment runs, compare the present conditions with the plan's
-          declared ones and skip it outside them. It holds no number.
+          Before a sampled assessment runs, compare the declared conditions with what can be
+          read at that moment (the tools, the runner, and the 1-minute load average divided by
+          the number of CPUs) and skip it outside them. It holds no number, and the check is not
+          evidence: it decides only whether the run starts; a run that starts is judged by the
+          mean over the run (§ 5 rule 4).
       - name: skip
         type: Optional<List<ratchet.specification.AssessmentName>>
         summary: >-
@@ -99,8 +102,10 @@ entities:
     naming:
       summary: >-
         The local config `ratchet.toml` (§ 1, § 2, § 5): it locates the specifications, the
-        preset sources, the record store and the tools, and selects what runs on one machine.
-        It carries no policy: a requirement leaves a gate only through the specification.
+        preset sources, the record store, the tools and the local inputs, and selects what runs
+        on one machine. It carries no policy: a requirement leaves a gate only through the
+        specification. `ratchet doctor` checks that each part is reachable, the local inputs
+        included.
     provided: true
     identity:
       name: path
@@ -119,6 +124,18 @@ entities:
       - name: tools
         type: Optional<Map<String, String>>
         summary: How to invoke a tool on this machine, such as `nextest = "cargo nextest"`.
+      - name: inputs
+        type: Optional<Map<String, Map<String, String>>>
+        summary: >-
+          `[inputs.<assessment>]`: the value of each local input of that plan's assessor, by
+          input name, such as `job_log = "/var/lib/build-pool/jobs.jsonl"` for `test-step`
+          (§ 5 rule 6; D6 of docs/design.md § 9, open, written under default A). It supplies
+          local inputs and nothing else: a key for an input that is not local is refused with
+          `input_not_local`, so a threshold, a filter or an exclusion cannot move here. The
+          value says where evidence is read and decides nothing about a verdict:
+          `ratchet assess` reads it, a gate does not, and the run records the resolved value.
+          It is not a skip, so rule 3 (`local_skips_refused`) does not refuse it, and a CI
+          runner has its own.
     lifecycle:
       initial: Declared
       states: [Declared]

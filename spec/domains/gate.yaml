@@ -1,8 +1,9 @@
 domain: ratchet.gate
 
 summary: >-
-  Gate decisions: the verdict a gate returned for a candidate under the policy of a trusted
-  revision, and the result of each entry it listed (docs/design.md § 5, § 6).
+  Gate decisions: the verdict a gate returned under the policy of a trusted revision, for a
+  candidate or, in an operational gate, over the windows of its time-window plans, and the
+  result of each entry it listed (docs/design.md § 5, § 6).
 
 types:
   - name: ratchet.gate.DecisionId
@@ -25,8 +26,9 @@ types:
     variants: [pass, fail, insufficient_evidence]
 
   # § 5 "Verdicts": the causes are a closed list. The first seven are causes of a fail (next
-  # step on the candidate), the rest causes of insufficient evidence (next step on the
-  # assessment).
+  # step on the candidate, or on the system in an operational gate), the rest causes of
+  # insufficient evidence (next step on the assessment). `too_few_samples` covers a window with
+  # fewer items than `min_samples` (§ 3).
   - name: ratchet.gate.VerdictCause
     kind: enum
     variants:
@@ -51,10 +53,14 @@ types:
       - not_assessable_here
       - skipped_locally
 
-  # § 5: a non-pass "says whether the next step is on the candidate or on the assessment".
+  # § 5: a non-pass "says whether the next step is on the candidate or on the assessment". An
+  # operational gate has no candidate: the next step of a fail there is on the host or the
+  # population the gate judges, `system`, in place of `candidate` (§ 3 value lists, § 5). Which
+  # of the two a fail takes depends on the kind of the gate on the decision, which an invariant
+  # of `RequirementVerdict` cannot read; the rule is the CLI's (spec/README.md).
   - name: ratchet.gate.NextStep
     kind: enum
-    variants: [candidate, assessment]
+    variants: [candidate, assessment, system]
 
   # § 4: an enforced requirement with no proof record and no recorded fail is unproven.
   - name: ratchet.gate.ProofStatus
@@ -92,7 +98,8 @@ entities:
         when every enforced entry that applies has passed, fails when at least one of them
         fails, and otherwise returns insufficient evidence: fail comes first, because a fail is
         a result about the candidate (§ 5). An operational gate's verdict decides nothing about
-        a candidate.
+        a candidate: it has none, and records the window bounds of each requirement in its
+        place (§ 6).
     identity:
       name: decision
       type: ratchet.gate.DecisionId
@@ -104,10 +111,15 @@ entities:
       - name: kind
         type: ratchet.specification.GateKind
       - name: candidate
-        type: ratchet.specification.Revision
+        type: Optional<ratchet.specification.Revision>
+        summary: >-
+          Present for a candidate gate, absent for an operational gate, whose
+          `ratchet evaluate` takes no candidate (§ 5 "Gate kinds").
       - name: policy_revision
         type: ratchet.specification.Revision
-        summary: The trusted revision whose policy and references judged the candidate (§ 5).
+        summary: >-
+          The trusted revision whose policy and references judged the candidate, or for an
+          operational gate the windows (§ 5).
       - name: verdict
         type: ratchet.gate.Verdict
       - name: reason
@@ -116,6 +128,9 @@ entities:
           The summary line; it says when report-mode entries fail (§ 5 "Gate modes").
       - name: decided_at
         type: Timestamp
+    invariants:
+      - any: ["kind == operational", "defined(candidate)"]
+      - any: ["kind == candidate", "not defined(candidate)"]
     relations:
       - name: project
         kind: references
@@ -143,8 +158,10 @@ entities:
         One entry's result within a gate decision (§ 5, § 6): requirement, mode, the protected
         reference or absolute limit, verdict, observed and allowed values, coverage counts,
         observed conditions, pointers to the evidence, the exceptions applied, whether it is
-        proven, and for a non-pass its cause and whether the next step is on the candidate or
-        on the assessment. An entry that is not applicable has no verdict and names the reason.
+        proven, and for a non-pass its cause and whether the next step is on the candidate, on
+        the assessment, or in an operational gate on the system. An entry that is not applicable
+        has no verdict and names the reason. In an operational gate the row records the bounds
+        of the window it was judged over.
     identity:
       name: verdict_id
       type: ratchet.gate.VerdictId
@@ -171,7 +188,14 @@ entities:
         summary: Present for every verdict that is not a pass.
       - name: next_step
         type: Optional<ratchet.gate.NextStep>
-        summary: Present for every verdict that is not a pass.
+        summary: >-
+          Present for every verdict that is not a pass: `candidate` or `assessment`, and
+          `system` in place of `candidate` in an operational gate.
+      - name: window
+        type: Optional<ratchet.evidence.Window>
+        summary: >-
+          In an operational gate, the bounds of the window this requirement was judged over,
+          in place of a candidate (§ 5, § 6). Absent in a candidate gate.
       - name: observed
         type: List<ratchet.evidence.MeasurementResult>
       - name: allowed

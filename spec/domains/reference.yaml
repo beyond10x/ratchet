@@ -62,19 +62,28 @@ types:
         type: String
       - name: unit
         type: Optional<ratchet.specification.Unit>
+        summary: >-
+          Present exactly when the assessor declares a unit for the output; a value without a
+          unit has no `unit` key (§ 3).
 
   - name: ratchet.reference.AcceptedItem
     kind: struct
     naming:
       summary: >-
-        One item of an accepted identity set, keyed by the set's identity key. It can carry a
-        `reason` and an `owner`: an allowlist entry for a permanent false positive is such an
-        item. Adding an item is a loosening (§ 5).
+        One item of an accepted identity set, `{identity, reason, owner}`, the last two
+        optional (§ 3, § 5 "Reference records"). An allowlist entry for a permanent false
+        positive is such an item. An item holds nothing else: severity, message and location
+        are in the evidence. Adding an item is a loosening.
     fields:
-      - name: item
+      - name: identity
         type: Json
+        summary: >-
+          Exactly the fields of the measurement's identity key; a field can be a map, as
+          `environment` is. An `identity` with other fields than the key makes the reference
+          not comparable (`reference_not_comparable`). An exception's `item` has this shape.
       - name: reason
         type: Optional<String>
+        summary: Beside `identity` and not inside it, so a key field of that name stays unambiguous.
       - name: owner
         type: Optional<ratchet.specification.OwnerRef>
 
@@ -142,7 +151,9 @@ entities:
         summary: The accepted values per scope item; absent for an identity set.
       - name: items
         type: Optional<List<ratchet.reference.AcceptedItem>>
-        summary: The accepted set, in place of `values`, for an identity set.
+        summary: >-
+          The accepted set, in place of `values`, for an identity set: one set per
+          requirement, whatever the scope of the measurement (§ 3).
       - name: conditions
         type: ratchet.evidence.ObservedConditions
         summary: The tools, image, runner and host class that produced it (§ 5 rule 5).
@@ -153,6 +164,8 @@ entities:
           the last 10 qualifying runs on the trusted revision.
       - name: last_change
         type: ratchet.reference.LastChange
+    invariants:
+      - any: ["not defined(values)", "not defined(items)"]
     relations:
       - name: requirement
         kind: references
