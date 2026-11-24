@@ -1,0 +1,230 @@
+format: ess-cli/2
+binary: ratchet
+about: Specify software quality, assess it, and keep it from going backwards
+# Commands: docs/design.md § 5 "Proposed CLI" (init, validate, assess, evaluate, reference
+# propose, prove, render) and docs/product-brainstorm.md § 3 (status, explain, history, diff,
+# doctor, import, exceptions, serve). Every name, flag and field is a proposal.
+#
+# Globals: `--config` is the local `ratchet.toml` (product-brainstorm § 2), `--state-dir` the
+# local state such as an index over the records (product-brainstorm § 6), `--output` human or
+# json. None of them enters a command payload.
+#
+# Every callable is a local action: the handler reads the specification, the record store and
+# the tools in this process. No ESS component serves them.
+#
+# ess-cli/2 has no valueless flag and no repeated option: `--check true` and a JSON list such
+# as `--presets '["web-ux@1"]'` are how the generated parser spells them.
+#
+# Exit status: success is 0, a declared error 1, an argument or input refusal 2. A gate that
+# does not pass is a declared error (`gate_failed`, `insufficient_evidence`), so CI enforces the
+# exit status; both are 1 and the JSON code tells them apart.
+globals:
+  config: config
+  state: state-dir
+  output: output
+callables:
+  init:
+    target: {kind: local, owner: ratchet.cli, action: init}
+    input: ratchet.cli.InitInput
+    result: ratchet.cli.InitResult
+    errors:
+      spec_exists: ratchet.cli.Refusal
+      preset_unresolved: ratchet.cli.Refusal
+  validate:
+    target: {kind: local, owner: ratchet.cli, action: validate}
+    input: ratchet.cli.ValidateInput
+    result: ratchet.cli.ValidationReport
+    errors:
+      spec_invalid: ratchet.cli.ValidationReport
+      spec_unreadable: ratchet.cli.Refusal
+  assess:
+    target: {kind: local, owner: ratchet.cli, action: assess}
+    input: ratchet.cli.AssessInput
+    result: ratchet.cli.AssessResult
+    errors:
+      unknown_assessment: ratchet.cli.Refusal
+      assessor_unavailable: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+  evaluate:
+    target: {kind: local, owner: ratchet.cli, action: evaluate}
+    input: ratchet.cli.EvaluateInput
+    result: ratchet.cli.GateReport
+    # UNMAPPED: product-brainstorm § 2 leaves open whether `ratchet evaluate` in CI refuses a
+    # `ratchet.toml` that skips requirements, or ignores that section. No error code for it is
+    # declared until the owner decides.
+    errors:
+      gate_failed: ratchet.cli.GateReport
+      insufficient_evidence: ratchet.cli.GateReport
+      unknown_gate: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+  reference-propose:
+    target: {kind: local, owner: ratchet.cli, action: reference-propose}
+    input: ratchet.cli.ProposeInput
+    result: ratchet.cli.ReferenceProposal
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+      no_qualifying_evidence: ratchet.cli.Refusal
+      not_better: ratchet.cli.Refusal
+      gain_not_shown: ratchet.cli.Refusal
+      unnamed_regression: ratchet.cli.Refusal
+  prove:
+    target: {kind: local, owner: ratchet.cli, action: prove}
+    input: ratchet.cli.ProveInput
+    result: ratchet.cli.ProofReport
+    errors:
+      defect_accepted: ratchet.cli.ProofReport
+      no_planted_defects: ratchet.cli.Refusal
+      unknown_requirement: ratchet.cli.Refusal
+  render:
+    target: {kind: local, owner: ratchet.cli, action: render}
+    input: ratchet.cli.RenderInput
+    result: ratchet.cli.RenderReport
+    errors:
+      render_drift: ratchet.cli.RenderReport
+      unknown_record: ratchet.cli.Refusal
+  status:
+    target: {kind: local, owner: ratchet.cli, action: status}
+    input: ratchet.cli.StatusInput
+    result: ratchet.cli.StatusReport
+    errors:
+      unknown_gate: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+  explain:
+    target: {kind: local, owner: ratchet.cli, action: explain}
+    input: ratchet.cli.ExplainInput
+    result: ratchet.cli.Explanation
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+  history:
+    target: {kind: local, owner: ratchet.cli, action: history}
+    input: ratchet.cli.HistoryInput
+    result: ratchet.cli.History
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+  diff:
+    target: {kind: local, owner: ratchet.cli, action: diff}
+    input: ratchet.cli.DiffInput
+    result: ratchet.cli.DiffReport
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+      reference_missing: ratchet.cli.Refusal
+  doctor:
+    target: {kind: local, owner: ratchet.cli, action: doctor}
+    input: null
+    result: ratchet.cli.DoctorReport
+    errors:
+      unhealthy: ratchet.cli.DoctorReport
+  import:
+    target: {kind: local, owner: ratchet.cli, action: import}
+    input: ratchet.cli.ImportInput
+    result: ratchet.cli.ImportResult
+    errors:
+      source_unreadable: ratchet.cli.Refusal
+      unknown_assessment: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+  exceptions:
+    target: {kind: local, owner: ratchet.cli, action: exceptions}
+    input: ratchet.cli.ExceptionsInput
+    result: ratchet.cli.ExceptionList
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+  serve:
+    target: {kind: local, owner: ratchet.cli, action: serve}
+    input: ratchet.cli.ServeInput
+    result: ratchet.cli.ServeResult
+    errors:
+      listen_failed: ratchet.cli.Refusal
+      record_store_unreachable: ratchet.cli.Refusal
+commands:
+  - path: [init]
+    callable: init
+    about: Create a project specification and bind selected catalog presets
+    arguments:
+      - {field: project, source: {kind: option, long: project}}
+      - {field: presets, source: {kind: option, long: presets}}
+      - {field: path, source: {kind: option, long: path}}
+  - path: [validate]
+    callable: validate
+    about: Check the specification, resolve references and validate assessor configuration
+    arguments:
+      - {field: spec, source: {kind: option, long: spec}}
+  - path: [assess]
+    callable: assess
+    about: Run selected assessors or ingest their results and record structured evidence
+    arguments:
+      - {field: assessments, source: {kind: option, long: assessments}}
+      - {field: candidate, source: {kind: option, long: candidate}}
+      - {field: report, source: {kind: option, long: report}}
+  - path: [evaluate]
+    callable: evaluate
+    about: Evaluate a named gate with qualifying evidence; only a pass exits 0
+    arguments:
+      - {field: gate, source: {kind: option, long: gate}}
+      - {field: candidate, source: {kind: option, long: candidate}}
+      - {field: trusted, source: {kind: option, long: trusted}}
+  - path: [reference, propose]
+    callable: reference-propose
+    about: Propose a stronger protected reference, or a trade-off that names its gains
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+      - {field: gains, source: {kind: option, long: gains}}
+      - {field: reason, source: {kind: option, long: reason}}
+      - {field: owner, source: {kind: option, long: owner}}
+  - path: [prove]
+    callable: prove
+    about: Run a requirement's planted defects and record that the check refuses each
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+  - path: [render]
+    callable: render
+    about: Write the marked blocks of numbers in documents from records
+    arguments:
+      - {field: documents, source: {kind: option, long: documents}}
+      - {field: check, source: {kind: option, long: check}}
+  - path: [status]
+    callable: status
+    about: Show every requirement's verdict, value, limit or reference, and when it was checked
+    arguments:
+      - {field: gate, source: {kind: option, long: gate}}
+  - path: [explain]
+    callable: explain
+    about: Say what a requirement means, who cares, how it is measured and where its evidence is
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+  - path: [history]
+    callable: history
+    about: Show a requirement's series with reference changes and exceptions marked
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+      - {field: limit, source: {kind: option, long: limit}}
+  - path: [diff]
+    callable: diff
+    about: Compare the candidate with the reference item by item
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+      - {field: candidate, source: {kind: option, long: candidate}}
+  - path: [doctor]
+    callable: doctor
+    about: Check that config, specifications, tools and the record store are reachable
+    arguments: []
+  - path: [import]
+    callable: import
+    about: Import history that exists elsewhere as assessment runs
+    arguments:
+      - {field: source, source: {kind: positional, index: 1}}
+      - {field: assessment, source: {kind: option, long: assessment}}
+      - {field: path, source: {kind: option, long: path}}
+      - {field: since, source: {kind: option, long: since}}
+  - path: [exceptions]
+    callable: exceptions
+    about: List active, expiring and expired exceptions
+    arguments:
+      - {field: status, source: {kind: option, long: status}}
+      - {field: within_days, source: {kind: option, long: within-days}}
+      - {field: requirement, source: {kind: option, long: requirement}}
+  - path: [serve]
+    callable: serve
+    about: Serve the web view over the record store
+    arguments:
+      - {field: listen, source: {kind: option, long: listen}}

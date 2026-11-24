@@ -1,0 +1,289 @@
+domain: ratchet.evidence
+
+summary: >-
+  Observations: what one assessment run produced, with its resolved target, conditions,
+  coverage and values (docs/design.md § 3, § 6), and the proof records `ratchet prove` writes
+  (§ 4). Records are stored apart from gate decisions and reference changes, so old evidence
+  can be re-evaluated against a new requirement (§ 6).
+
+# Who writes a record: the `ratchet` commands of the CLI binding (`spec/cli.yaml`). They are
+# local actions; this draft declares no ESS command that creates a record, so each record has
+# one lifecycle state.
+
+types:
+  - name: ratchet.evidence.RunId
+    kind: newtype
+    of: String
+    naming:
+      summary: The stable id of an assessment run record, citable from prose (§ 6).
+
+  - name: ratchet.evidence.ProofId
+    kind: newtype
+    of: String
+    naming:
+      summary: The stable id of a proof record.
+
+  - name: ratchet.evidence.Window
+    kind: struct
+    naming:
+      summary: Exact window bounds of a time-window observation (§ 3).
+    fields:
+      - name: starts_at
+        type: Timestamp
+      - name: ends_at
+        type: Timestamp
+
+  - name: ratchet.evidence.ResolvedTarget
+    kind: struct
+    naming:
+      summary: >-
+        The target the evidence was collected from, recorded beside the expected target of the
+        plan (§ 3): a commit and lockfile, an environment id with an artifact digest and a
+        workload version, or a telemetry population with exact window bounds.
+    fields:
+      - name: kind
+        type: ratchet.specification.TargetKind
+      - name: class
+        type: ratchet.specification.TargetClass
+      - name: revision
+        type: Optional<ratchet.specification.Revision>
+      - name: identifiers
+        type: Map<String, String>
+        summary: >-
+          The identifiers § 3 lists per target kind, by name: `lockfile`, `environment_id`,
+          `artifact_digest`, `workload_version`, `service`, `region`, `cohort`.
+      - name: window
+        type: Optional<ratchet.evidence.Window>
+
+  - name: ratchet.evidence.ObservedConditions
+    kind: struct
+    naming:
+      summary: >-
+        The conditions the evidence was observed under (§ 3, § 6): runner, host load,
+        toolchain, cache profile, and for exact measurements the libraries, CPU and tool
+        version.
+    fields:
+      - name: runner
+        type: Optional<String>
+      - name: host_load_per_cpu
+        type: Optional<Decimal>
+      - name: toolchain
+        type: Optional<String>
+      - name: cache_profile
+        type: Optional<String>
+      - name: tool_version
+        type: Optional<String>
+      - name: other
+        type: Map<String, String>
+        summary: Every further condition by name, such as the C library or the CPU model.
+
+  - name: ratchet.evidence.EvidenceCoverage
+    kind: struct
+    naming:
+      summary: >-
+        How much of the plan a run executed: executed, skipped, not run and unsupported items,
+        next to passed and failed (§ 1, § 3).
+    fields:
+      - name: executed
+        type: Integer
+      - name: skipped
+        type: Integer
+      - name: not_run
+        type: Integer
+      - name: unsupported
+        type: Integer
+      - name: passed
+        type: Integer
+      - name: failed
+        type: Integer
+      - name: executed_items
+        type: Optional<List<String>>
+        summary: The ids of the executed items, where the plan asks for an exact set.
+
+  - name: ratchet.evidence.IdentitySet
+    kind: struct
+    naming:
+      summary: >-
+        A set of items with stable identities, such as findings or passing cases, compared item
+        by item (§ 1, § 4). Each item is keyed by the set's identity key.
+    fields:
+      - name: key
+        type: List<String>
+        summary: The identity key, such as `[rule, node_path, environment]`.
+      - name: items
+        type: List<Json>
+        summary: >-
+          The items, each an object with at least the key's members. A member may be nested,
+          as `environment: {viewport: narrow}` in the § 3 YAML.
+
+  - name: ratchet.evidence.NumberValue
+    kind: struct
+    fields:
+      - name: value
+        type: Decimal
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+      - name: at_least
+        type: Boolean
+        summary: >-
+          The run reached the limit and was stopped there, so the value is "at least the
+          limit" (§ 3).
+
+  - name: ratchet.evidence.DigestValue
+    kind: struct
+    fields:
+      - name: digest
+        type: String
+        summary: The digest of a generated file, compared with a fresh generation (§ 5).
+
+  - name: ratchet.evidence.AssertionValue
+    kind: struct
+    fields:
+      - name: holds
+        type: Boolean
+        summary: Whether an assertion, such as a scenario passing, held.
+
+  - name: ratchet.evidence.MeasuredValue
+    kind: union
+    tag: kind
+    variants:
+      number: ratchet.evidence.NumberValue
+      identity_set: ratchet.evidence.IdentitySet
+      digest: ratchet.evidence.DigestValue
+      assertion: ratchet.evidence.AssertionValue
+
+  - name: ratchet.evidence.MeasurementResult
+    kind: struct
+    naming:
+      summary: >-
+        One result at the scope where it was observed. Aggregation does not repeat a result
+        outside its scope (§ 3 "Scope and aggregation").
+    fields:
+      - name: output
+        type: String
+      - name: kind
+        type: ratchet.specification.MeasurementKind
+      - name: scope
+        type: ratchet.specification.Scope
+      - name: scope_item
+        type: Optional<String>
+        summary: The page, journey, test, state or variant the result belongs to.
+      - name: value
+        type: ratchet.evidence.MeasuredValue
+
+  # § 5 "Verdicts": a timed-out assessor and an assessor stopped by its infrastructure return
+  # no result about the subject; § 3: a killed run is never recorded as such a result.
+  - name: ratchet.evidence.RunCompletion
+    kind: enum
+    variants: [completed, timed_out, stopped_by_infrastructure]
+
+entities:
+  - name: ratchet.evidence.AssessmentRun
+    naming:
+      summary: >-
+        The record of one run of an assessment plan (§ 6): candidate, resolved target and its
+        class, assessor and protocol versions, timestamps or window bounds, values with kind,
+        unit and scope, sample or run count, coverage counts, observed conditions, queue wait
+        and run time, and artifact references.
+    identity:
+      name: run
+      type: ratchet.evidence.RunId
+    fields:
+      - name: project
+        type: ratchet.specification.ProjectName
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+      - name: candidate
+        type: ratchet.specification.Revision
+        summary: The candidate identity the evidence is attributable to (§ 3).
+      - name: target
+        type: ratchet.evidence.ResolvedTarget
+      - name: assessor
+        type: ratchet.specification.AssessorRef
+      - name: protocol_version
+        type: Optional<String>
+        summary: >-
+          The version of the assessment protocol; a change that affects comparability starts a
+          new evidence series (§ 5).
+      - name: started_at
+        type: Optional<Timestamp>
+      - name: ended_at
+        type: Optional<Timestamp>
+      - name: completion
+        type: ratchet.evidence.RunCompletion
+      - name: results
+        type: List<ratchet.evidence.MeasurementResult>
+      - name: samples
+        type: Optional<Integer>
+        summary: The sample or run count behind an aggregated value.
+      - name: coverage
+        type: ratchet.evidence.EvidenceCoverage
+      - name: conditions
+        type: ratchet.evidence.ObservedConditions
+      - name: queue_wait
+        type: Optional<Duration>
+      - name: run_time
+        type: Optional<Duration>
+      - name: artifacts
+        type: List<String>
+        summary: Pointers to the relevant logs, traces or findings (§ 5, § 6).
+      - name: imported_from
+        type: Optional<String>
+        summary: >-
+          Where an imported run came from: a forge run, a build pool job log, a JUnit file.
+        # UNMAPPED: `ratchet import` and its sources are docs/product-brainstorm.md § 3;
+        # docs/design.md § 6 says only that an assessor imports history from the forge or the
+        # build pool. Whether an import is a run record or something else is open.
+    relations:
+      # references, not owns: a record outlives the document that governed it, so old evidence
+      # can be re-evaluated against a new requirement (§ 6).
+      - name: project
+        kind: references
+        target: ratchet.specification.QualitySpecification
+        cardinality: one
+        via: project
+      - name: assessment
+        kind: references
+        target: ratchet.specification.AssessmentPlan
+        cardinality: one
+        via: assessment
+      - name: assessor
+        kind: references
+        target: ratchet.assessor.Assessor
+        cardinality: one
+        via: assessor
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+  - name: ratchet.evidence.ProofRecord
+    naming:
+      summary: >-
+        What `ratchet prove` records: a requirement's planted defects run and how many the check
+        refused (§ 4). A gate report marks an enforced requirement with no proof record and no
+        recorded fail as unproven.
+    identity:
+      name: proof
+      type: ratchet.evidence.ProofId
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: revision
+        type: ratchet.specification.Revision
+      - name: planted
+        type: Integer
+      - name: refused
+        type: Integer
+      - name: recorded_at
+        type: Timestamp
+    relations:
+      - name: requirement
+        kind: references
+        target: ratchet.specification.QualityRequirement
+        cardinality: one
+        via: requirement
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]

@@ -1,0 +1,194 @@
+domain: ratchet.gate
+
+summary: >-
+  Gate decisions: the verdict a gate returned for a candidate under the policy of a trusted
+  revision, and the verdict of each requirement it listed (docs/design.md § 5, § 6).
+
+types:
+  - name: ratchet.gate.DecisionId
+    kind: newtype
+    of: String
+    naming:
+      summary: The stable id of a gate decision record.
+
+  - name: ratchet.gate.VerdictId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The id of one requirement's verdict within a decision; the proposal is
+        `<decision>/<requirement>`.
+
+  # § 5 "Verdicts": only a pass clears the gate.
+  - name: ratchet.gate.Verdict
+    kind: enum
+    variants: [pass, fail, insufficient_evidence]
+
+  # The causes § 5 "Verdicts" names for insufficient evidence (too few samples, a timed-out
+  # assessor, stale telemetry, an incompatible target, conditions outside the declared ones,
+  # coverage below the plan, an assessor stopped by its infrastructure, a tool or toolchain
+  # other than the declared one, a missing or not comparable reference), § 3 (no evidence
+  # attributable to the candidate; a requirement this location cannot assess, "reported there
+  # as not run"), and the causes of a fail § 3 and § 5 name (a limit crossed, a regression
+  # against the reference, a new item, a lost item, a generated file that differs, an exact
+  # reference left stale after an improvement).
+  - name: ratchet.gate.VerdictCause
+    kind: enum
+    variants:
+      - too_few_samples
+      - assessor_timed_out
+      - stale_telemetry
+      - incompatible_target
+      - conditions_outside_declared
+      - coverage_below_plan
+      - assessor_infrastructure_failure
+      - tool_mismatch
+      - reference_missing
+      - reference_not_comparable
+      - not_attributable_to_candidate
+      - not_assessable_here
+      - limit_crossed
+      - regression
+      - new_items
+      - lost_items
+      - generated_reference_differs
+      - stale_reference_not_adopted
+
+  # § 5: a non-pass "says whether the next step is on the candidate or on the assessment".
+  - name: ratchet.gate.NextStep
+    kind: enum
+    variants: [candidate, assessment]
+
+  # § 4: an enforced requirement with no proof record and no recorded fail is unproven.
+  - name: ratchet.gate.ProofStatus
+    kind: enum
+    variants: [proven, unproven]
+
+entities:
+  - name: ratchet.gate.GateDecision
+    naming:
+      summary: >-
+        The record of one gate evaluation (§ 6): candidate, gate and policy version, evidence,
+        protected reference or absolute limit, the mode of each requirement, exceptions
+        applied, verdict and reason. Only a pass clears the gate (§ 5).
+    identity:
+      name: decision
+      type: ratchet.gate.DecisionId
+    fields:
+      - name: project
+        type: ratchet.specification.ProjectName
+      - name: gate
+        type: ratchet.specification.GateName
+      - name: candidate
+        type: ratchet.specification.Revision
+      - name: policy_revision
+        type: ratchet.specification.Revision
+        summary: The trusted revision whose policy and references judged the candidate (§ 5).
+      - name: verdict
+        type: ratchet.gate.Verdict
+        # UNMAPPED: § 5 says only a pass clears the gate and a report-mode requirement does not
+        # block, but not which verdict the gate returns when one enforced requirement fails
+        # and another has insufficient evidence. Open question: the precedence of fail over
+        # insufficient evidence, or the reverse.
+      - name: reason
+        type: String
+      - name: decided_at
+        type: Timestamp
+    relations:
+      - name: project
+        kind: references
+        target: ratchet.specification.QualitySpecification
+        cardinality: one
+        via: project
+      - name: gate
+        kind: references
+        target: ratchet.specification.Gate
+        cardinality: one
+        via: gate
+      - name: verdicts
+        kind: owns
+        target: ratchet.gate.RequirementVerdict
+        cardinality: many
+        via: decision
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+  - name: ratchet.gate.RequirementVerdict
+    naming:
+      summary: >-
+        One requirement's result within a gate decision (§ 5): requirement, mode, verdict,
+        observed and allowed values, coverage counts, observed conditions, pointers to the
+        evidence, the exceptions applied, and for a non-pass its cause and whether the next
+        step is on the candidate or on the assessment.
+    identity:
+      name: verdict_id
+      type: ratchet.gate.VerdictId
+    fields:
+      - name: decision
+        type: ratchet.gate.DecisionId
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: mode
+        type: ratchet.specification.GateMode
+      - name: unenforced_since
+        type: Optional<ratchet.specification.CalendarDate>
+        summary: For report mode, the date since which it has not been enforced (§ 5).
+      - name: verdict
+        type: ratchet.gate.Verdict
+      - name: cause
+        type: Optional<ratchet.gate.VerdictCause>
+        summary: Present for every verdict that is not a pass.
+      - name: next_step
+        type: Optional<ratchet.gate.NextStep>
+        summary: Present for every verdict that is not a pass.
+      - name: observed
+        type: List<ratchet.evidence.MeasurementResult>
+      - name: allowed
+        type: Optional<ratchet.specification.Condition>
+        summary: The absolute limit the observed value was compared with.
+      - name: reference
+        type: Optional<ratchet.reference.ReferenceId>
+        summary: The protected reference the observed value was compared with.
+      - name: reference_stale
+        type: Boolean
+        summary: >-
+          The candidate's evidence is better than the reference by more than the tolerance
+          (§ 5 rule 4).
+      - name: coverage
+        type: Optional<ratchet.evidence.EvidenceCoverage>
+      - name: conditions
+        type: Optional<ratchet.evidence.ObservedConditions>
+      - name: evidence
+        type: List<ratchet.evidence.RunId>
+      - name: exceptions
+        type: List<ratchet.specification.ExceptionId>
+        summary: The exceptions applied; an expired one no longer applies (§ 5).
+      - name: proof
+        type: ratchet.gate.ProofStatus
+    relations:
+      - name: requirement
+        kind: references
+        target: ratchet.specification.QualityRequirement
+        cardinality: one
+        via: requirement
+      - name: reference
+        kind: references
+        target: ratchet.reference.ProtectedReference
+        cardinality: one
+        via: reference
+      - name: evidence
+        kind: references
+        target: ratchet.evidence.AssessmentRun
+        cardinality: many
+        via: evidence
+      - name: exceptions
+        kind: references
+        target: ratchet.specification.Exception
+        cardinality: many
+        via: exceptions
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]

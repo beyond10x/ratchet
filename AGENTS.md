@@ -44,6 +44,7 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `vision.md` | why Ratchet exists, its outcomes and what it does not do |
 | `docs/design.md` | the design proposal: domain language, YAML shapes, CLI, records, ESS integration |
 | `research/` | surveys and their answers, `synthesis.md`, `candidate-presets.md`, consumer input; confidentiality rules in `research/README.md` |
+| `spec/` | ESS specification of Ratchet's nouns (`system.yaml`, `domains/`) and the `ess-cli/2` binding of the `ratchet` commands (`cli.yaml`); proposals; `UNMAPPED:` markers are open design questions; nothing generated from it is committed yet |
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`), no artifacts yet |
 | `Taskfile.yml` | `task check`: the repository gate |
 

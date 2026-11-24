@@ -1,0 +1,657 @@
+domain: ratchet.cli
+
+summary: >-
+  The typed inputs, results and refusals of the `ratchet` command line, which the ess-cli/2
+  binding in `spec/cli.yaml` presents (docs/design.md § 5 "Proposed CLI",
+  docs/product-brainstorm.md § 3). A presentation projection over the other domains, not a
+  model of its own: it declares no entity.
+
+# ess-cli projects String, Boolean, Integer, enums, unconstrained newtypes and structs,
+# Optional, List, string-keyed Map, and Json in results only, never in error data. A Timestamp
+# is therefore written here as RFC 3339 text. A measured value is the JSON of
+# `ratchet.evidence.MeasuredValue` in results that are never error data, and a `ValueRow` or
+# `LimitRow` in those that are (the gate report).
+
+types:
+  - name: ratchet.cli.Refusal
+    kind: struct
+    naming:
+      summary: >-
+        Why a command refused, and the next step: what to fix or which evidence to recover
+        (product-brainstorm § 3, design § 5). It never repeats an argument value.
+    fields:
+      - name: detail
+        type: String
+      - name: next_step
+        type: Optional<String>
+
+  # A value without Json, for result types that are also error data (`gate_failed` carries the
+  # gate report), where ess-cli refuses Json. Decimal numbers are their exact decimal text.
+  - name: ratchet.cli.ValueKind
+    kind: enum
+    variants: [number, identity_set, digest, assertion]
+
+  - name: ratchet.cli.ValueRow
+    kind: struct
+    fields:
+      - name: kind
+        type: ratchet.cli.ValueKind
+      - name: number
+        type: Optional<String>
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+      - name: at_least
+        type: Optional<Boolean>
+      - name: items
+        type: Optional<Integer>
+        summary: The item count of an identity set; `ratchet diff` lists the items.
+      - name: digest
+        type: Optional<String>
+      - name: holds
+        type: Optional<Boolean>
+
+  - name: ratchet.cli.LimitRow
+    kind: struct
+    fields:
+      - name: operator
+        type: ratchet.specification.ComparisonOperator
+      - name: value
+        type: Optional<String>
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+
+  # init ---------------------------------------------------------------------------------------
+  - name: ratchet.cli.InitInput
+    kind: struct
+    fields:
+      - name: project
+        type: Optional<ratchet.specification.ProjectName>
+      - name: presets
+        type: Optional<List<String>>
+        summary: Catalog presets to bind, each pinned, such as `web-ux@1`.
+      - name: path
+        type: Optional<String>
+        summary: Where to write the project specification; `ratchet.yaml` by default.
+
+  - name: ratchet.cli.InitResult
+    kind: struct
+    fields:
+      - name: project
+        type: ratchet.specification.ProjectName
+      - name: spec_path
+        type: String
+      - name: presets
+        type: List<String>
+
+  # validate -----------------------------------------------------------------------------------
+  - name: ratchet.cli.ValidateInput
+    kind: struct
+    fields:
+      - name: spec
+        type: Optional<String>
+        summary: One specification file; by default every path `ratchet.toml` lists.
+
+  # design § 2 and § 5 "Proposed CLI", product-brainstorm § 4 layers 1 and 2.
+  - name: ratchet.cli.ValidationLayer
+    kind: enum
+    variants: [shape, completeness]
+
+  - name: ratchet.cli.ValidationCode
+    kind: enum
+    variants:
+      - schema_violation
+      - unresolved_reference
+      - kind_mismatch
+      - unit_mismatch
+      - scope_mismatch
+      - target_binding_mismatch
+      - assessor_configuration_invalid
+      - sampled_without_conditions
+      - exception_without_reason
+      - exception_without_owner
+      - exception_without_expiry
+
+  - name: ratchet.cli.ValidationFinding
+    kind: struct
+    fields:
+      - name: code
+        type: ratchet.cli.ValidationCode
+      - name: layer
+        type: ratchet.cli.ValidationLayer
+      - name: location
+        type: String
+        summary: The file and key path, such as `ratchet.yaml:assessments.test-step-time`.
+      - name: message
+        type: String
+
+  - name: ratchet.cli.ValidationReport
+    kind: struct
+    fields:
+      - name: valid
+        type: Boolean
+      - name: specs
+        type: List<String>
+      - name: findings
+        type: List<ratchet.cli.ValidationFinding>
+
+  # assess -------------------------------------------------------------------------------------
+  - name: ratchet.cli.AssessInput
+    kind: struct
+    fields:
+      - name: assessments
+        type: Optional<List<ratchet.specification.AssessmentName>>
+        summary: The assessment plans to run; every plan by default.
+      - name: candidate
+        type: Optional<ratchet.specification.Revision>
+      - name: report
+        type: Optional<String>
+        summary: A result file an assessor ingests instead of running its tool (§ 5).
+
+  - name: ratchet.cli.ResultRow
+    kind: struct
+    fields:
+      - name: output
+        type: String
+      - name: kind
+        type: ratchet.specification.MeasurementKind
+      - name: scope
+        type: ratchet.specification.Scope
+      - name: scope_item
+        type: Optional<String>
+      - name: value
+        type: Json
+        summary: A `ratchet.evidence.MeasuredValue`.
+
+  - name: ratchet.cli.RunSummary
+    kind: struct
+    fields:
+      - name: run
+        type: ratchet.evidence.RunId
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+      - name: completion
+        type: ratchet.evidence.RunCompletion
+      - name: target_class
+        type: ratchet.specification.TargetClass
+      - name: coverage
+        type: ratchet.evidence.EvidenceCoverage
+      - name: results
+        type: List<ratchet.cli.ResultRow>
+
+  - name: ratchet.cli.AssessResult
+    kind: struct
+    fields:
+      - name: runs
+        type: List<ratchet.cli.RunSummary>
+
+  # evaluate -----------------------------------------------------------------------------------
+  - name: ratchet.cli.EvaluateInput
+    kind: struct
+    fields:
+      - name: gate
+        type: ratchet.specification.GateName
+      - name: candidate
+        type: Optional<ratchet.specification.Revision>
+        summary: The candidate revision; the working tree's HEAD by default.
+      - name: trusted
+        type: Optional<ratchet.specification.Revision>
+        summary: >-
+          The trusted revision whose policy and accepted references judge the candidate, such
+          as `main` (§ 5 rule 1).
+
+  - name: ratchet.cli.VerdictRow
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: mode
+        type: ratchet.specification.GateMode
+      - name: unenforced_since
+        type: Optional<ratchet.specification.CalendarDate>
+      - name: verdict
+        type: ratchet.gate.Verdict
+      - name: cause
+        type: Optional<ratchet.gate.VerdictCause>
+      - name: next_step
+        type: Optional<ratchet.gate.NextStep>
+      - name: observed
+        type: Optional<ratchet.cli.ValueRow>
+      - name: allowed
+        type: Optional<ratchet.cli.LimitRow>
+        summary: The absolute limit.
+      - name: reference
+        type: Optional<ratchet.reference.ReferenceId>
+      - name: reference_value
+        type: Optional<ratchet.cli.ValueRow>
+      - name: reference_stale
+        type: Boolean
+      - name: coverage
+        type: Optional<ratchet.evidence.EvidenceCoverage>
+      - name: conditions
+        type: Optional<Map<String, String>>
+      - name: evidence
+        type: List<ratchet.evidence.RunId>
+      - name: exceptions
+        type: List<ratchet.specification.ExceptionId>
+      - name: proof
+        type: ratchet.gate.ProofStatus
+
+  # design § 5 names active and expired exceptions; "expiring" (product-brainstorm § 3) is an
+  # active one inside `--within-days`.
+  - name: ratchet.cli.ExceptionStatus
+    kind: enum
+    variants: [active, expired]
+
+  - name: ratchet.cli.ExceptionRow
+    kind: struct
+    fields:
+      - name: exception
+        type: ratchet.specification.ExceptionId
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: reason
+        type: String
+      - name: owner
+        type: ratchet.specification.OwnerRef
+      - name: expires
+        type: ratchet.specification.CalendarDate
+      - name: age_days
+        type: Optional<Integer>
+      - name: days_to_expiry
+        type: Integer
+        summary: Negative once expired.
+      - name: status
+        type: ratchet.cli.ExceptionStatus
+
+  - name: ratchet.cli.GateReport
+    kind: struct
+    naming:
+      summary: >-
+        What `ratchet evaluate` prints: the verdict, a summary line that says when report-mode
+        requirements fail, every requirement with its mode, and the active and expired
+        exceptions (§ 5).
+    fields:
+      - name: decision
+        type: ratchet.gate.DecisionId
+      - name: gate
+        type: ratchet.specification.GateName
+      - name: candidate
+        type: ratchet.specification.Revision
+      - name: policy_revision
+        type: ratchet.specification.Revision
+      - name: verdict
+        type: ratchet.gate.Verdict
+      - name: summary
+        type: String
+      - name: requirements
+        type: List<ratchet.cli.VerdictRow>
+      - name: exceptions
+        type: List<ratchet.cli.ExceptionRow>
+
+  # reference propose --------------------------------------------------------------------------
+  - name: ratchet.cli.ProposeInput
+    kind: struct
+    fields:
+      - name: requirement
+        type: Optional<ratchet.specification.RequirementName>
+        summary: One requirement; every requirement with a stale reference by default.
+      - name: gains
+        type: Optional<List<ratchet.specification.RequirementName>>
+        summary: Present for a trade-off, the requirements whose gain it buys (§ 5).
+      - name: reason
+        type: Optional<String>
+        summary: The trade-off's reason; required with `gains`.
+      - name: owner
+        type: Optional<ratchet.specification.OwnerRef>
+        summary: The trade-off's owner reference; required with `gains`.
+
+  - name: ratchet.cli.ProposalRow
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: kind
+        type: ratchet.reference.ReferenceChangeKind
+      - name: previous
+        type: Optional<Json>
+      - name: proposed
+        type: Json
+      - name: evidence
+        type: List<ratchet.evidence.RunId>
+
+  - name: ratchet.cli.TradeOffProposal
+    kind: struct
+    fields:
+      - name: reason
+        type: String
+      - name: owner
+        type: ratchet.specification.OwnerRef
+      - name: loosened
+        type: List<ratchet.specification.RequirementName>
+      - name: gains
+        type: List<ratchet.specification.RequirementName>
+
+  - name: ratchet.cli.ReferenceProposal
+    kind: struct
+    fields:
+      - name: proposals
+        type: List<ratchet.cli.ProposalRow>
+      - name: trade_off
+        type: Optional<ratchet.cli.TradeOffProposal>
+
+  # prove --------------------------------------------------------------------------------------
+  - name: ratchet.cli.ProveInput
+    kind: struct
+    fields:
+      - name: requirement
+        type: Optional<ratchet.specification.RequirementName>
+        summary: One requirement; every requirement that declares planted defects by default.
+
+  - name: ratchet.cli.ProofRow
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: proof
+        type: ratchet.evidence.ProofId
+      - name: planted
+        type: Integer
+      - name: refused
+        type: Integer
+
+  - name: ratchet.cli.ProofReport
+    kind: struct
+    fields:
+      - name: proofs
+        type: List<ratchet.cli.ProofRow>
+
+  # render -------------------------------------------------------------------------------------
+  - name: ratchet.cli.RenderInput
+    kind: struct
+    fields:
+      - name: documents
+        type: Optional<List<String>>
+        summary: The documents holding marked blocks; every configured document by default.
+      - name: check
+        type: Optional<Boolean>
+        summary: Compare each block with a fresh one and write nothing (§ 5, § 6).
+
+  - name: ratchet.cli.BlockRow
+    kind: struct
+    fields:
+      - name: document
+        type: String
+      - name: block
+        type: String
+      - name: changed
+        type: Boolean
+
+  - name: ratchet.cli.RenderReport
+    kind: struct
+    fields:
+      - name: blocks
+        type: List<ratchet.cli.BlockRow>
+
+  # status -------------------------------------------------------------------------------------
+  - name: ratchet.cli.StatusInput
+    kind: struct
+    fields:
+      - name: gate
+        type: Optional<ratchet.specification.GateName>
+        summary: Only the requirements this gate lists.
+
+  - name: ratchet.cli.StatusRow
+    kind: struct
+    naming:
+      summary: >-
+        One requirement as `ratchet status` shows it (product-brainstorm § 3, § 5): verdict,
+        value against limit or reference, when last checked, by which run, in which
+        environment.
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: verdict
+        type: Optional<ratchet.gate.Verdict>
+        summary: Absent when no run qualifies yet.
+      - name: skipped_locally
+        type: Boolean
+        summary: >-
+          `ratchet.toml` skipped it for this run. Shown beside the verdict, never as a pass
+          (product-brainstorm § 2).
+      - name: kind
+        type: ratchet.specification.MeasurementKind
+      - name: observed
+        type: Optional<ratchet.cli.ValueRow>
+      - name: limit
+        type: Optional<ratchet.cli.LimitRow>
+      - name: reference
+        type: Optional<ratchet.cli.ValueRow>
+      - name: last_checked
+        type: Optional<String>
+        summary: RFC 3339 time of the run that produced the verdict.
+      - name: run
+        type: Optional<ratchet.evidence.RunId>
+      - name: environment
+        type: Optional<ratchet.specification.TargetClass>
+      - name: revision
+        type: Optional<ratchet.specification.Revision>
+      - name: proof
+        type: ratchet.gate.ProofStatus
+      - name: open_exception
+        type: Optional<ratchet.specification.ExceptionId>
+
+  - name: ratchet.cli.StatusReport
+    kind: struct
+    fields:
+      - name: requirements
+        type: List<ratchet.cli.StatusRow>
+
+  # explain ------------------------------------------------------------------------------------
+  - name: ratchet.cli.ExplainInput
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+
+  - name: ratchet.cli.GateMembership
+    kind: struct
+    fields:
+      - name: gate
+        type: ratchet.specification.GateName
+      - name: mode
+        type: ratchet.specification.GateMode
+
+  - name: ratchet.cli.Explanation
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: meaning
+        type: Optional<String>
+      - name: subject
+        type: ratchet.specification.SubjectName
+      - name: audiences
+        type: List<ratchet.specification.AudienceName>
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+      - name: assessor
+        type: ratchet.specification.AssessorRef
+      - name: measurement_kind
+        type: ratchet.specification.MeasurementKind
+      - name: scope
+        type: ratchet.specification.Scope
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+      - name: condition
+        type: ratchet.cli.LimitRow
+      - name: reference_kind
+        type: Optional<ratchet.specification.ReferenceKind>
+      - name: gates
+        type: List<ratchet.cli.GateMembership>
+      - name: evidence
+        type: List<ratchet.evidence.RunId>
+        summary: The most recent runs, where the evidence is.
+
+  # history ------------------------------------------------------------------------------------
+  - name: ratchet.cli.HistoryInput
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: limit
+        type: Optional<Integer>
+        summary: The most recent points to show.
+
+  - name: ratchet.cli.HistoryPoint
+    kind: struct
+    fields:
+      - name: run
+        type: ratchet.evidence.RunId
+      - name: at
+        type: String
+        summary: RFC 3339.
+      - name: environment
+        type: ratchet.specification.TargetClass
+      - name: value
+        type: Json
+      - name: verdict
+        type: Optional<ratchet.gate.Verdict>
+
+  - name: ratchet.cli.ReferenceMark
+    kind: struct
+    fields:
+      - name: change
+        type: ratchet.reference.ReferenceChangeId
+      - name: kind
+        type: ratchet.reference.ReferenceChangeKind
+      - name: adopted
+        type: Json
+
+  - name: ratchet.cli.History
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: points
+        type: List<ratchet.cli.HistoryPoint>
+      - name: reference_changes
+        type: List<ratchet.cli.ReferenceMark>
+      - name: exceptions
+        type: List<ratchet.cli.ExceptionRow>
+
+  # diff ---------------------------------------------------------------------------------------
+  - name: ratchet.cli.DiffInput
+    kind: struct
+    fields:
+      - name: requirement
+        type: Optional<ratchet.specification.RequirementName>
+      - name: candidate
+        type: Optional<ratchet.specification.Revision>
+
+  - name: ratchet.cli.DiffChange
+    kind: enum
+    variants: [new_item, lost_item, worse_value, better_value]
+
+  - name: ratchet.cli.DiffRow
+    kind: struct
+    fields:
+      - name: requirement
+        type: ratchet.specification.RequirementName
+      - name: change
+        type: ratchet.cli.DiffChange
+      - name: item
+        type: Optional<Json>
+        summary: The identity-set item, for `new_item` and `lost_item`.
+      - name: reference
+        type: Optional<Json>
+      - name: candidate
+        type: Optional<Json>
+
+  - name: ratchet.cli.DiffReport
+    kind: struct
+    fields:
+      - name: items
+        type: List<ratchet.cli.DiffRow>
+
+  # doctor -------------------------------------------------------------------------------------
+  # product-brainstorm § 3: config, specs, tools, record store reachable; sampled plans without
+  # conditions.
+  - name: ratchet.cli.DoctorCheckKind
+    kind: enum
+    variants: [config, specs, tools, record_store, sampled_conditions]
+
+  - name: ratchet.cli.DoctorCheck
+    kind: struct
+    fields:
+      - name: check
+        type: ratchet.cli.DoctorCheckKind
+      - name: ok
+        type: Boolean
+      - name: detail
+        type: String
+
+  - name: ratchet.cli.DoctorReport
+    kind: struct
+    fields:
+      - name: checks
+        type: List<ratchet.cli.DoctorCheck>
+
+  # import -------------------------------------------------------------------------------------
+  # product-brainstorm § 3: forge runs, build-pool job logs, JUnit files.
+  - name: ratchet.cli.ImportSource
+    kind: enum
+    variants: [forge_runs, build_pool_log, junit]
+
+  - name: ratchet.cli.ImportInput
+    kind: struct
+    fields:
+      - name: source
+        type: ratchet.cli.ImportSource
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+        summary: The assessment plan the imported runs belong to.
+      - name: path
+        type: Optional<String>
+      - name: since
+        type: Optional<String>
+        summary: RFC 3339; import nothing older.
+
+  - name: ratchet.cli.ImportResult
+    kind: struct
+    fields:
+      - name: source
+        type: ratchet.cli.ImportSource
+      - name: runs
+        type: List<ratchet.evidence.RunId>
+
+  # exceptions ---------------------------------------------------------------------------------
+  - name: ratchet.cli.ExceptionsInput
+    kind: struct
+    fields:
+      - name: status
+        type: Optional<ratchet.cli.ExceptionStatus>
+      - name: within_days
+        type: Optional<Integer>
+        summary: Only exceptions that expire within this many days.
+      - name: requirement
+        type: Optional<ratchet.specification.RequirementName>
+
+  - name: ratchet.cli.ExceptionList
+    kind: struct
+    fields:
+      - name: exceptions
+        type: List<ratchet.cli.ExceptionRow>
+
+  # serve --------------------------------------------------------------------------------------
+  - name: ratchet.cli.ServeInput
+    kind: struct
+    fields:
+      - name: listen
+        type: Optional<String>
+        summary: The address to listen on; loopback by default.
+
+  - name: ratchet.cli.ServeResult
+    kind: struct
+    fields:
+      - name: url
+        type: String
