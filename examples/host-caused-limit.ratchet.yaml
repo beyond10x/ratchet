@@ -7,57 +7,41 @@ subjects:
     audiences: [coding-agent, developer]
 
 assessments:
-  test-steps-time:
+  test-steps:
     subject: release-gate
     assessor: command-timing@1
-    target: {kind: revision, environment: [local, ci]}
+    target: {kind: revision, environments: [local, ci]}
     observation:
-      kind: controlled-run
+      kind: controlled_run
       command: task test
       runs: 1
       conditions:
-        toolchain: pinned
-        host_load_per_cpu: {max: 2.125}
+        all:
+          tools: {rustc: {pin: rust-toolchain.toml}}
+        local: {host_load_per_cpu: {max: 2.125}}
+        ci: {runner: ci-standard}
       coverage: {skipped: 0}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      also_record: [queue-wait]
-      scope: run
-      unit: s
-
-  test-time:
-    subject: release-gate
-    assessor: command-timing@1
-    target: {kind: revision, environment: [local, ci]}
-    observation:
-      kind: controlled-run
-      command: task test
-      runs: 1
-      conditions:
-        toolchain: pinned
-        host_load_per_cpu: {max: 2.125}
-      coverage: {skipped: 0}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      scope: test
-      unit: s
+    measurements:
+      step-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
+      test-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: test, unit: s, better: lower}
 
 requirements:
   test-steps-budget:
-    assessment: test-steps-time
+    assessment: test-steps
+    measurement: step-time
     condition: {operator: lte, value: 120, unit: s}
   test-budget:
-    assessment: test-time
+    assessment: test-steps
+    measurement: test-time
     condition: {operator: lte, value: 60, unit: s}
 
 gates:
   release:
     stage: pre-promotion
     qualifying_environments: [local, ci]
+    evidence: any
     requires:
       - test-steps-budget
       - test-budget

@@ -10,44 +10,46 @@ assessments:
   generated-docs:
     subject: generated-files
     assessor: generator-check@1
-    target: {kind: revision, environment: [local, ci], selection: candidate}
+    target: {kind: revision, environments: [local, ci], selection: merge_result}
     observation:
       kind: snapshot
       command: task docs-check
-      conditions: {toolchain: pinned}
-      coverage: {skipped: 0}
-    measurement:
-      kind: exact
-      output: digest
-      scope: file
+      conditions:
+        all:
+          tools: {ess: "0.97.4"}
+      coverage: {executed: 18, skipped: 0}
+    measurements:
+      digest: {kind: exact, output: digest, scope: file}
 
   regenerated-scenarios:
     subject: generated-files
     assessor: generator-check@1
-    target: {kind: revision, environment: [local, ci], selection: candidate}
+    target: {kind: revision, environments: [local, ci], selection: merge_result}
     observation:
       kind: snapshot
       command: task test-slow
-      conditions: {toolchain: pinned}
+      conditions:
+        all:
+          tools: {ess: "0.97.4"}
       coverage: {skipped: 0}
-    measurement:
-      kind: exact
-      output: digest
-      scope: file
+    measurements:
+      digest: {kind: exact, output: digest, scope: file}
 
 requirements:
   generated-docs-current:
     assessment: generated-docs
-    reference: {kind: generated-reference}
+    reference: {kind: generated, paths: ["docs/reference/**"]}
   scenario-files-current:
     assessment: regenerated-scenarios
-    reference: {kind: generated-reference}
+    reference: {kind: generated, paths: ["conformance/scenarios/**"]}
 
 gates:
   merge:
     stage: pre-merge
     qualifying_environments: [local, ci]
-    requires: [generated-docs-current]
+    requires:
+      - generated-docs-current
+      - {requirement: scenario-files-current, when: {changed: ["spec/**", "conformance/**"]}}
   promote:
     stage: pre-promotion
     qualifying_environments: [ci]
