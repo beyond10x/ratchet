@@ -53,9 +53,15 @@ callables:
     # document is `stopped_by_infrastructure`; an assessor ended at its time limit is
     # `timed_out`. None of these is an error of `assess`: the run is recorded and reported
     # (`ratchet.cli.RunSummary.completion`), and a gate returns insufficient evidence for it.
+    #
+    # `candidate_unresolved`: the candidate of a plan cannot be resolved, as for a target
+    # document that does not exist. The command records no run for that plan, because a run
+    # without its candidate is evidence about nothing (docs/evidence-format.md § 10). A name
+    # this specification proposes.
     errors:
       input_not_local: ratchet.cli.Refusal
       unknown_assessment: ratchet.cli.Refusal
+      candidate_unresolved: ratchet.cli.Refusal
       assessor_unavailable: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
   evaluate:

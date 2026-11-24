@@ -250,9 +250,10 @@ types:
         # when absent; open question for the owner.
 
   # The bare spellings of design § 3 and § 5 (`skipped: 0`, `adoption: same_change`) are not
-  # declared in 0.1.0: the ESS Rust target decodes a struct from its object only and refuses a
-  # `shorthand:`. `MinimumBound`, `MaximumBound` and `RatchetPolicy` are therefore written in
-  # the long form. A shorthand added later admits every document written in the long form.
+  # declared in 0.1.0: the Rust target of `ess generate synthesize` refuses a struct that
+  # declares a `shorthand:`. `MinimumBound`, `MaximumBound` and `RatchetPolicy` are therefore
+  # written in the long form. A shorthand added later admits every document written in the long
+  # form.
   - name: ratchet.specification.MinimumBound
     kind: struct
     naming:
@@ -325,9 +326,8 @@ types:
     naming:
       summary: >-
         A tool's declared version, or the file that pins it: `{pin: rust-toolchain.toml}`
-        (§ 3). The design's bare version string (`ess: "0.97.4"`) is written
-        `{version: "0.97.4"}` here: an ESS shorthand needs a required field, and a pin has no
-        version.
+        (§ 3). A version is written `{version: "0.97.4"}`, never as a bare string: an ESS
+        shorthand needs a required field, and a pin has no version.
     fields:
       - name: version
         type: Optional<String>

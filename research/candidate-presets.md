@@ -137,7 +137,7 @@ requirements:
 assessments:
   conformance-cases:
     assessor: ess-conformance-report@1
-    observation: {kind: snapshot, report: conformance/report.json, coverage: {skipped: 0, unsupported: 0}}
+    observation: {kind: snapshot, report: conformance/report.json, coverage: {skipped: {max: 0}, unsupported: {max: 0}}}
     measurement: {kind: exact, output: passing_cases, scope: case, identity: [case_id]}
 requirements:
   no-case-lost:
@@ -225,7 +225,7 @@ assessments:
   docs-ux:
     assessor: ux-eval@1
     target: {kind: revision, environment: [local, ci]}
-    observation: {kind: snapshot, scenario: ess-ui:docs/find-command, coverage: {skipped: 0, unsupported: 0}}
+    observation: {kind: snapshot, scenario: ess-ui:docs/find-command, coverage: {skipped: {max: 0}, unsupported: {max: 0}}}
     measurement: {kind: exact, output: actions_per_task, scope: journey, unit: actions}
 requirements:
   actions-do-not-rise:

@@ -1,7 +1,7 @@
 # Ratchet
 
 **Proposed repository:** `beyond10x/ratchet`  
-**Status:** Design proposal, revision 4 (2026-11-24), with the eight points taken for 0.1.0 on the same day (§ 12)  
+**Status:** Design proposal, revision 4 (2026-11-24), with the nine points taken for 0.1.0 on the same day (§ 12)  
 **Evidence:** revision 2 was revised from survey 1 of 2026-11-23 ([synthesis](../research/synthesis.md), [consumer input from `ux-ui`](../research/consumer-input-ux-ui.md)); § 8 lists those changes. Revision 3 was revised from two drafts written against revision 2: five worked examples ([`examples/`](https://github.com/beyond10x/ratchet/blob/main/examples/README.md)) and the ESS specification of Ratchet’s own domain ([`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md)). § 10 lists each change and its cause. Revision 4 was revised from those examples as rewritten to revision 3 (`examples/README.md` at commit `a94ab83`, [section “New gaps”](https://github.com/beyond10x/ratchet/blob/a94ab83f8afb6dcbb8d987a907b41d93039b535d/examples/README.md#new-gaps)): four more gaps, G26 to G29, and the places where revision 3 contradicted itself. § 11 lists each change and its cause. § 9 lists the questions left to the owner: D1 to D4 are decided, and D5 and D6 are open with a default each.
 
 Ratchet specifies how to specify software quality. It defines a versioned YAML format for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. The repository ships the specification, a CLI, a catalog of reusable YAML presets, and assessors that run or wrap existing tools. An agent or developer can use the same format to add a measurement specific to their repository.
@@ -96,7 +96,7 @@ Sampled evidence states the conditions it was observed under. The plan declares 
 | Condition | Meaning | In the evidence |
 | --- | --- | --- |
 | `host_load_per_cpu` | The mean of the 1-minute load average over the run, divided by the number of CPUs. The bound applies to the mean. One reading before the run is not this condition: it can decide whether a local run starts, and it is not evidence (§ 5, local config, rule 4). | Mean, minimum, and maximum. One answer saw load move from 82 to 112 during one run (inbox C2). |
-| `tools` | A map from a tool to its version, or to the file that pins it: `{rustc: {pin: rust-toolchain.toml}, ess: "0.97.4"}`. It replaces `toolchain: pinned`, which named no tool and no version. | The resolved version of each named tool |
+| `tools` | A map from a tool to its version, or to the file that pins it: `{rustc: {pin: rust-toolchain.toml}, ess: {version: "0.97.4"}}`. The version is written under `version`, not as a bare string (§ 12). It replaces `toolchain: pinned`, which named no tool and no version. | The resolved version of each named tool |
 | `runner` | The label of the runner or runner class | The runner that ran |
 
 Ratchet ships no default for a load bound. No answer states a load that qualifies a timing run ([candidate presets](../research/candidate-presets.md) § 7). A project takes its bound from its own observe-mode series.
@@ -139,7 +139,7 @@ Every assessment run reports how much of the plan it executed: counts of **execu
 
 A measurement needs no count of its own. Where a requirement has an accepted value per scope item, the reference record lists the items. An item of the reference with no value in the run makes that requirement insufficient evidence, with the cause `coverage_below_plan`.
 
-The plan’s `coverage` has four count keys, `executed`, `skipped`, `not_run`, and `unsupported`, and one set key, `executed_ids`. A bound is written `{min: 18}` or `{max: 0}`, in the direction that matters: a minimum for `executed`, a maximum for the other three. `{min, max}` states both. The bare number of earlier revisions (`skipped: 0`) is not part of 0.1.0 (taken 2026-11-24, § 12): the generated decoder reads a bound from its object only. The bare spelling can return later without breaking a document written in the long form. `executed_ids` is the exact set, as a list or as `{file: <path>}`. The file is read from the trusted revision.
+The plan’s `coverage` has four count keys, `executed`, `skipped`, `not_run`, and `unsupported`, and one set key, `executed_ids`. A bound is written `{min: 18}` or `{max: 0}`, in the direction that matters: a minimum for `executed`, a maximum for the other three. `{min, max}` states both. The bare number of earlier revisions (`skipped: 0`) is not part of 0.1.0 (taken 2026-11-24, § 12): the bare number was a shorthand of the specification, and the Rust target of the ESS generator refuses a struct that declares one. The bare spelling can return later without breaking a document written in the long form. `executed_ids` is the exact set, as `{ids: [...]}` or as `{file: <path>}`. The file is read from the trusted revision.
 
 10 answers report a passing result that covered less than it appeared to: 96 tests skipped for a missing prerequisite, 87 of 119 scenarios unsupported and still passing, “tests pass” evidence that covered 3 of 20 crates (F9). 9 answers already put a number on coverage. An assessor that prints “not run” and exits 0 has returned no evidence. A coverage count can also be a measurement with an accepted value, so that the number of ignored tests may not rise (ext-04 C3).
 
@@ -702,7 +702,7 @@ job_log = "/var/lib/build-pool/jobs.jsonl"
 | --- | --- |
 | `ratchet init` | Create a project spec and bind selected catalog presets. |
 | `ratchet validate` | Check the spec, resolve references, and validate assessor configuration. Report sampled measurements without declared conditions; accepted values without a direction, a tolerance, or an adoption rule where § 3 and § 5 require one; exceptions without a reason, an owner, or an expiry; a time-window plan without a `window`, a `population`, or `min_samples`; and a requirement whose plan does not fit the kind of its gate. |
-| `ratchet assess` | Run selected assessors or ingest their results and produce structured evidence. |
+| `ratchet assess` | Run selected assessors or ingest their results and produce structured evidence. Where the candidate of a plan cannot be resolved, as for a target document that does not exist, it records no run for that plan and reports the error `candidate_unresolved`. |
 | `ratchet evaluate --gate promote` | Evaluate a named gate using qualifying evidence and emit a report with an exit status CI can enforce. The report lists report-mode requirements, entries that are not applicable, active and expired exceptions, and coverage. `--trusted <revision>` names the trusted revision; without it the policy is read at the merge base of `HEAD` and `origin/main`. For an operational gate it takes no candidate and assesses the gate’s windows first. |
 | `ratchet reference propose` | Print an evidence-backed proposal to adopt a stronger protected reference, or a trade-off that names its gains. Write nothing. For a requirement that holds a `condition` and no `reference`, it and `ratchet reference adopt` return the refusal `requirement_without_reference`. |
 | `ratchet reference adopt` | Write the proposed reference record, and the trade-off record where there is one, into the working tree. |
@@ -1040,11 +1040,11 @@ A plan’s `inputs` are part of the specification, which is read from the truste
 
 ## 12. Taken for 0.1.0
 
-Eight points were taken on 2026-11-24 with the specification change that precedes the first generated code. The revision number stays 4: no section was rewritten, and each point is written where it belongs. Each is reversible before the first release.
+Nine points were taken on 2026-11-24 with the specification change that precedes the first generated code. The revision number stays 4: no section was rewritten, and each point is written where it belongs. Each is reversible before the first release.
 
 | Taken | Where | Cause |
 | --- | --- | --- |
-| A coverage bound is written `{min: 18}` or `{max: 0}` and an adoption `{from: same_change}`. The bare number and the bare word are not part of 0.1.0 and can return later. | § 3 (“Evidence coverage”, illustrative YAML), § 5 (“Protected references”) | The Rust target of the ESS generator decodes a struct from its object only and refuses a struct with a shorthand |
+| A coverage bound is written `{min: 18}` or `{max: 0}` and an adoption `{from: same_change}`. The bare number and the bare word are not part of 0.1.0 and can return later. Under the same rule a tool’s version is written `{version: "0.97.4"}` and a list of `executed_ids` is written `{ids: [...]}`. | § 3 (“Evidence coverage”, the `tools` condition, illustrative YAML), § 5 (“Protected references”) | The Rust target of the ESS generator refuses a struct that declares a shorthand, and a shorthand stands only for a required scalar |
 | E7, E8, and E9 of the evidence format are taken as A: every value is an argument, one YAML declaration per assessor and version, a run that refused its inputs is recorded as `refused_inputs` | § 6; `docs/evidence-format.md` § 5 | The document was written under these defaults, and the first assessor is built against them |
 | A catalog source without `git` is a directory relative to the root. An assessor declaration is the file `<name>@<version>.assessor.yaml` in a source. | § 5 (“Local config”) | § 4 said a consumer’s own family “binds the same way from its own directory”, and § 5 showed only the git form |
 | `ratchet reference propose` and `ratchet reference adopt` refuse a requirement that holds a `condition` and no `reference`: `requirement_without_reference` | § 5 (“Proposed CLI”) | No refusal said what the two commands return for a requirement without a reference |
@@ -1052,3 +1052,4 @@ Eight points were taken on 2026-11-24 with the specification change that precede
 | `ratchet evaluate` without `--trusted` reads the policy at the merge base of `HEAD` and `origin/main` | § 5 (“Proposed CLI”) | The flag had no stated default |
 | A requirement with no qualifying run is insufficient evidence with the new cause `evidence_missing` | § 5 (“Verdicts”) | The closed list named no cause for it |
 | Without `[records]`, or with a `store` that names no path, the local record directory is `.ratchet/records` under the root | § 5 (“Local config”), § 6 | “Records of a local run stay on the machine” named no place |
+| `ratchet assess` reports the error `candidate_unresolved` and records no run for a plan whose candidate it cannot resolve | § 5 (“Proposed CLI”); `docs/evidence-format.md` § 10 | The format said that the command reports an error there and named none |

@@ -363,7 +363,9 @@ types:
           absent means `false`.
       - name: samples
         type: Optional<Integer>
-        summary: The number of samples or runs behind the value; present with `aggregation`.
+        summary: >-
+          The number of samples or runs behind the value; present with `aggregation`, and on
+          every number whose `kind` is `sampled` (format § 3).
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: The aggregation the value already is, in the plan's shape.
@@ -411,8 +413,9 @@ types:
       - any: ["not defined(incomplete)", "not defined(holds)"]
       # format § 4 rule 6.
       - any: ["not defined(at_least)", "at_least == false", "defined(incomplete)"]
-      # format § 3: `samples` with `aggregation`.
+      # format § 3: `samples` with `aggregation`, and for a sampled result.
       - any: ["not defined(aggregation)", "defined(samples)"]
+      - any: ["kind != sampled", "value_type != number", "defined(samples)"]
 
   # § 5 "Verdicts": a timed-out assessor and an assessor stopped by its infrastructure return
   # no result about the subject; § 3: a killed run is never recorded as such a result. § 5

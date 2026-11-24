@@ -11,8 +11,9 @@ summary: >-
 # reports"). A measured value is the JSON of the value members of a
 # `ratchet.evidence.MeasurementResult` in results that are never error data, and a `ValueRow`
 # or `LimitRow` in those that are (the gate report). ess-cli also refuses a struct that
-# declares invariants, so the coverage counts of a run are a `CoverageRow` here and not
-# `ratchet.evidence.EvidenceCoverage`.
+# declares invariants, so the coverage of a run is a `CoverageRow` here and not
+# `ratchet.evidence.EvidenceCoverage`. The row has every field of that struct and none of its
+# invariants; `spec/cli-coverage-row.test.sh` fails when a field is missing.
 
 types:
   - name: ratchet.cli.Refusal
@@ -62,8 +63,9 @@ types:
     kind: struct
     naming:
       summary: >-
-        The coverage counts of a run with their unit, as `ratchet.evidence.EvidenceCoverage`
-        holds them, without the lists of ids (§ 3 "Evidence coverage").
+        The coverage of a run as a command reports it: every field of
+        `ratchet.evidence.EvidenceCoverage`, under the same name and with the same type, the
+        two lists of ids included (§ 3 "Evidence coverage").
     fields:
       - name: unit
         type: ratchet.assessor.CoverageUnit
@@ -79,6 +81,12 @@ types:
         type: Integer
       - name: failed
         type: Integer
+      - name: executed_ids
+        type: Optional<List<String>>
+        summary: The ids of the executed units, where the plan declares `executed_ids`.
+      - name: not_executed
+        type: Optional<List<ratchet.evidence.NotExecutedUnit>>
+        summary: The units that were not executed, each with its state and reason.
 
   # init ---------------------------------------------------------------------------------------
   - name: ratchet.cli.InitInput
@@ -187,6 +195,11 @@ types:
         summary: The assessment plans to run; every plan by default, less the `[local] skip` ones.
       - name: candidate
         type: Optional<ratchet.specification.Revision>
+        summary: >-
+          The candidate revision. Where the candidate of a plan cannot be resolved, as for a
+          target document that does not exist, the command records no run for that plan and
+          reports the error `candidate_unresolved`: a run without its candidate is evidence
+          about nothing (docs/evidence-format.md § 10).
       - name: report
         type: Optional<String>
         summary: A result file an assessor ingests instead of running its tool (§ 5).

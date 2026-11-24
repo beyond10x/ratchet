@@ -10,11 +10,16 @@ tasks:
       - task: site
 
   check:spec:
-    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows of the record formats against it, and synthesize the Rust crate into target/check-spec without a refusal.
+    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats against it in both directions, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
     cmds:
+      - |
+        command -v jq > /dev/null 2>&1 || { echo "check:spec: jq is not installed, and spec/record-examples.test.sh reads the JSON examples with it"; exit 1; }
       - ess specify validate --path spec --strict-requires
       - ess specify cli --path spec --binding spec/cli.yaml --strict-requires
       - sh spec/record-fields.test.sh
+      - sh spec/record-types.test.sh
+      - sh spec/record-examples.test.sh
+      - sh spec/cli-coverage-row.test.sh
       - |
         set -eu
         out=target/check-spec

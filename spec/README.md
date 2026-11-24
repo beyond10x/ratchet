@@ -36,7 +36,8 @@ task check:spec
 ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
-`task check:spec` runs four steps, and `task check` calls it:
+`task check:spec` needs `ess` and `jq`, and fails with a named message when `jq` is missing. It
+runs seven steps, and `task check` calls it:
 
 1. `ess specify validate --path spec --strict-requires`;
 2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
@@ -44,13 +45,26 @@ ess generate cli --path spec --binding spec/cli.yaml --out <directory>
    § 3 and § 10 and fails when one is not declared in `domains/evidence.yaml` or
    `domains/assessor.yaml` under the name the row gives. Its last line is
    `record-fields: <n> of <n> field rows declared`;
-4. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
+4. `sh spec/record-types.test.sh`, which compares the same rows with the declarations in both
+   directions: the struct a row names, whether the field is required, and its type; and every
+   declared field of a struct that the two documents hold has a row. Its last line is
+   `record-types: <n> of <n> field rows as declared, <m> of <m> declared fields have a row`;
+5. `sh spec/record-examples.test.sh`, which reads the JSON examples of
+   `docs/evidence-format.md` § 6 with `jq` and fails when a member is not declared, a required
+   member is absent, or a value does not have the declared type. Its last line is
+   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`;
+6. `sh spec/cli-coverage-row.test.sh`, which fails when a field of
+   `ratchet.evidence.EvidenceCoverage` is missing from `ratchet.cli.CoverageRow`. Its last line
+   is `cli-coverage-row: <n> of <n> coverage fields reported`;
+7. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
    `target/check-spec/`, which fails when the Rust target refuses a declaration. Its line
    `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
 
-Nothing generated is committed yet. The parser and process adapter come from `ess generate cli`,
-the types and decoders from `ess generate synthesize`, and both are drift-checked in the gate
-once they are in the tree.
+Nothing generated is committed yet. The parser and process adapter come from `ess generate cli`.
+The crate from `ess generate synthesize` holds the types, a `broken_constraint` check on each
+type with invariants, the lifecycles of the entities, and the JSON helpers of `json.rs`. It
+holds nothing that reads a file into the types: what does is settled by the story that builds
+the workspace. Both are drift-checked in the gate once they are in the tree.
 
 ## Resolved in design revision 4
 
@@ -92,6 +106,8 @@ And these rules of `docs/evidence-format.md` § 4 and § 10. The Rust types that
 - rule 7: when `completion` is not `completed`, every result is incomplete with the cause of
   that completion;
 - a document with a sampled result has `run.started_at` and `run.ended_at`;
+- a number has `samples` when it has `aggregation`, and when its `kind` is `sampled`
+  (format § 3);
 - a resolved input has `value` or `digest`, and `digest_form` exactly with `digest`; a target
   of the kind `document` has `identifiers` and no `revision`;
 - an output declares `identity_key` exactly for the value type `identity_set`, and an assessor
@@ -100,7 +116,8 @@ And these rules of `docs/evidence-format.md` § 4 and § 10. The Rust types that
 Rule 9 holds by declaration for a time: `Evidence` has no `Timestamp` outside the window of its
 target. `Evidence` is a closed struct and `RunDetails` an open one (`undeclared_fields:
 ignored`), which is E5: a reader rejects an unknown member of `evidence` and ignores one of
-`run`.
+`run`. That is a declaration, and the reader's to apply: the key changes nothing in the
+synthesized crate.
 
 ## What ESS cannot express here
 
@@ -152,11 +169,13 @@ Rules of `docs/evidence-format.md` § 4 that stay the reader's to check:
 
 Two limits of the generators shape the declarations:
 
-- **`shorthand:`.** The Rust target of `ess generate synthesize` decodes a struct from its
-  object only and refuses a struct that declares a shorthand. No struct declares one.
+- **`shorthand:`.** The Rust target of `ess generate synthesize` refuses a struct that declares
+  a shorthand. No struct declares one.
 - **A struct with invariants in a command payload.** `ess specify cli` refuses it. The coverage
-  counts of a run summary and of a verdict row are therefore `ratchet.cli.CoverageRow`, which
-  repeats the counts of `ratchet.evidence.EvidenceCoverage` without its lists and invariants.
+  of a run summary and of a verdict row is therefore `ratchet.cli.CoverageRow`, which has every
+  field of `ratchet.evidence.EvidenceCoverage`, the lists `executed_ids` and `not_executed`
+  included, and none of its invariants. `spec/cli-coverage-row.test.sh` fails when a field is
+  missing.
 
 ## Where this specification still departs from docs/design.md
 
@@ -165,11 +184,11 @@ specification is committed.
 
 - **No bare spellings in 0.1.0.** A coverage bound is `{min: 18}` or `{max: 0}` and an adoption
   `{from: same_change}`; the design and the examples are written that way since 2026-11-24. The
-  bare number and the bare `same_change` were ESS shorthands, which the Rust target does not
-  decode (above). They can return without breaking a document written in the long form. Two
-  more spellings take a key because an ESS shorthand stands only for a required scalar: a
-  tool's bare version (`ess: "0.97.4"`) is `{version: "0.97.4"}`, and a bare list of
-  `executed_ids` is `{ids: [...]}`.
+  bare number and the bare `same_change` were ESS shorthands, which the Rust target refuses
+  (above). They can return without breaking a document written in the long form. Two more
+  spellings take a key because an ESS shorthand stands only for a required scalar: a tool's
+  version is `{version: "0.97.4"}`, and a list of `executed_ids` is `{ids: [...]}`. The design
+  and `examples/generated-artifact.ratchet.yaml` write both that way too (design § 12).
 - **`adoption` as a struct.** `{from: same_change}`, and the sampled form
   `{from: trusted_revision, runs, aggregation}`, are one struct.
 - **A result is one flat struct.** `docs/evidence-format.md` § 8 item 6 asks for the value
@@ -207,7 +226,9 @@ specification is committed.
   `local_input_in_specification`, `preset_input_local`), the refusal
   `operational_gate_takes_no_candidate` of `ratchet evaluate`, the refusal
   `requirement_without_reference` of `ratchet reference propose` and `ratchet reference adopt`
-  (the requirement holds a `condition` and no `reference`), the doctor check `local_inputs`,
+  (the requirement holds a `condition` and no `reference`), the error `candidate_unresolved`
+  of `ratchet assess` (the candidate of a plan cannot be resolved, and no run is recorded for
+  that plan), the doctor check `local_inputs`,
   the assessor's `population_fields`, the run's `local_inputs`, and the type names
   `Evidence`, `RunDetails`, `ResolvedInput`, `NotExecutedUnit`, `Incomplete`, `IdentityItem`,
   `ReservedArgument`, `AssessorExit` and `CoverageRow`.
