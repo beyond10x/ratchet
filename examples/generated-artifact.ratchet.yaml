@@ -1,0 +1,54 @@
+format: ratchet/1
+project: protocol-compiler
+
+subjects:
+  generated-files:
+    kind: codebase
+    audiences: [developer, coding-agent, docs-reader]
+
+assessments:
+  generated-docs:
+    subject: generated-files
+    assessor: generator-check@1
+    target: {kind: revision, environment: [local, ci], selection: candidate}
+    observation:
+      kind: snapshot
+      command: task docs-check
+      conditions: {toolchain: pinned}
+      coverage: {skipped: 0}
+    measurement:
+      kind: exact
+      output: digest
+      scope: file
+
+  regenerated-scenarios:
+    subject: generated-files
+    assessor: generator-check@1
+    target: {kind: revision, environment: [local, ci], selection: candidate}
+    observation:
+      kind: snapshot
+      command: task test-slow
+      conditions: {toolchain: pinned}
+      coverage: {skipped: 0}
+    measurement:
+      kind: exact
+      output: digest
+      scope: file
+
+requirements:
+  generated-docs-current:
+    assessment: generated-docs
+    reference: {kind: generated-reference}
+  scenario-files-current:
+    assessment: regenerated-scenarios
+    reference: {kind: generated-reference}
+
+gates:
+  merge:
+    stage: pre-merge
+    qualifying_environments: [local, ci]
+    requires: [generated-docs-current]
+  promote:
+    stage: pre-promotion
+    qualifying_environments: [ci]
+    requires: [scenario-files-current]

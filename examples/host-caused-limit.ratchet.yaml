@@ -1,0 +1,63 @@
+format: ratchet/1
+project: script-engine
+
+subjects:
+  release-gate:
+    kind: development-workflow
+    audiences: [coding-agent, developer]
+
+assessments:
+  test-steps-time:
+    subject: release-gate
+    assessor: command-timing@1
+    target: {kind: revision, environment: [local, ci]}
+    observation:
+      kind: controlled-run
+      command: task test
+      runs: 1
+      conditions:
+        toolchain: pinned
+        host_load_per_cpu: {max: 2.125}
+      coverage: {skipped: 0}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      also_record: [queue-wait]
+      scope: run
+      unit: s
+
+  test-time:
+    subject: release-gate
+    assessor: command-timing@1
+    target: {kind: revision, environment: [local, ci]}
+    observation:
+      kind: controlled-run
+      command: task test
+      runs: 1
+      conditions:
+        toolchain: pinned
+        host_load_per_cpu: {max: 2.125}
+      coverage: {skipped: 0}
+    measurement:
+      kind: sampled
+      output: duration
+      boundary: run-time
+      scope: test
+      unit: s
+
+requirements:
+  test-steps-budget:
+    assessment: test-steps-time
+    condition: {operator: lte, value: 120, unit: s}
+  test-budget:
+    assessment: test-time
+    condition: {operator: lte, value: 60, unit: s}
+
+gates:
+  release:
+    stage: pre-promotion
+    qualifying_environments: [local, ci]
+    requires:
+      - test-steps-budget
+      - test-budget
