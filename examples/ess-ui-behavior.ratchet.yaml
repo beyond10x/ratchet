@@ -5,97 +5,73 @@ subjects:
   reader-tasks:
     kind: user-interaction
     audiences: [end-user]
-  page:
-    kind: user-interaction
-    audiences: [end-user]
 
 assessments:
   keyboard-task-completion:
     subject: reader-tasks
     assessor: ess-ui-report@1
-    target: {kind: revision, environment: local}
+    inputs: {report: target/ess-ui/report.json}
+    target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
-      scenario: ess-ui:explainer-page/keyboard-only
-      coverage: {skipped: 0, unsupported: 0}
-    measurement:
-      kind: exact
-      output: completion_miss
-      scope: journey
+      scenarios: [ess-ui:explainer-page/keyboard-only]
+      coverage: {skipped: 0, not_run: 0, unsupported: 0}
+    measurements:
+      task-completes:
+        kind: exact
+        output: task_completed
+        scope: task
 
-  keyboard-task-steps:
+  walks:
     subject: reader-tasks
     assessor: ux-eval@1
-    target: {kind: revision, environment: local}
+    inputs: {report: target/ux-eval/report.json, layout_shift_exclusion_ms: 500}
+    target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
-      scenario: ess-ui:explainer-page/keyboard-only
-      coverage: {skipped: 0, unsupported: 0}
-    measurement:
-      kind: exact
-      output: steps
-      scope: journey
-      unit: steps
-
-  fix-actions:
-    subject: reader-tasks
-    assessor: ux-eval@1
-    target: {kind: revision, environment: local}
-    observation:
-      kind: snapshot
-      scenario: ess-ui:explainer-page/keyboard-only
-      coverage: {skipped: 0, unsupported: 0}
-    measurement:
-      kind: exact
-      output: actions_per_fix
-      scope: journey
-      unit: actions
-
-  cue-accuracy:
-    subject: reader-tasks
-    assessor: ux-eval@1
-    target: {kind: revision, environment: local}
-    observation:
-      kind: snapshot
-      scenario: ess-ui:explainer-page/keyboard-only
-      coverage: {skipped: 0, unsupported: 0}
-    measurement:
-      kind: exact
-      output: cue_accuracy
-      scope: journey
-      unit: percent
-
-  page-findings:
-    subject: page
-    assessor: ux-eval@1
-    target: {kind: revision, environment: local}
-    observation:
-      kind: snapshot
-      scenario: ess-ui:explainer-page/keyboard-only
-      coverage: {skipped: 0, unsupported: 0}
-    measurement:
-      kind: exact
-      output: findings
-      scope: page
-      identity: [rule, node_path, environment]
+      scenarios: ["ess-ui:explainer-page/*"]
+      coverage: {executed: 30, skipped: 0, not_run: 0, unsupported: 0}
+    measurements:
+      steps:
+        {kind: exact, output: steps, scope: journey, unit: steps, better: lower}
+      actions-per-fix:
+        {kind: exact, output: actions_per_fix, scope: journey, unit: actions, better: lower}
+      cue-accuracy:
+        {kind: exact, output: cue_accuracy, scope: journey, unit: percent, better: higher}
+      layout-shift:
+        {kind: exact, output: layout_shift, scope: journey, unit: score, better: lower}
+      findings:
+        kind: exact
+        output: findings
+        scope: page
+        identity: [rule, node_path, environment]
+        filter: {severity: [serious, critical]}
 
 requirements:
   every-task-completes:
     assessment: keyboard-task-completion
-    condition: {operator: lte, value: 0}
+    condition: {operator: holds}
   steps-do-not-rise:
-    assessment: keyboard-task-steps
-    reference: {kind: accepted-value, tolerance: {percent: 5}}
+    assessment: walks
+    measurement: steps
+    reference: {kind: accepted_value, tolerance: {percent: 5}}
+  layout-shift-does-not-rise:
+    assessment: walks
+    measurement: layout-shift
+    reference: {kind: accepted_value, tolerance: {absolute: 0.01}}
   fix-within-two-actions:
-    assessment: fix-actions
+    assessment: walks
+    measurement: actions-per-fix
     condition: {operator: lte, value: 2, unit: actions}
   cues-are-accurate:
-    assessment: cue-accuracy
+    assessment: walks
+    measurement: cue-accuracy
     condition: {operator: gte, value: 95, unit: percent}
   no-new-page-findings:
-    assessment: page-findings
-    condition: {operator: no-new-items}
-    reference: {kind: accepted-value}
+    assessment: walks
+    measurement: findings
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
 
 gates:
   merge:
@@ -107,3 +83,4 @@ gates:
       - cues-are-accurate
       - no-new-page-findings
       - steps-do-not-rise
+      - layout-shift-does-not-rise

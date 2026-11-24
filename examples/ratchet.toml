@@ -2,7 +2,7 @@
 paths = ["host-caused-limit.ratchet.yaml"]
 
 [catalog]
-presets = ["git+https://github.com/beyond10x/ratchet-presets#<commit>"]
+sources = [{ git = "https://github.com/beyond10x/ratchet", rev = "<commit>", path = "presets" }]
 
 [records]
 store = "git:refs/ratchet/records"
@@ -11,7 +11,7 @@ store = "git:refs/ratchet/records"
 class = "local"
 
 [local]
-skip_sampled_when_load_above = 2.125
+skip_sampled_outside_conditions = true
 observe_only = ["test-budget"]
 
 [tools]

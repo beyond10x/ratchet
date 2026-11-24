@@ -16,93 +16,85 @@ subjects:
     audiences: [coding-agent, developer]
 
 assessments:
-  ci-gate-run-time:
+  ci-gate-timing:
     subject: ci-gate
     assessor: forge-workflow-timing@1
-    target: {kind: workflow-run, environment: ci, selection: candidate}
+    inputs: {workflow: gate.yml}
+    target: {kind: workflow_run, environments: [ci], selection: candidate}
     observation:
       kind: snapshot
-      conditions: {runner: ci-standard}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      also_record: [queue-wait]
-      scope: run
-      unit: min
-
-  ci-gate-queue-wait:
-    subject: ci-gate
-    assessor: forge-workflow-timing@1
-    target: {kind: workflow-run, environment: ci, selection: candidate}
-    observation:
-      kind: snapshot
-      conditions: {runner: ci-standard}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: queue-wait
-      scope: run
-      unit: min
+      conditions:
+        ci: {runner: ci-standard}
+    measurements:
+      run-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: run, unit: min, better: lower}
+      queue-wait:
+        {kind: sampled, output: duration, boundary: queue_wait, scope: run, unit: min, better: lower}
 
   ui-test-step-time:
     subject: ui-test-step
     assessor: command-timing@1
-    target: {kind: revision, environment: ci}
+    target: {kind: revision, environments: [ci]}
     observation:
-      kind: controlled-run
+      kind: controlled_run
       command: task ui-ux
       runs: 1
-      conditions: {runner: ci-standard, toolchain: pinned}
+      conditions:
+        ci: {runner: ci-standard}
       coverage: {skipped: 0}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      also_record: [queue-wait]
-      scope: run
-      unit: s
+    measurements:
+      run-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
 
   rust-test-step-time:
     subject: rust-test-step
     assessor: command-timing@1
-    target: {kind: revision, environment: ci}
+    target: {kind: revision, environments: [ci]}
     observation:
-      kind: controlled-run
+      kind: controlled_run
       command: cargo test --workspace --locked
       runs: 1
-      conditions: {runner: ci-standard, toolchain: pinned}
+      conditions:
+        all:
+          tools: {rustc: {pin: rust-toolchain.toml}}
+        ci: {runner: ci-standard}
       coverage: {skipped: 0}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      also_record: [queue-wait]
-      scope: run
-      unit: s
+    measurements:
+      run-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
 
   local-gate-run-time:
     subject: local-gate
     assessor: command-timing@1
-    target: {kind: revision, environment: local}
+    inputs: {job_log: jobs.jsonl}
+    target: {kind: revision, environments: [local]}
     observation:
-      kind: controlled-run
+      kind: controlled_run
       command: task check
       runs: 1
-      conditions: {toolchain: pinned}
-    measurement:
-      kind: sampled
-      output: duration
-      boundary: run-time
-      also_record: [queue-wait]
-      scope: run
-      unit: s
+      conditions:
+        all:
+          tools: {rustc: {pin: rust-toolchain.toml}}
+    measurements:
+      run-time:
+        {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
 
 requirements:
   ci-gate-turnaround:
-    assessment: ci-gate-run-time
+    assessment: ci-gate-timing
+    measurement: run-time
     condition: {operator: lt, value: 30, unit: min}
-    reference: {kind: accepted-value, tolerance: {percent: 20}}
+    reference:
+      kind: accepted_value
+      tolerance: {percent: 20}
+      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}
+  ci-gate-queue-wait-does-not-rise:
+    assessment: ci-gate-timing
+    measurement: queue-wait
+    reference:
+      kind: accepted_value
+      tolerance: {percent: 20}
+      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}
   ui-test-step-budget:
     assessment: ui-test-step-time
     condition: {operator: lte, value: 120, unit: s}
@@ -116,5 +108,13 @@ gates:
     qualifying_environments: [ci]
     requires:
       - ui-test-step-budget
-      - ci-gate-turnaround
       - {requirement: rust-test-step-budget, mode: report, since: 2026-11-23}
+  workflow-finished:
+    stage: post-workflow
+    qualifying_environments: [ci]
+    requires: [ci-gate-turnaround]
+  build-pool:
+    kind: operational
+    stage: daily
+    qualifying_environments: [ci]
+    requires: [ci-gate-queue-wait-does-not-rise]

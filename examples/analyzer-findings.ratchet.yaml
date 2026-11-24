@@ -13,44 +13,65 @@ assessments:
   lint-findings:
     subject: source-tree
     assessor: clippy-report@1
-    target: {kind: revision, environment: local}
+    target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
       command: cargo clippy --locked --all-targets -- -D warnings
-      conditions: {toolchain: pinned}
-      coverage: {skipped: 0}
-    measurement:
-      kind: exact
-      output: findings
-      scope: run
-      identity: [rule, path]
+      conditions:
+        all:
+          tools: {rustc: {pin: rust-toolchain.toml}}
+      coverage: {executed: 4, skipped: 0}
+    measurements:
+      findings:
+        kind: exact
+        output: findings
+        scope: run
+        identity: [rule, path]
 
   unreferenced-files:
     subject: source-tree
     assessor: project-command@1
-    target: {kind: revision, environment: local}
+    target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
       command: task check:unreferenced
       coverage: {skipped: 0}
-    measurement:
-      kind: exact
-      output: findings
-      scope: run
-      identity: [rule, path]
+    measurements:
+      findings:
+        kind: exact
+        output: findings
+        scope: run
+        identity: [rule, path]
 
-  failing-conformance-cases:
-    subject: service-contract
-    assessor: ess-conformance-report@1
-    target: {kind: deployment, environment: staging}
+  secret-scan:
+    subject: source-tree
+    assessor: secret-scan-report@1
+    inputs: {report: target/scan/secrets.json}
+    target: {kind: revision, environments: [local]}
     observation:
       kind: snapshot
       coverage: {skipped: 0}
-    measurement:
-      kind: exact
-      output: failing_cases
-      scope: run
-      identity: [case_id]
+    measurements:
+      findings:
+        kind: exact
+        output: findings
+        scope: run
+        identity: [rule, path]
+
+  passing-conformance-cases:
+    subject: service-contract
+    assessor: ess-conformance-report@1
+    inputs: {report: target/conformance/report.json}
+    target: {kind: deployment, environments: [staging]}
+    observation:
+      kind: snapshot
+      coverage: {skipped: 0}
+    measurements:
+      passing-cases:
+        kind: exact
+        output: passing_cases
+        scope: run
+        identity: [case_id]
 
 requirements:
   no-lint-findings:
@@ -58,12 +79,16 @@ requirements:
     condition: {operator: lte, value: 0}
   no-new-unreferenced-files:
     assessment: unreferenced-files
-    condition: {operator: no-new-items}
-    reference: {kind: accepted-value}
-  no-new-failing-cases:
-    assessment: failing-conformance-cases
-    condition: {operator: no-new-items}
-    reference: {kind: accepted-value}
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  no-new-secret-findings:
+    assessment: secret-scan
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  no-lost-passing-cases:
+    assessment: passing-conformance-cases
+    condition: {operator: no_lost_items}
+    reference: {kind: accepted_value}
 
 gates:
   merge:
@@ -72,23 +97,31 @@ gates:
     requires:
       - no-lint-findings
       - no-new-unreferenced-files
+      - no-new-secret-findings
   promote:
     stage: pre-promotion
-    requires: [no-new-failing-cases]
+    qualifying_environments: [staging]
+    requires: [no-lost-passing-cases]
 
 exceptions:
-  - requirement: no-new-failing-cases
-    item: {case_id: known-failing-a}
+  known-failing-a:
+    requirement: no-lost-passing-cases
+    item: {case_id: case-a}
     reason: Fails on the deployed build. The fix is tracked in the owner story.
-    owner: story:known-failing-a
+    owner: story:case-a
+    created: 2026-11-23
     expires: 2026-11-30
-  - requirement: no-new-failing-cases
-    item: {case_id: known-failing-b}
+  known-failing-b:
+    requirement: no-lost-passing-cases
+    item: {case_id: case-b}
     reason: Fails on the deployed build. The fix is tracked in the owner story.
-    owner: story:known-failing-b
+    owner: story:case-b
+    created: 2026-11-23
     expires: 2026-11-30
-  - requirement: no-new-failing-cases
-    item: {case_id: known-failing-c}
+  known-failing-c:
+    requirement: no-lost-passing-cases
+    item: {case_id: case-c}
     reason: Fails on the deployed build. The fix is tracked in the owner story.
-    owner: story:known-failing-c
+    owner: story:case-c
+    created: 2026-11-23
     expires: 2026-11-30
