@@ -7,5 +7,6 @@ specification:
   - domains/evidence.yaml
   - domains/reference.yaml
   - domains/gate.yaml
+  - domains/config.yaml
   - domains/cli.yaml
 scenarios: []

@@ -1,0 +1,148 @@
+domain: ratchet.config
+
+summary: >-
+  Where things are on one machine: the local config `ratchet.toml` and the record store it
+  names (docs/design.md § 1, § 2, § 5 "Local config", § 6 "The record store"). The local config
+  carries no policy; the specification is policy and is judged from the trusted revision.
+
+types:
+  - name: ratchet.config.ConfigPath
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The path of a local config file, `ratchet.toml` in a checkout. A file per machine or
+        checkout (§ 1); its path is the identity this specification reads it by.
+
+  - name: ratchet.config.RecordStoreLocation
+    kind: newtype
+    of: String
+    naming:
+      summary: The `[records] store` value, `git:refs/ratchet/records` (§ 5, § 6).
+
+  - name: ratchet.config.SpecSection
+    kind: struct
+    naming:
+      summary: >-
+        `[spec] paths`: the files of the one specification, such as
+        `["ratchet.yaml", "quality/*.ratchet.yaml"]`. Ids are unique across them, a duplicate
+        is a validation error, and they declare one `format` and one `project` (§ 5 rule 5).
+    fields:
+      - name: paths
+        type: List<String>
+
+  - name: ratchet.config.CatalogSource
+    kind: struct
+    naming:
+      summary: >-
+        One preset source, `{ git, rev, path }`, such as this repository's `presets/` at a
+        commit (§ 5). It says where to look and cannot change what is found: a binding's
+        digest decides (§ 4).
+    fields:
+      - name: git
+        type: Optional<String>
+      - name: rev
+        type: Optional<String>
+      - name: path
+        type: String
+    # UNMAPPED: § 4 says a consumer's own preset family "binds the same way from its own
+    # directory", and § 5 shows only the git form of a source. Whether a source without `git`
+    # is a local directory, as these optional fields allow, is open for the owner.
+
+  - name: ratchet.config.CatalogSection
+    kind: struct
+    fields:
+      - name: sources
+        type: List<ratchet.config.CatalogSource>
+
+  - name: ratchet.config.RecordsSection
+    kind: struct
+    fields:
+      - name: store
+        type: ratchet.config.RecordStoreLocation
+
+  - name: ratchet.config.EnvironmentSection
+    kind: struct
+    naming:
+      summary: >-
+        `[environment] class`: the target class of this machine. The class is `ci` when a CI
+        environment is detected, whatever the file says (§ 5 rule 3).
+    fields:
+      - name: class
+        type: ratchet.specification.TargetClass
+
+  - name: ratchet.config.LocalSection
+    kind: struct
+    naming:
+      summary: >-
+        `[local]`: what `ratchet assess` and `ratchet status` do on this machine (§ 5). A gate
+        reads no `[local]` key. All three keys are skips: outside the class `local`,
+        `ratchet evaluate` refuses a config that carries one (`local_skips_refused`).
+    fields:
+      - name: skip_sampled_outside_conditions
+        type: Optional<Boolean>
+        summary: >-
+          Before a sampled assessment runs, compare the present conditions with the plan's
+          declared ones and skip it outside them. It holds no number.
+      - name: skip
+        type: Optional<List<ratchet.specification.AssessmentName>>
+        summary: >-
+          Assessments that do not run here. Each is recorded as a run that executed nothing,
+          with the cause `skipped_locally`.
+      - name: observe_only
+        type: Optional<List<ratchet.specification.RequirementName>>
+        summary: >-
+          Requirements `ratchet status` shows with their value and leaves out of its summary.
+
+entities:
+  - name: ratchet.config.LocalConfig
+    naming:
+      summary: >-
+        The local config `ratchet.toml` (§ 1, § 2, § 5): it locates the specifications, the
+        preset sources, the record store and the tools, and selects what runs on one machine.
+        It carries no policy: a requirement leaves a gate only through the specification.
+    provided: true
+    identity:
+      name: path
+      type: ratchet.config.ConfigPath
+    fields:
+      - name: spec
+        type: ratchet.config.SpecSection
+      - name: catalog
+        type: Optional<ratchet.config.CatalogSection>
+      - name: records
+        type: ratchet.config.RecordsSection
+      - name: environment
+        type: Optional<ratchet.config.EnvironmentSection>
+      - name: local
+        type: Optional<ratchet.config.LocalSection>
+      - name: tools
+        type: Optional<Map<String, String>>
+        summary: How to invoke a tool on this machine, such as `nextest = "cargo nextest"`.
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: ratchet.config.RecordStore
+    naming:
+      summary: >-
+        Where versioned JSON records live (§ 2, § 6), in two parts with one role each. Hand-over:
+        a run writes its records as a CI artifact, and a pull-request job needs no push rights.
+        Series: one job on the trusted branch appends the handed-over records to the git ref
+        `refs/ratchet/records`; it is the only writer, and gates, views and `ratchet history`
+        read the ref. Records of a local run stay on the machine that produced them. The push
+        right of the writer, the author of its commits and any retention are the owner's to set
+        outside this specification.
+    provided: true
+    identity:
+      name: store
+      type: ratchet.config.RecordStoreLocation
+    fields:
+      - name: ref_name
+        type: String
+        summary: The git ref that holds the series, `refs/ratchet/records`.
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]

@@ -1,60 +1,74 @@
 # Ratchet executable specification
 
 Design phase. This directory declares Ratchet's domain in ESS before any code exists
-(`AGENTS.md` § Specification first). Every entity, field, enum value, command and flag here is a
-proposal taken from `docs/design.md` and `docs/product-brainstorm.md`; none of them is settled.
-Each `UNMAPPED:` comment marks a question the design does not answer yet.
+(`AGENTS.md` § Specification first). It follows `docs/design.md` revision 3. Every entity,
+field, enum value, command and flag here is a proposal taken from the design; none of them is
+settled. Each `UNMAPPED:` comment marks a question the design does not answer yet.
 
 | File | Declares |
 |---|---|
-| `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, subject, audience, assessment plan with its measurement (kind exact or sampled, scope, aggregation), target and observation conditions, quality requirement with its condition, protected reference declaration and ratchet policy, gate and each gate entry's mode (enforce or report), exception (reason, owner, expiry) |
-| `domains/assessor.yaml` | assessor and the outputs it declares |
-| `domains/evidence.yaml` | assessment run record: resolved target, observed conditions, evidence coverage, identity sets and measured values, queue wait and run time; proof record |
-| `domains/reference.yaml` | protected reference (generated or accepted value), reference change, trade-off |
-| `domains/gate.yaml` | gate decision and each requirement's verdict: pass, fail or insufficient evidence, with its cause and next step |
+| `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, boundary, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window`, `population`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, preset and preset binding |
+| `domains/assessor.yaml` | assessor, its typed configuration inputs and the outputs it declares (value type, kind, scopes, unit, boundaries, identity key, item fields, coverage counts) |
+| `domains/evidence.yaml` | assessment run record: resolved target, observed conditions (host load as mean, min and max; tools), evidence coverage, results per measurement, queue wait and run time, import source; proof record with the defect ids refused and accepted |
+| `domains/reference.yaml` | reference record (generated or accepted value; values or accepted items with reason and owner), reference change, trade-off with `gains` and `loosens` |
+| `domains/gate.yaml` | gate decision and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause and next step |
+| `domains/config.yaml` | the local config `ratchet.toml` and the record store it names |
 | `domains/cli.yaml` | the typed inputs, results and refusals of the `ratchet` commands |
 | `cli.yaml` | the `ess-cli/2` presentation binding of the `ratchet` command surface |
 
-The entities a project authors are `provided: true`: they come from the document on the trusted
-revision, and no Ratchet command creates them. Records hold one state, `Recorded`: this draft
-declares no ESS command that writes a record yet.
+The entities a project authors, the assessors, presets, the local config and the record store
+are `provided: true`: they come from a file, and no Ratchet command creates them. Records hold
+one state, `Recorded` (a reference, `Adopted`): this specification declares no ESS command that
+writes a record yet, and current or superseded, active or expired are computed, not stored.
+
+The owner decided the four open questions of design § 9 on 2026-11-24, all A: reference and
+trade-off records are files in the tree (D1), a loosening lands in a change of its own merged
+before the candidate (D2), `evidence` defaults to `any` (D3), an exception ends at a date only
+(D4). The specification is written to those answers; `docs/design.md` § 9 still lists them as
+open.
 
 ```console
-ess specify validate --path spec --strict-requires
-ess specify cli --path spec --binding spec/cli.yaml --strict-requires
+task check:spec
 ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
+`task check:spec` runs `ess specify validate --path spec --strict-requires` and
+`ess specify cli --path spec --binding spec/cli.yaml --strict-requires`; `task check` calls it.
 Nothing generated is committed yet. When implementation starts, the parser and process adapter
 come from `ess generate cli` and are drift-checked in the gate.
 
-## Where this specification sharpens or departs from docs/design.md
+## Resolved in design revision 3
+
+Revision 3 took every point the previous list raised (design § 10): the exit status, typed rows
+with decimals as text, the CLI spelling, the trade-off as a record of its own, the YAML shapes,
+gate entries as `<gate>/<requirement>`, coverage bounds, computed exception expiry, exceptions
+as entries of the specification, "skipped locally" as a state, `not_assessable_here`, and a
+shape for preset, quality statement, `ratchet.toml` and the record store.
+
+## Where this specification still departs from docs/design.md
 
 Each point is a proposal for the owner to accept or reject before anything generated from this
 specification is committed.
 
+- **Bare spellings without a scalar.** An ESS shorthand stands only for a required scalar, so
+  two design spellings take a key here: a tool's bare version (`ess: "0.97.4"`) is
+  `{version: "0.97.4"}`, and a bare list of `executed_ids` is `{ids: [...]}`. The bare number
+  of a coverage bound and the bare `same_change` of `adoption` are shorthands and keep the
+  design's spelling.
+- **`adoption` as a struct.** `same_change` is `{from: same_change}` and the sampled form is
+  `{from: trusted_revision, runs, aggregation}`, one struct with `from` as its shorthand.
+- **Not-applicable entries.** A gate decision keeps one row per entry with `entry_state`
+  (`evaluated` or `not_applicable`) and no verdict when not applicable, rather than a separate
+  list.
+- **Exceptions in a decision.** The decision copies each applied exception (id, reason, owner,
+  expiry) into its row; there is no relation from a record to an authored exception.
 - **Exit status.** `ess-cli/2` gives a declared error exit 1, so a failed gate and a gate with
-  insufficient evidence both exit 1. CI tells them apart by the JSON code (`gate_failed`,
-  `insufficient_evidence`).
-- **No Json in error data.** The gate report is error data, which `ess-cli/2` refuses as Json.
-  Observed and allowed values are typed `ValueRow` and `LimitRow`, decimals as text.
-- **CLI spelling.** No valueless or repeated flags: `render --check` becomes `--check true`;
-  lists are JSON (`--presets '["web-ux@1"]'`). The `reference` group has an empty help line.
-- **Trade-off.** Design § 1 calls it "one reference change", but a § 6 reference change has one
-  requirement. Modelled as its own record; each change it loosens names it.
-- **YAML shapes.** `environment:` (one class or a list) becomes `environments`, always a list.
-  `aggregation: p95` becomes `{kind: percentile, parameter: 95}`. `no-new-items` becomes
-  `no_new_items`; `no_lost_items`, `gt`, `gte` and `eq` are added.
-- **Gate entries.** Each `requires:` entry is an entity with id `<gate>/<requirement>`; a bare
-  requirement name means `enforce`.
-- **Coverage bounds.** `{skipped: 0}` is read as a maximum.
-- **Exception expiry.** Active or expired is computed from the date at evaluation, not stored.
-- **Exceptions.** Authored in the specification YAML (§ 3) and named as records (§ 6); modelled
-  as authored entities.
-- **Skipped locally** (product brainstorm) is a status flag, not a verdict.
-- **"Reported there as not run"** (§ 3) is the insufficient-evidence cause `not_assessable_here`.
-- **Not declared yet:** preset, quality statement, `ratchet.toml` and the record store; the
-  design gives them no shape.
+  insufficient evidence both exit 1 and the JSON code tells them apart, as the design says.
+- **`reference adopt` input.** It takes the same input as `reference propose`, plus
+  `--trade-off <id>` on both for the trade-off's id. `render --export <directory>` names where
+  the static export goes; the design names no flag for either.
+- **Proof ids.** A defect in neither `refused` nor `accepted` returned insufficient evidence.
+- **The `reference` command group** has an empty help line, a property of the binding.
 
 `ess generate cli` accepts `cli.yaml` and writes a Cargo package `ratchet-cli-contract` with a
-`ratchet` binary (10 files) into the ignored `target/ess-scratch/cli`.
+`ratchet` binary into the ignored `target/ess-scratch/cli`.

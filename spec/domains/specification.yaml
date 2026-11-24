@@ -1,12 +1,15 @@
 domain: ratchet.specification
 
 summary: >-
-  What a project declares in its ratchet/1 document: subjects, audiences, assessment plans,
-  requirements, gates and exceptions (docs/design.md § 1, § 3). Every entity here is authored in
-  the document and read from the trusted revision; no Ratchet command creates one.
+  What a project declares in its ratchet/1 document: statements, subjects, audiences, assessment
+  plans with their measurements, requirements, gates, exceptions and preset bindings, and what a
+  preset in the catalog declares (docs/design.md § 1, § 3, § 4, § 5). Every entity here is
+  authored in a document and read from the trusted revision; no Ratchet command creates one.
 
-# Sources: docs/design.md § 1 (domain language), § 3 (illustrative project YAML), § 5 (gates,
-# exceptions). Field names follow that YAML and are proposals (AGENTS.md § Phase: design).
+# Sources: docs/design.md revision 3, § 1 (domain language), § 3 (illustrative project YAML,
+# value lists), § 4 (custom assessors, presets, planted defects), § 5 (gates, exceptions). Field
+# names follow that YAML and are proposals (AGENTS.md § Phase: design). An authored entry has the
+# id its author gave it: the key of its map (§ 6).
 
 types:
   - name: ratchet.specification.ProjectName
@@ -25,7 +28,13 @@ types:
     kind: newtype
     of: String
     naming:
-      summary: An ISO 8601 calendar date, `2026-12-15`, as `expires:` and `since:` spell it.
+      summary: An ISO 8601 calendar date, `2026-12-15`, as `expires:`, `created:` and `since:` spell it.
+
+  - name: ratchet.specification.StatementName
+    kind: newtype
+    of: String
+    naming:
+      summary: The key of a quality statement under `statements:`, such as `search-is-fast`.
 
   - name: ratchet.specification.SubjectName
     kind: newtype
@@ -38,14 +47,17 @@ types:
     of: String
     naming:
       summary: >-
-        What sort of thing a subject is, such as `user-interaction` or `development-workflow`.
-        The design names examples, not a closed set.
+        What sort of thing a subject is, such as `user-interaction` or `codebase`. A free label
+        of the author (§ 3 value lists).
 
   - name: ratchet.specification.AudienceName
     kind: newtype
     of: String
     naming:
-      summary: Who experiences a subject's quality, such as `portal-user` or `coding-agent`.
+      summary: >-
+        Who experiences a subject's quality, such as `portal-user` or `coding-agent`. A free
+        label of the author (§ 3 value lists); the design gives an audience no attribute of its
+        own, so it is not an entity.
 
   - name: ratchet.specification.AssessmentName
     kind: newtype
@@ -53,94 +65,149 @@ types:
     naming:
       summary: The key of an assessment plan under `assessments:`.
 
+  - name: ratchet.specification.MeasurementName
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The key of a measurement in a plan's `measurements` map, such as `p95` or `step-time`
+        (§ 3 "Several measurements from one run").
+
   - name: ratchet.specification.AssessorRef
     kind: newtype
     of: String
     naming:
       summary: An assessor and its pinned version, `browser-request-timing@1`.
 
+  - name: ratchet.specification.OutputName
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        An output an assessor declares and a measurement reads, such as `findings` or
+        `duration` (§ 3 value lists: the assessor declares it).
+
   - name: ratchet.specification.Unit
     kind: newtype
     of: String
     naming:
       summary: >-
-        The unit of a value: `ms`, `s`, bytes, a count, money per run or per day, model calls
-        per run (§ 3).
+        The unit of a value: `ms`, `s`, `steps`, bytes, money per run or per day, model calls
+        per run (§ 3). The assessor declares it; `ratchet/1` converts no units.
 
-  # § 1, § 3: exact gives the same value for the same input under the same conditions; sampled
-  # varies between runs.
+  # § 3 value lists: Ratchet, closed. Exact gives the same value for the same input under the
+  # same conditions; sampled varies between runs.
   - name: ratchet.specification.MeasurementKind
     kind: enum
     variants: [exact, sampled]
 
-  # § 1, § 3 "Scope and aggregation": the unit one result belongs to.
-  - name: ratchet.specification.Scope
+  # § 3 "Comparisons" and value lists: Ratchet, closed.
+  - name: ratchet.specification.ValueType
     kind: enum
-    variants: [state, journey, page, test, variant, run]
+    variants: [number, identity_set, digest, assertion]
 
-  # § 3 table: exact measurements aggregate by none or a sum within the scope; sampled ones by
-  # median, percentile, best of N or pass rate. The YAML spells a percentile `p95`.
+  - name: ratchet.specification.Scope
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The unit one result belongs to: a state, a journey, a page, a test, a file, a variant,
+        a run (§ 1, § 3). Not a closed list: an assessor declares the scopes of its outputs and
+        `ratchet validate` checks a measurement's scope against that declaration. `run`, the
+        whole run, is Ratchet's and every assessor has it.
+
+  - name: ratchet.specification.Boundary
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        Which part of a duration a measurement is about (§ 3): `run_time` and `queue_wait` are
+        Ratchet's; an assessor declares others, such as
+        `request_start_to_response_complete`.
+
+  # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.AggregationKind
     kind: enum
     variants: [sum, median, percentile, best_of_n, pass_rate]
 
   - name: ratchet.specification.Aggregation
     kind: struct
+    naming:
+      summary: >-
+        An aggregation as a map, `{kind: percentile, parameter: 95}` or `{kind: median}` (§ 3
+        value lists). Declared where a sampled plan has more than one run or sample.
     fields:
       - name: kind
         type: ratchet.specification.AggregationKind
       - name: parameter
         type: Optional<Integer>
-        summary: >-
-          The rank of a percentile (95 for `p95`) or the N of best of N. A proposal: the design
-          writes `aggregation: p95` as one word.
+        summary: The rank of a percentile (95) or the N of best of N.
+
+  # § 3 value lists: `better`, Ratchet, closed.
+  - name: ratchet.specification.Direction
+    kind: enum
+    variants: [lower, higher]
 
   - name: ratchet.specification.Measurement
     kind: struct
     naming:
       summary: >-
-        The value or assertion being evaluated, with a kind, unit, scope and aggregation
-        (§ 1). It is part of an assessment plan.
+        The value or assertion being evaluated, with a kind, unit, scope and aggregation where
+        applicable, and the direction that is better (§ 1). One entry of a plan's
+        `measurements` map; every measurement of a plan reads the plan's one run (§ 3).
     fields:
       - name: kind
         type: ratchet.specification.MeasurementKind
       - name: output
-        type: String
-        summary: The assessor output it reads, such as `findings` or `duration`.
-      - name: unit
-        type: Optional<ratchet.specification.Unit>
+        type: ratchet.specification.OutputName
       - name: scope
         type: ratchet.specification.Scope
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
-      - name: boundary
-        type: Optional<String>
         summary: >-
-          Which part of a duration the requirement is about, such as `run-time`, `queue-wait`
-          or `request-start-to-response-complete` (§ 3).
-      - name: also_record
-        type: Optional<List<String>>
-        summary: Further parts recorded beside it, such as `queue-wait`.
+          Absent with `runs: 1`: the value is judged as observed (§ 3 "One run per candidate is
+          valid").
+      - name: boundary
+        type: Optional<ratchet.specification.Boundary>
+      - name: better
+        type: Optional<ratchet.specification.Direction>
+        summary: >-
+          Which way is worse for an accepted value. `ratchet validate` reports a number with a
+          reference and no `better` (§ 3).
       - name: identity
         type: Optional<List<String>>
         summary: >-
           The identity key when the measurement is an identity set, such as
           `[rule, node_path, environment]` (§ 1, § 4).
+      - name: filter
+        type: Optional<Map<String, List<String>>>
+        summary: >-
+          On an identity set, keeps the items whose field has one of the listed values, such as
+          `{severity: [serious, critical]}`, before the comparison. The fields are those the
+          assessor declares for the items; a changed filter starts a new evidence series (§ 3).
 
-  # § 3 table "Observation".
+  # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.ObservationKind
     kind: enum
     variants: [snapshot, controlled_run, time_window]
 
-  # § 1 "Target" and § 3: revision, build, deployed service, workflow run, telemetry population.
+  # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.TargetKind
     kind: enum
     variants: [revision, build, deployment, workflow_run, telemetry_population]
 
-  # § 3: "Local, CI, ephemeral, staging, and production are explicit target classes."
+  # § 3 value lists: `environments`, Ratchet, closed.
   - name: ratchet.specification.TargetClass
     kind: enum
     variants: [local, ci, ephemeral, staging, production]
+
+  # § 3 value lists: Ratchet, closed. `merge_result` is the candidate merged into the trusted
+  # revision (§ 3, § 5 generated references).
+  - name: ratchet.specification.Selection
+    kind: enum
+    variants: [candidate, merge_result]
 
   - name: ratchet.specification.TargetSpec
     kind: struct
@@ -153,43 +220,152 @@ types:
         type: ratchet.specification.TargetKind
       - name: environments
         type: List<ratchet.specification.TargetClass>
-        summary: >-
-          The target classes the plan runs in. The § 3 YAML spells this `environment:`, a
-          single class or a list; one list is the proposal here.
+        summary: The target classes the plan runs in; always a list (§ 3).
       - name: selection
+        type: Optional<ratchet.specification.Selection>
+        summary: Which tree or build is assessed (§ 3).
+        # UNMAPPED: the § 3 YAML leaves `selection` out of two of four targets and the design
+        # states no default. Read here as `candidate` when absent; open question for the owner.
+
+  - name: ratchet.specification.MinimumBound
+    kind: struct
+    shorthand: min
+    naming:
+      summary: >-
+        The coverage bound on `executed`: a bare number is a minimum, `{min, max}` states both
+        (§ 3 "Evidence coverage").
+    fields:
+      - name: min
+        type: Integer
+      - name: max
+        type: Optional<Integer>
+
+  - name: ratchet.specification.MaximumBound
+    kind: struct
+    shorthand: max
+    naming:
+      summary: >-
+        The coverage bound on `skipped`, `not_run` and `unsupported`: a bare number is a
+        maximum, `{min, max}` states both (§ 3 "Evidence coverage").
+    fields:
+      - name: max
+        type: Integer
+      - name: min
+        type: Optional<Integer>
+
+  - name: ratchet.specification.ExecutedIds
+    kind: struct
+    naming:
+      summary: >-
+        The exact set of executed item ids that qualifies, as a list or as `{file: <path>}`
+        read from the trusted revision (§ 3). The design's bare list is written `{ids: [...]}`
+        here: an ESS shorthand stands only for a scalar.
+    fields:
+      - name: ids
+        type: Optional<List<String>>
+      - name: file
         type: Optional<String>
-        summary: Which instance is assessed, such as `candidate`.
 
   - name: ratchet.specification.CoverageBounds
     kind: struct
     naming:
       summary: >-
         The coverage that qualifies, as bounds on the counts or as an exact set of executed item
-        ids (§ 3 "Evidence coverage"). A run below it is insufficient evidence.
+        ids (§ 3 "Evidence coverage"). A run below it is insufficient evidence with the cause
+        `coverage_below_plan`. A plan whose `scenarios` hold a pattern declares it.
     fields:
+      - name: executed
+        type: Optional<ratchet.specification.MinimumBound>
       - name: skipped
-        type: Optional<Integer>
-        summary: The most skipped items that still qualify; `0` in the § 3 YAML.
+        type: Optional<ratchet.specification.MaximumBound>
       - name: not_run
-        type: Optional<Integer>
+        type: Optional<ratchet.specification.MaximumBound>
       - name: unsupported
-        type: Optional<Integer>
-      - name: executed_items
-        type: Optional<List<String>>
-        summary: The exact set of item ids a qualifying run executes.
+        type: Optional<ratchet.specification.MaximumBound>
+      - name: executed_ids
+        type: Optional<ratchet.specification.ExecutedIds>
+
+  - name: ratchet.specification.LoadBound
+    kind: struct
+    naming:
+      summary: >-
+        The bound on `host_load_per_cpu`: the mean of the 1-minute load average over the run,
+        divided by the number of CPUs; the bound applies to the mean (§ 3). Ratchet ships no
+        default.
+    fields:
+      - name: max
+        type: Decimal
+
+  - name: ratchet.specification.ToolPin
+    kind: struct
+    naming:
+      summary: >-
+        A tool's declared version, or the file that pins it: `{pin: rust-toolchain.toml}`
+        (§ 3). The design's bare version string (`ess: "0.97.4"`) is written
+        `{version: "0.97.4"}` here: an ESS shorthand needs a required field, and a pin has no
+        version.
+    fields:
+      - name: version
+        type: Optional<String>
+      - name: pin
+        type: Optional<String>
+
+  - name: ratchet.specification.ObservationConditions
+    kind: struct
+    undeclared_fields: ignored
+    naming:
+      summary: >-
+        The conditions that qualify in one target class (§ 3 "Conditions are declared per target
+        class"). Three have a defined meaning; an assessor declares others, such as
+        `cache: warm`, which this open struct admits.
+    fields:
+      - name: host_load_per_cpu
+        type: Optional<ratchet.specification.LoadBound>
+      - name: tools
+        type: Optional<Map<String, ratchet.specification.ToolPin>>
+        summary: >-
+          A map from a tool to its version or pin file. Replaces `toolchain: pinned`. A tool at
+          another version is insufficient evidence with the cause `tool_mismatch`.
+      - name: runner
+        type: Optional<String>
+        summary: The label of the runner or runner class.
+
+  - name: ratchet.specification.PairedRun
+    kind: struct
+    naming:
+      summary: >-
+        A paired run (§ 3): the assessor builds the revision that holds the accepted reference
+        and measures it and the candidate interleaved on the same runner. Not a reference kind.
+    fields:
+      - name: pairs
+        type: Integer
+
+  - name: ratchet.specification.WindowSpec
+    kind: struct
+    naming:
+      summary: >-
+        The interval of a time-window observation, `{length: 30d}`; it ends at the evaluation
+        and the evidence records the exact bounds (§ 3). Untested by any example (§ 8).
+    fields:
+      - name: length
+        type: String
+        summary: The window's length as the design spells it, such as `30d`.
 
   - name: ratchet.specification.ObservationPlan
     kind: struct
     naming:
       summary: >-
-        How evidence is collected: the observation kind, the workload, the sample or run count,
-        the conditions that qualify and the coverage that qualifies (§ 3).
+        How evidence is collected: the observation kind, the scenarios, the workload or command,
+        the run or sample count, a paired run or a time window, the conditions that qualify per
+        target class and the coverage that qualifies (§ 3).
     fields:
       - name: kind
         type: ratchet.specification.ObservationKind
-      - name: scenario
-        type: Optional<String>
-        summary: An ESS scenario or ESS UI interaction, `ess-ui:partner-portal/partner-search`.
+      - name: scenarios
+        type: Optional<List<String>>
+        summary: >-
+          ESS scenarios or ESS UI interactions; an entry can end in `*`, such as
+          `ess-ui:partner-portal/search-*`. The scope keeps one result per scenario.
       - name: workload
         type: Optional<String>
       - name: command
@@ -197,47 +373,49 @@ types:
         summary: The project command a command assessor runs, such as `task test`.
       - name: runs
         type: Optional<Integer>
+        summary: One is valid; repeats are needed where the plan aggregates.
       - name: min_samples
         type: Optional<Integer>
+      - name: paired
+        type: Optional<ratchet.specification.PairedRun>
+      - name: window
+        type: Optional<ratchet.specification.WindowSpec>
+      - name: population
+        type: Optional<String>
+        summary: The population a time window reads, such as a service and a traffic filter.
+        # UNMAPPED: § 3 says a windowed plan declares "a `population`" and gives it no shape;
+        # one text is a placeholder. Open question for the owner.
       - name: conditions
-        type: Optional<Map<String, Json>>
+        type: Optional<Map<String, ratchet.specification.ObservationConditions>>
         summary: >-
-          The observation conditions that qualify, by name: `runner: dedicated`,
-          `toolchain: pinned`, `host_load_per_cpu: {max: 1.0}`. `ratchet validate` reports a
-          sampled measurement whose plan declares none.
+          Keyed by target class (`local`, `ci`, …), with `all` for what holds in every class.
+          `ratchet validate` reports a sampled measurement whose plan declares none.
       - name: coverage
         type: Optional<ratchet.specification.CoverageBounds>
-      # UNMAPPED: § 3 names a time window ("a rolling 30-day production window") and a paired
-      # run (reference and candidate interleaved on one runner) as plan choices, and gives
-      # neither a field. Open question: their shape in the plan.
 
-  - name: ratchet.specification.RequirementName
-    kind: newtype
-    of: String
-    naming:
-      summary: The key of a requirement under `requirements:`, such as `search-latency-budget`.
-
-  # § 3 YAML spells `lt`, `lte` and `no-new-items`. `gt`, `gte` and `eq` complete the typed
-  # comparison § 2 promises. `no_lost_items` is the comparison § 4 asks of a passing-case set
-  # ("no case in the accepted set fails or stops running"); the design gives it no operator name.
+  # § 3 value lists: Ratchet, closed. The five number operators compare a number or the item
+  # count of a set; `no_new_items` and `no_lost_items` compare a set with the accepted set;
+  # `holds` takes an assertion.
   - name: ratchet.specification.ComparisonOperator
     kind: enum
-    variants: [lt, lte, gt, gte, eq, no_new_items, no_lost_items]
+    variants: [lt, lte, gt, gte, eq, no_new_items, no_lost_items, holds]
 
   - name: ratchet.specification.Condition
     kind: struct
     naming:
-      summary: What must hold, as an operator against an absolute limit or the reference (§ 3).
+      summary: >-
+        A comparison with a fixed limit (§ 3 "Comparisons"). It carries the unit of its
+        measurement; another unit is a validation error.
     fields:
       - name: operator
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<Decimal>
-        summary: The absolute limit; absent for an identity-set comparison.
+        summary: The limit; absent for `no_new_items`, `no_lost_items` and `holds`.
       - name: unit
         type: Optional<ratchet.specification.Unit>
 
-  # § 1 "Protected reference" and the § 5 table.
+  # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.ReferenceKind
     kind: enum
     variants: [generated, accepted_value]
@@ -246,48 +424,91 @@ types:
     kind: struct
     naming:
       summary: >-
-        The regression band against an accepted value: 0 by default for exact measurements, a
-        declared band for sampled ones (§ 3, § 5). `{percent: 10}` in the § 3 YAML, a 30-second
-        band in the § 5 example.
+        The regression band against an accepted value: `{percent: 10}`, `{absolute: 30}` in the
+        unit of the measurement, or both, and then the wider band applies (§ 3). 0 by default
+        for exact measurements; Ratchet ships no default band.
     fields:
       - name: percent
         type: Optional<Decimal>
-      - name: value
+      - name: absolute
         type: Optional<Decimal>
-      - name: unit
-        type: Optional<ratchet.specification.Unit>
+
+  - name: ratchet.specification.AdoptionSource
+    kind: enum
+    variants: [same_change, trusted_revision]
+
+  - name: ratchet.specification.RatchetPolicy
+    kind: struct
+    shorthand: from
+    naming:
+      summary: >-
+        The ratchet policy of a requirement: the `adoption` of its reference (§ 1, § 5).
+        `same_change` (the bare word) has the candidate write the better value with
+        `ratchet reference adopt`, verified against its own qualifying evidence; the default
+        for exact measurements. `{from: trusted_revision, runs: N, aggregation}` takes the
+        aggregation of the last N qualifying runs on the trusted revision; the default for
+        sampled measurements, and N has no default.
+    fields:
+      - name: from
+        type: ratchet.specification.AdoptionSource
+      - name: runs
+        type: Optional<Integer>
+      - name: aggregation
+        type: Optional<ratchet.specification.Aggregation>
 
   - name: ratchet.specification.ReferenceDeclaration
     kind: struct
     naming:
       summary: >-
-        The kind of protected reference a requirement compares against and its tolerance. The
-        reference values themselves live in reference records (§ 3, after the YAML).
+        The protected reference a requirement compares against (§ 3, § 5). The accepted values
+        themselves live in reference records that `ratchet reference adopt` writes.
     fields:
       - name: kind
         type: ratchet.specification.ReferenceKind
+      - name: paths
+        type: Optional<List<String>>
+        summary: For a generated reference, the committed files, such as `docs/reference/**`.
       - name: tolerance
         type: Optional<ratchet.specification.Tolerance>
+        summary: >-
+          For an accepted value. `ratchet validate` reports a sampled measurement with an
+          accepted value and no tolerance.
+      - name: adoption
+        type: Optional<ratchet.specification.RatchetPolicy>
+        summary: >-
+          For an accepted value. `ratchet validate` reports a sampled measurement with an
+          accepted value and no `adoption`.
 
-  - name: ratchet.specification.RatchetPolicy
+  - name: ratchet.specification.PlantedDefectId
+    kind: newtype
+    of: String
+    naming:
+      summary: The `id` of a planted defect, such as `unlabelled-button`.
+
+  - name: ratchet.specification.PlantedDefect
     kind: struct
     naming:
       summary: >-
-        The rule for when an evidenced improvement can tighten a requirement or replace its
-        protected reference (§ 1, § 5).
+        An input the assessor must refuse (§ 4 "Proof that a check can fail"). It has an `id`
+        and one of two forms: `inputs` replaces inputs of the plan for that run (a broken copy
+        of a manifest, a report with a known finding); `patch` is a patch file applied to a
+        scratch copy of the tree. Exactly one of the two is present.
     fields:
-      - name: adoption_runs
-        type: Optional<Integer>
-        summary: >-
-          How many comparable results support an adoption, such as the last 10 runs on the
-          default branch (§ 5).
-      - name: adoption_aggregation
-        type: Optional<ratchet.specification.Aggregation>
-        summary: How those results become the adopted value, such as their median (§ 5).
-    # UNMAPPED: § 1 names the ratchet policy and § 5 gives its examples ("repeated comparable
-    # results", "the median of the last 10 runs"), but the § 3 YAML has no policy key and no
-    # section says whether it is declared per requirement, per reference kind or per project.
-    # Both field names above are proposals of this draft.
+      - name: id
+        type: ratchet.specification.PlantedDefectId
+      - name: inputs
+        type: Optional<Map<String, Json>>
+      - name: patch
+        type: Optional<String>
+
+  - name: ratchet.specification.RequirementName
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The key of a requirement under `requirements:`, such as `search-latency-budget`. A
+        requirement bound from a preset is named `<binding>.<requirement>`, such as
+        `ux.steps-do-not-rise` (§ 4).
 
   - name: ratchet.specification.GateName
     kind: newtype
@@ -299,45 +520,119 @@ types:
     kind: newtype
     of: String
     naming:
-      summary: The workflow stage a gate decides at, such as `pre-merge` or `pre-promotion`.
+      summary: >-
+        The workflow stage a gate decides at, such as `pre-merge` or `daily`. A free label
+        (§ 3 value lists, § 7).
 
-  # § 5 "Gate modes".
+  # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.GateMode
     kind: enum
     variants: [enforce, report]
+
+  # § 3 value lists: Ratchet, closed. An operational gate judges a host or a population and
+  # decides nothing about a candidate (§ 5 "Gate kinds").
+  - name: ratchet.specification.GateKind
+    kind: enum
+    variants: [candidate, operational]
+
+  # § 3 value lists: Ratchet, closed (§ 5 "Which evidence decides").
+  - name: ratchet.specification.DecidingEvidence
+    kind: enum
+    variants: [any, all]
 
   - name: ratchet.specification.GateRequirementId
     kind: newtype
     of: String
     naming:
       summary: >-
-        One entry of a gate's `requires:` list. The YAML gives an entry no id; the proposal is
-        `<gate>/<requirement>`, unique because a gate lists a requirement once.
+        One entry of a gate's `requires:` list, identified as `<gate>/<requirement>`: a gate
+        lists a requirement once (§ 5).
+
+  - name: ratchet.specification.ChangedPaths
+    kind: struct
+    naming:
+      summary: >-
+        `when: {changed: [paths]}` on a gate entry: the entry applies when the change touches a
+        listed path. The change is the difference between the trusted revision and the
+        candidate; the path list is policy and is read from the trusted revision (§ 5).
+    fields:
+      - name: changed
+        type: List<String>
 
   - name: ratchet.specification.ExceptionId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of an exception record (§ 6 "Each record has a stable id").
+      summary: >-
+        The authored id of an exception: its key under `exceptions:` (§ 5, § 6), such as
+        `filter-reset-target-size`.
 
   - name: ratchet.specification.OwnerRef
     kind: newtype
     of: String
     naming:
-      summary: An owner reference, a story or decision id such as `story:filter-bar` (§ 5).
+      summary: >-
+        An owner reference, a story or decision id such as `story:filter-bar`. A free label
+        (§ 3 value lists).
 
   - name: ratchet.specification.DecisionRef
     kind: newtype
     of: String
     naming:
-      summary: The revision or decision that authorized a policy change (§ 5, § 6).
+      summary: The revision or decision that authorized a change, such as `decision:<id>` (§ 5, § 6).
+
+  # § 4 "Custom assessors": string, integer, decimal, boolean, path, or a list of one of these.
+  - name: ratchet.specification.InputType
+    kind: enum
+    variants: [string, integer, decimal, boolean, path]
+
+  - name: ratchet.specification.InputDeclaration
+    kind: struct
+    naming:
+      summary: >-
+        One declared input of an assessor or a preset (§ 4): a name, a type, whether it is
+        required, and a default. A plan passes assessor inputs as `inputs`, a binding passes
+        preset inputs as `with`, and `ratchet validate` checks names and types against the
+        declaration.
+    fields:
+      - name: name
+        type: String
+      - name: type
+        type: ratchet.specification.InputType
+      - name: list
+        type: Optional<Boolean>
+        summary: The input is a list of `type`.
+        # UNMAPPED: § 4 allows "a list of one of these" and gives no spelling for a list type;
+        # a `list` flag beside the element type is this draft's proposal.
+      - name: required
+        type: Boolean
+      - name: default
+        type: Optional<Json>
+        summary: A value of the declared type, where a default is meaningful.
+
+  - name: ratchet.specification.PresetRef
+    kind: newtype
+    of: String
+    naming:
+      summary: A preset and its version, `web-ux@1` (§ 4).
+
+  - name: ratchet.specification.PresetBindingName
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The key a project binds a preset under, such as `ux`; the bound entries join the project
+        under it, `ux.steps-do-not-rise` (§ 4).
 
 entities:
   - name: ratchet.specification.QualitySpecification
     naming:
       summary: >-
-        A project's versioned declaration of subjects, audiences, requirements, assessment
-        plans and gates (§ 1). A gate reads it from the trusted revision (§ 5).
+        A project's versioned declaration of statements, subjects, audiences, requirements,
+        assessment plans, gates and exceptions (§ 1). A project has one: its identity is the
+        project, and "versioned" means the format version and the revision a gate reads it at;
+        a gate decision records that revision (§ 5). Several files of `[spec] paths` form one
+        specification with ids unique across them.
     provided: true
     identity:
       name: project
@@ -345,12 +640,13 @@ entities:
     fields:
       - name: format
         type: String
-        summary: The document format, `ratchet/1`.
-      # UNMAPPED: § 1 says the specification is "versioned" and § 5 says a gate uses "policy
-      # from a trusted revision", but nothing says whether one row is the project (identity
-      # `project`, as here) or one revision of its document (identity project plus revision).
-      # The gate decision's `policy_revision` carries the revision until that is settled.
+        summary: The document format, `ratchet/1`; one across the files of a specification.
     relations:
+      - name: statements
+        kind: owns
+        target: ratchet.specification.QualityStatement
+        cardinality: many
+        via: project
       - name: subjects
         kind: owns
         target: ratchet.specification.Subject
@@ -376,6 +672,33 @@ entities:
         target: ratchet.specification.Exception
         cardinality: many
         via: project
+      - name: presets
+        kind: owns
+        target: ratchet.specification.PresetBinding
+        cardinality: many
+        via: project
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: ratchet.specification.QualityStatement
+    naming:
+      summary: >-
+        A sentence in plain words about what quality means for an audience (§ 1). A requirement
+        names the statements it serves; a statement no requirement serves is reported as not
+        machine-checked.
+    provided: true
+    identity:
+      name: statement
+      type: ratchet.specification.StatementName
+    fields:
+      - name: project
+        type: ratchet.specification.ProjectName
+      - name: text
+        type: String
+      - name: audiences
+        type: List<ratchet.specification.AudienceName>
     lifecycle:
       initial: Declared
       states: [Declared]
@@ -397,9 +720,7 @@ entities:
         type: ratchet.specification.SubjectKind
       - name: audiences
         type: List<ratchet.specification.AudienceName>
-        summary: >-
-          Who experiences this subject's quality. An audience is a name only: the design gives
-          it no attribute of its own, so it is not an entity.
+        summary: Who experiences this subject's quality.
     lifecycle:
       initial: Declared
       states: [Declared]
@@ -408,9 +729,10 @@ entities:
   - name: ratchet.specification.AssessmentPlan
     naming:
       summary: >-
-        The instructions for collecting evidence: binds a measurement to an assessor, a target
-        and observation conditions (§ 1). An assessment no gate requires is in observe mode
-        (§ 5).
+        The instructions for collecting evidence: binds one or more measurements to an
+        assessor, a target and observation conditions (§ 1). The assessor runs once per plan and
+        every measurement reads that run (§ 3). An assessment with no requirement in any gate
+        is in observe mode (§ 5).
     provided: true
     identity:
       name: assessment
@@ -422,12 +744,18 @@ entities:
         type: ratchet.specification.SubjectName
       - name: assessor
         type: ratchet.specification.AssessorRef
+      - name: inputs
+        type: Optional<Map<String, Json>>
+        summary: >-
+          The assessor's declared inputs by name, such as `{report: target/ux-eval/report.json}`
+          (§ 4); each value has the declared type.
       - name: target
         type: ratchet.specification.TargetSpec
       - name: observation
         type: ratchet.specification.ObservationPlan
-      - name: measurement
-        type: ratchet.specification.Measurement
+      - name: measurements
+        type: Map<String, ratchet.specification.Measurement>
+        summary: Keyed by measurement name (`ratchet.specification.MeasurementName`).
     relations:
       - name: subject
         kind: references
@@ -449,7 +777,8 @@ entities:
       summary: >-
         A condition the project expects to hold, such as p95 latency below 100 ms, zero new
         analyzer findings of a severity, or a scenario passing (§ 1). It says what must hold;
-        its assessment plan says how to know (§ 3).
+        its assessment plan says how to know (§ 3). It compares in up to two ways and both must
+        hold: `condition` with a fixed limit, `reference` with the protected reference.
     provided: true
     identity:
       name: requirement
@@ -457,35 +786,37 @@ entities:
     fields:
       - name: project
         type: ratchet.specification.ProjectName
-      - name: assessment
-        type: ratchet.specification.AssessmentName
-      - name: condition
-        type: ratchet.specification.Condition
-      - name: reference
-        type: Optional<ratchet.specification.ReferenceDeclaration>
-        summary: Absent for a requirement against an absolute limit only.
-      - name: policy
-        type: Optional<ratchet.specification.RatchetPolicy>
-      - name: planted_defects
-        type: Optional<List<String>>
-        summary: >-
-          Inputs the assessor must refuse; `ratchet prove` runs them (§ 4 "Proof that a check
-          can fail").
-        # UNMAPPED: § 4 says a requirement "can declare planted defects, which are inputs the
-        # assessor must refuse", and gives no shape for one (a path, a mutation, a broken copy
-        # of a manifest). A list of strings is a placeholder.
       - name: meaning
         type: Optional<String>
         summary: The requirement in plain words, which `ratchet explain` prints.
-        # UNMAPPED: docs/product-brainstorm.md § 3 and § 5 ask for a requirement's
-        # plain-language meaning, and § 4 for the plain-language quality statement it serves;
-        # docs/design.md gives the requirement no such field and has no noun for the statement.
+      - name: serves
+        type: List<ratchet.specification.StatementName>
+        summary: The quality statements this requirement serves; empty when the YAML has no `serves`.
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+      - name: measurement
+        type: Optional<ratchet.specification.MeasurementName>
+        summary: The measurement of the plan; may be left out when the plan has one (§ 3).
+      - name: condition
+        type: Optional<ratchet.specification.Condition>
+      - name: reference
+        type: Optional<ratchet.specification.ReferenceDeclaration>
+        summary: >-
+          Valid without a `condition` for a number and for a digest (§ 3 "Comparisons").
+      - name: planted_defects
+        type: Optional<List<ratchet.specification.PlantedDefect>>
+        summary: Inputs the assessor must refuse; `ratchet prove` runs them (§ 4).
     relations:
       - name: assessment
         kind: references
         target: ratchet.specification.AssessmentPlan
         cardinality: one
         via: assessment
+      - name: serves
+        kind: references
+        target: ratchet.specification.QualityStatement
+        cardinality: many
+        via: serves
     lifecycle:
       initial: Declared
       states: [Declared]
@@ -496,7 +827,9 @@ entities:
       summary: >-
         A decision at a workflow stage, such as merge or promotion, that requires specified
         verdicts before a candidate can advance. It lists each requirement as enforce or report
-        (§ 1, § 5).
+        (§ 1, § 5). A candidate gate judges one candidate; an operational gate judges a host or
+        a population and never decides whether a candidate advances. A gate declares no
+        exception, and a preset declares no gate (§ 4).
     provided: true
     identity:
       name: gate
@@ -504,11 +837,24 @@ entities:
     fields:
       - name: project
         type: ratchet.specification.ProjectName
+      - name: kind
+        type: Optional<ratchet.specification.GateKind>
+        summary: "`candidate` by default (§ 5 \"Gate kinds\")."
       - name: stage
         type: ratchet.specification.Stage
       - name: qualifying_environments
         type: List<ratchet.specification.TargetClass>
-        summary: The target classes whose evidence qualifies for this gate (§ 3).
+        summary: >-
+          The target classes whose evidence qualifies (§ 3). The classes of a requirement are
+          those the gate lists and its plan runs in; `ratchet validate` reports a requirement
+          that has none.
+      - name: evidence
+        type: Optional<ratchet.specification.DecidingEvidence>
+        summary: >-
+          Which results decide when a requirement has several classes: `any` passes on one
+          class's pass, `all` needs a pass from each. A fail from a qualifying class is a fail
+          in both settings (§ 5). `any` when absent: D3 of docs/design.md § 9, decided A by the
+          owner on 2026-11-24.
     relations:
       - name: requires
         kind: owns
@@ -523,8 +869,11 @@ entities:
   - name: ratchet.specification.GateRequirement
     naming:
       summary: >-
-        One entry of a gate's `requires:` list: a requirement and its mode. A report-mode entry
-        is evaluated and shown with its verdict and does not block (§ 5 "Gate modes").
+        One entry of a gate's `requires:` list: a requirement name, which means enforce, or a
+        map with `requirement`, `mode`, `since` and `when` (§ 5). A report-mode entry is
+        evaluated and shown with its verdict and does not block. An entry whose `when` does not
+        match the change is not applicable: not evaluated, not blocking, and listed with the
+        reason.
     provided: true
     identity:
       name: entry
@@ -540,7 +889,12 @@ entities:
       - name: since
         type: Optional<ratchet.specification.CalendarDate>
         summary: >-
-          For report mode, the date since which the requirement has not been enforced (§ 5).
+          Required with report mode: the date since which the requirement has not been
+          enforced (§ 5). `ratchet validate` reports a report-mode entry without it.
+      - name: when
+        type: Optional<ratchet.specification.ChangedPaths>
+    invariants:
+      - any: ["mode == enforce", "defined(since)"]
     relations:
       - name: requirement
         kind: references
@@ -556,15 +910,15 @@ entities:
     naming:
       summary: >-
         An accepted departure from a requirement: a waived finding, a known-failing case, a
-        raised limit, an allowlist entry or a worse accepted value. It carries a reason, an
-        owner reference and an expiry date; past the expiry it no longer applies (§ 1, § 5,
-        § 6).
+        raised limit, an allowlist entry or a worse accepted value. An entry of the
+        specification and not a record of its own; a gate decision copies the exceptions it
+        applied (§ 1, § 5, § 6). Active or expired is computed from the date at evaluation and
+        not stored, so no command moves it and it has one lifecycle state. Adding or extending
+        one is a policy change.
     provided: true
     identity:
       name: exception
       type: ratchet.specification.ExceptionId
-      # UNMAPPED: the § 3 YAML lists exceptions without an id and § 6 says every record has a
-      # stable id; nothing says who assigns it or how.
     fields:
       - name: project
         type: ratchet.specification.ProjectName
@@ -578,29 +932,90 @@ entities:
       - name: value
         type: Optional<ratchet.specification.Condition>
         summary: >-
-          The excepted value: a raised limit, or the condition that holds in place of the
-          requirement's while the exception applies. A proposal; § 6 says "excepted item or
-          value" and gives no shape for the value.
+          For a raised limit, the condition that holds in place of the requirement's while the
+          exception applies (§ 5).
       - name: reason
         type: String
       - name: owner
         type: ratchet.specification.OwnerRef
+        summary: >-
+          A story or decision id. An added or extended exception is a loosening: it lands in a
+          change of its own, merged before the candidate, and the forge's review of that
+          change is the authorization (D2 of docs/design.md § 9, decided A by the owner on
+          2026-11-24). Hence no `authorized_by` field.
       - name: created
         type: Optional<ratchet.specification.CalendarDate>
+        summary: >-
+          Where the age is counted from; without it, the revision that added the entry (§ 5).
       - name: expires
         type: ratchet.specification.CalendarDate
-      - name: authorized_by
-        type: Optional<ratchet.specification.DecisionRef>
-        summary: The decision that authorized it; adding or extending one is a policy change (§ 5).
+        summary: >-
+          A date only; an exception does not end at an event (D4 of docs/design.md § 9,
+          decided A by the owner on 2026-11-24).
     relations:
       - name: requirement
         kind: references
         target: ratchet.specification.QualityRequirement
         cardinality: one
         via: requirement
-    # Active or expired is not a stored state: `ratchet evaluate` compares `expires` with the
-    # evaluation date (§ 5), so an exception expires without any command moving it. Hence one
-    # lifecycle state.
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: ratchet.specification.Preset
+    naming:
+      summary: >-
+        A reusable part of a specification in the catalog `presets/` (§ 1, § 2, § 4): a
+        ratchet/1 document with a `preset` block in place of `project`, holding a name, a
+        version and declared `inputs`. Its statements, assessments and requirements refer to an
+        input as `${inputs.<name>}`. It declares no gate and no exception. New in revision 3
+        and untested by any example.
+    provided: true
+    identity:
+      name: preset
+      type: ratchet.specification.PresetRef
+    fields:
+      - name: name
+        type: String
+      - name: version
+        type: String
+      - name: inputs
+        type: List<ratchet.specification.InputDeclaration>
+        summary: The declared inputs, with the shape of an assessor's inputs.
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: ratchet.specification.PresetBinding
+    naming:
+      summary: >-
+        A project's binding of a preset under a name (§ 4): `use`, the `digest` of the preset
+        file, and `with`, the values of its declared inputs. A resolved preset with another
+        digest is a validation error; the local config says where to look and cannot change
+        what is found.
+    provided: true
+    identity:
+      name: binding
+      type: ratchet.specification.PresetBindingName
+    fields:
+      - name: project
+        type: ratchet.specification.ProjectName
+      - name: use
+        type: ratchet.specification.PresetRef
+      - name: digest
+        type: String
+        summary: "`sha256:<digest of the preset file>`."
+      - name: with
+        type: Optional<Map<String, Json>>
+        summary: The preset's inputs by name; the only way a project changes its behaviour.
+    relations:
+      - name: use
+        kind: references
+        target: ratchet.specification.Preset
+        cardinality: one
+        via: use
     lifecycle:
       initial: Declared
       states: [Declared]
