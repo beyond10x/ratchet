@@ -28,7 +28,9 @@ gates:
 
 ## Status
 
-Design phase. Nothing is implemented; field names and commands are proposals.
+Implementation started on 2026-11-24. Nothing is released yet; field names and commands are
+proposals until a release ships them. [ROADMAP.md](ROADMAP.md) has the first consumer, the waves
+and what 0.1.0 holds.
 
 - [vision.md](vision.md): what Ratchet is for
 - [docs/design.md](docs/design.md): the design proposal, revised from survey 1
