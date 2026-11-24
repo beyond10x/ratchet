@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:assess-command
 kind: story
-status: draft
+status: active
 title: 'ratchet assess: run an assessor and record its evidence'
 summary: The invocation and exit-status contract of docs/evidence-format.md § 10, observe mode output.
 relations:
@@ -18,7 +18,10 @@ scope:
   path: crates/ratchet/tests/assess.rs
 - confidence: cited
   path: crates/ratchet/tests/fixtures/assess
-revision: 2
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Context
 
@@ -29,12 +32,15 @@ exit status means, and which document the CLI writes when the assessor left none
 
 ## Acceptance
 
-In a fixture project whose assessor is a POSIX sh script, `ratchet assess` exits 0, writes one
+The test run of the `ratchet` binary crate lists as passed `assess::records_run` (in a fixture
+project whose assessor is a POSIX sh script, `ratchet assess` exits 0, writes one
 `ratchet-evidence/1` record per plan into the local record directory and prints per measurement
-and scope item the value with its unit and the record id; and for an assessor that exits 1, exits
-2, exits 0 without a document, and exits 0 with a document that breaks its declaration, the
-recorded run has the completion `refused_inputs`, `stopped_by_infrastructure`,
-`stopped_by_infrastructure` and `stopped_by_infrastructure`, and no result.
+and scope item the value with its unit and the record id), `assess::report_file` (`--report
+<file>` records an existing document after the same checks without starting the assessor, and a
+document that breaks a rule is not recorded as complete), and one test per row of
+`docs/evidence-format.md` § 10 "Exit status": an assessor that exits 1 is recorded as
+`refused_inputs`, one that exits 2, exits 0 without a document, or exits 0 with a document that
+breaks its declaration as `stopped_by_infrastructure`, each with no result.
 
 ## Scope
 
@@ -42,13 +48,14 @@ recorded run has the completion `refused_inputs`, `stopped_by_infrastructure`,
   with a time limit, check the document against the rules (`story:evidence-reader`) and the
   declaration (`story:assessor-declaration`), record it
 - `crates/ratchet/src/commands/assess.rs`
-- `crates/ratchet/tests/`: module `assess`, fixtures under `tests/fixtures/assess/`
+- `crates/ratchet/tests/assess.rs`, fixtures under `crates/ratchet/tests/fixtures/assess/`
 
 ## Notes
 
+- `crates/ratchet/tests/main.rs`, `crates/ratchet/src/commands/mod.rs`, `Cargo.toml` and
+  `Cargo.lock` are not edited: the skeleton declared the test module, wired the command and
+  declared the dependencies. The child process and its time limit use the standard library.
 - `--assessments` selects plans; `--candidate` gives the revision, HEAD by default.
-- `--report <file>` records a document that already exists, after the same checks, without
-  starting the assessor.
 - `[tools]` of `ratchet.toml` says how a `command` is started on this machine; without an entry
   the `command` of the declaration is looked up in `PATH`.
 - The class is `ci` when a CI environment is detected, else `[environment] class`, else `local`
@@ -58,3 +65,4 @@ recorded run has the completion `refused_inputs`, `stopped_by_infrastructure`,
   and where the design should name it).
 - Red first. Budget: no test over 60 s, the step within 120 s; the sh assessors copy a prepared
   file and start no tool.
+- No `CHANGELOG.md` line here: `story:acceptance-in-gate` writes the lines of the slice.

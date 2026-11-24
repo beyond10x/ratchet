@@ -7,7 +7,7 @@ title: The first consumer's UI loop runs on ratchet
 summary: An acceptance run in the shape of slot's web UI ratchet, counted per step, then part of the gate.
 relations:
 - decomposes: initiative:first-milestone
-revision: 1
+revision: 2
 ---
 ## Context
 
@@ -30,5 +30,5 @@ how to do the same.
 
 ## Done when
 
-`story:ui-loop-acceptance` and `story:acceptance-in-gate` are implemented, and 0.1.0 is released
-with every step of the acceptance run passing.
+`story:ui-loop-acceptance` and `story:acceptance-in-gate` are implemented. The release that
+carries them is `story:release-0-1-0` of `epic:release-line`.

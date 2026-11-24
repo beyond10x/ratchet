@@ -5,7 +5,7 @@ kind: initiative
 status: draft
 title: 'First milestone: observe, adopt a gate, reject a regression, record an improvement'
 summary: vision.md § First milestone, ordered by the gaps of the first consumer, the web UI loop of slot.
-revision: 1
+revision: 2
 ---
 ## Context
 
@@ -47,6 +47,9 @@ Every epic that decomposes this initiative is implemented, and the first consume
 ## Releases
 
 - 0.1.0: consumer gap 1 end to end (observe, adopt a gate, reject a regression with the evidence
-  named). Epics `runnable-cli`, `observe-adopt-reject`, `first-consumer-ui-loop`, `release-line`.
-- Later releases: `improvement-and-policy` (consumer gaps 2, 3 and 5), then the integrations
-  `generated-artifact`, `ci-turnaround` (consumer gap 4), `analyzer-findings`, `ess-ui-behavior`.
+  named), with the command that writes a tightened reference (part of gap 2) and a percent
+  tolerance per key (part of gap 5). Epics `runnable-cli`, `observe-adopt-reject`,
+  `first-consumer-ui-loop`, `release-line`.
+- Later releases: `improvement-and-policy` (the rest of gap 2: the fail when a better value was
+  not adopted; gap 3; the rounding rule of gap 5), then the integrations `generated-artifact`,
+  `ci-turnaround` (consumer gap 4), `analyzer-findings`, `ess-ui-behavior`.

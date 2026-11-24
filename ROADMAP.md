@@ -17,25 +17,33 @@ Second consumer: [`uxui`](https://github.com/beyond10x/uxui), whose assessor wri
 
 ## Waves to 0.1.0
 
-1. `story:cli-skeleton-validate`, `story:record-formats-in-spec`: a project can run
-   `ratchet validate`; the command surface and the model are generated from `spec/` and checked for
-   drift; the record formats are declared.
-2. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`,
-   `story:ui-loop-acceptance`, `story:changelog-release-procedure`: evidence files are read and
-   checked, values are compared with a reference, the consumer's loop is an acceptance run that
-   counts its passing steps, the release procedure is written.
-3. `story:assess-command`, `story:reference-adopt-command`, `story:evaluate-command`: observe,
-   adopt a first reference, reject a regression from the trusted revision's policy.
-4. `story:acceptance-in-gate`: the acceptance run passes 7 of 7 inside the gate; getting-started
-   page. Then 0.1.0 is cut.
+The order is the one `aep plan artifact waves --kind story` derives.
+
+1. `story:record-formats-in-spec`: every specification change 0.1.0 needs, in one change. Each
+   generated file carries a digest of the whole specification, so the specification settles before
+   code is generated from it.
+2. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the command surface and the
+   model are generated from `spec/` and checked for drift.
+3. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`,
+   `story:changelog-release-procedure`: evidence files are read and checked, a plan is checked
+   against its assessor's declaration, values are compared with a reference, the release procedure
+   is written.
+4. `story:assess-command`, `story:reference-adopt-command`, `story:evaluate-command`,
+   `story:ui-loop-acceptance`: observe, adopt a reference, reject a regression from the trusted
+   revision's policy; the consumer's loop is an acceptance run that counts its passing steps.
+5. `story:acceptance-in-gate`: the acceptance run passes 7 of 7 inside the gate; getting-started
+   page.
+6. `story:release-0-1-0`: the release, by `AGENTS.md` § "Release".
 
 Acceptance run `ui-loop`: not built yet (0 of 7 steps).
 
 ## Releases
 
-- **0.1.0**: `validate`, `assess`, `reference adopt` (first adoption), `evaluate --gate` for exact
-  numbers and identity sets; formats `ratchet/1`, `ratchet-evidence/1`, `ratchet-assessor/1`,
-  `ratchet-reference/1`; Linux archives with checksums. Closes consumer gap 1.
-- **After 0.1.0**, in this order: `epic:improvement-and-policy` (record an improvement, exceptions,
-  trade-offs; consumer gaps 2, 3, 5), `epic:generated-artifact`, `epic:ci-turnaround` (insufficient
-  evidence under host load; consumer gap 4), `epic:analyzer-findings`, `epic:ess-ui-behavior`.
+- **0.1.0**: `validate`, `assess`, `reference adopt` (first adoption and tightening of an exact
+  measurement), `evaluate --gate` for exact numbers and identity sets, with an absolute or percent
+  tolerance; formats `ratchet/1`, `ratchet-evidence/1`, `ratchet-assessor/1`, `ratchet-reference/1`;
+  Linux archives with checksums. Closes consumer gap 1.
+- **After 0.1.0**, in this order: `epic:improvement-and-policy` (the gate fails when a better value
+  was not adopted, exceptions, trade-offs; consumer gaps 2, 3, 5), `epic:generated-artifact`,
+  `epic:ci-turnaround` (insufficient evidence under host load; consumer gap 4),
+  `epic:analyzer-findings`, `epic:ess-ui-behavior`.

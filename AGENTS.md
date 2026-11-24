@@ -93,6 +93,10 @@ evidence; fail takes precedence over insufficient evidence.
 classifier in `pages.yml`) and `task site` (`npm ci` and `npm run build` in `website/`, the build
 CI runs). Run it as `slot task check`. Edit the store only through `aep plan artifact`.
 
+Every `aep` command that writes runs with `AEP_ACTOR=agent:ratchet` in its environment. Without
+it the store records `human:<login>` in each transition and evidence record, which puts a
+person's login name into a public repository.
+
 ## Commits
 
 Every commit and push is `b10x-bot[bot]`'s through `b10x-gates bot -- <git command>`; every other

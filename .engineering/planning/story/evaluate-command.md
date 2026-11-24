@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:evaluate-command
 kind: story
-status: draft
+status: active
 title: 'ratchet evaluate --gate: verdict from the trusted revision''s policy'
 summary: Pass, fail or insufficient evidence with requirement, scope item, observed, allowed, cause and evidence id.
 relations:
@@ -19,9 +19,10 @@ scope:
   path: crates/ratchet/tests/evaluate.rs
 - confidence: cited
   path: crates/ratchet/tests/fixtures/evaluate
-- confidence: cited
-  path: docs/design.md
-revision: 2
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6}
 ---
 ## Context
 
@@ -48,23 +49,27 @@ id of the evidence record; exits 1 with the code `insufficient_evidence` and the
   qualifying run per requirement, compare (`story:reference-compare`), compute the verdict of the
   gate (fail before insufficient evidence), build the typed report
 - `crates/ratchet/src/commands/evaluate.rs`
-- `crates/ratchet/tests/`: module `evaluate`; the fixture repository is built once per test run
-  under `target/`, keyed by a digest of its sources
-- `docs/design.md` § 5: the default of `--trusted`, and the two readings `story:reference-compare`
-  reports
+- `crates/ratchet/tests/evaluate.rs`, fixtures under `crates/ratchet/tests/fixtures/evaluate/`;
+  the fixture repository is built once per test run under `target/`, keyed by a digest of its
+  sources
 
 ## Notes
 
+- `crates/ratchet/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited: the skeleton
+  declared the test module and wired the command. The trusted revision is read through the `git`
+  binary, in `gate.rs`, and handed to the `spec` module as a source of file contents;
+  `crates/ratchet-core/src/spec.rs` is not edited.
+- `docs/design.md` is not edited: the default of `--trusted` (the merge base of `HEAD` and
+  `origin/main`) and the cause of a requirement with no qualifying run are in design § 5 and
+  `spec/domains/gate.yaml` since `story:record-formats-in-spec`.
 - Evidence qualifies when its `candidate` is the candidate revision, its class is one of the
   gate's `qualifying_environments`, its run is complete and its coverage meets the plan's bounds;
   otherwise the cause is the one design § 5 "Verdicts" gives (`coverage_below_plan`, the
-  completion's cause, or no run: `reference_missing` is not used for a missing run; the story
-  names the cause it uses and writes it into the design if the list lacks one).
+  completion's cause, or the cause of a missing run).
 - `evidence: any` over the gate's classes (D3 decided A).
 - Report-mode entries are evaluated and listed with their verdict and `since`, and do not block.
-- Decision this story takes and reports: the default of `--trusted` when it is absent. Proposed:
-  the merge base of HEAD and `origin/main`, written into `docs/design.md` § 5.
 - Not here: `when`, exceptions, operational gates, `local_skips_refused`, the stale-reference
   fail.
 - Red first, with the fourth case (a candidate that loosens its own policy) written before the
   reader of the trusted revision exists. Budget: no test over 60 s, the step within 120 s.
+- No `CHANGELOG.md` line here: `story:acceptance-in-gate` writes the lines of the slice.

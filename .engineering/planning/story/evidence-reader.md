@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:evidence-reader
 kind: story
-status: draft
+status: active
 title: Read and check ratchet-evidence/1, record id, local record directory
 summary: The reader with rules 1 to 7 and 9, both digests, and the hand-over directory.
 relations:
@@ -22,7 +22,10 @@ scope:
   path: crates/ratchet-core/tests/fixtures/evidence
 - confidence: cited
   path: crates/ratchet-core/tests/store.rs
-revision: 2
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Context
 
@@ -35,10 +38,13 @@ later step reads them.
 
 ## Acceptance
 
-A test reads the example document of `docs/evidence-format.md` § 6 from a fixture file and gets
-its typed results, record id and evidence digest, and for each of the rules 1 to 7 and 9 a
-fixture that breaks that one rule is rejected with the number of the rule and the JSON path of
-the member.
+The test run of `ratchet-core` lists as passed `evidence::reads_example` (the example document of
+`docs/evidence-format.md` § 6 yields its typed results, its record id and its evidence digest),
+one test `evidence::rule_<n>_rejected` for each of the rules 1 to 7 and 9 (a fixture that breaks
+that one rule is rejected with the number of the rule and the JSON path of the member), and
+`store::write_list_read` (a document written to the local record directory is listed among the
+runs of its assessment under its record id and read back byte-identical, in the directory
+`[records] store` names and in `.ratchet/records` without it).
 
 ## Scope
 
@@ -46,17 +52,21 @@ the member.
 - `crates/ratchet-core/src/store.rs`: the local record directory. Write a document under its
   record id, list the runs of an assessment, read one. The directory is `[records] store` of
   `ratchet.toml` when it names a path, else `.ratchet/records` under the root
-- `crates/ratchet-core/tests/`: module `evidence`, module `store`, fixtures under
-  `tests/fixtures/evidence/`
+- `crates/ratchet-core/tests/evidence.rs`, `crates/ratchet-core/tests/store.rs`, fixtures under
+  `crates/ratchet-core/tests/fixtures/evidence/`
 
 ## Notes
 
+- `crates/ratchet-core/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited: the
+  skeleton declared the test modules and the SHA-256 dependency.
 - Decoding goes through the generated decoders of `crates/ratchet-model`
-  (`story:record-formats-in-spec` declares the fields). A member of `evidence` the reader does not
-  know is rejected, a member of `run` it does not know is ignored (§ 1 "Version").
+  (`story:record-formats-in-spec` declares the fields, the target kind `document` among them). A
+  member of `evidence` the reader does not know is rejected, a member of `run` it does not know
+  is ignored (§ 1 "Version").
 - Decimals stay text; no value passes through a float.
-- Red first: the rule fixtures fail before the reader exists.
+- Red first: the tests fail before the reader exists.
 - Budget: no test over 60 s, the step within 120 s; these tests read files only.
 - The check of a document against an assessor's declaration is in `story:assess-command`.
-- Decision this story may take and must report: the layout of the local record directory
-  (design § 6 names the hand-over and not its layout).
+- Decision this story takes and reports: the layout of the local record directory (design § 6
+  names the hand-over and not its layout).
+- No `CHANGELOG.md` line here: `story:acceptance-in-gate` writes the lines of the slice.

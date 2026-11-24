@@ -2,9 +2,9 @@
 format: aep.planning-md/3
 id: story:acceptance-in-gate
 kind: story
-status: draft
+status: active
 title: The acceptance run joins the gate; getting-started page
-summary: task check runs the seven steps at 7 of 7, and the documentation shows them.
+summary: task check runs the seven steps at 7 of 7, a getting-started page checked against the run, the changelog lines of the slice.
 relations:
 - decomposes: epic:first-consumer-ui-loop
 - depends_on: story:ui-loop-acceptance
@@ -13,6 +13,8 @@ relations:
 - depends_on: story:evaluate-command
 - depends_on: story:changelog-release-procedure
 scope:
+- confidence: cited
+  path: .github/scripts/getting-started.test.sh
 - confidence: cited
   path: CHANGELOG.md
 - confidence: cited
@@ -27,7 +29,10 @@ scope:
   path: website/docusaurus.config.ts
 - confidence: cited
   path: website/sidebars.ts
-revision: 2
+revision: 7
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Context
 
@@ -37,26 +42,30 @@ breaks the consumer's loop must fail the gate, and a project needs a page that s
 
 ## Acceptance
 
-`slot task check` runs `task acceptance:ui-loop` and exits 0 with the line `acceptance ui-loop: 7 of 7
-steps pass`, and the documentation site has a page "Getting started" whose commands are the seven
-steps and whose command output blocks are compared with the acceptance run's output by a check in
-the gate.
+`slot task check` exits 0 and its output holds the line `acceptance ui-loop: 7 of 7 steps pass`
+and the line `getting-started: <n> of <n> command blocks match` printed by
+`.github/scripts/getting-started.test.sh`, which compares every command and output block of
+`docs/getting-started.md` with `target/acceptance/ui-loop/transcript.txt`, the transcript `task
+acceptance:ui-loop` writes since `story:ui-loop-acceptance`.
 
 ## Scope
 
 - `Taskfile.yml`: `check` calls `acceptance:ui-loop`
+- `.github/scripts/getting-started.test.sh`: POSIX sh, run by `check:scripts` after the
+  acceptance run
 - `docs/getting-started.md`, `website/docusaurus.config.ts`, `website/sidebars.ts`: the page and
   its route (`AGENTS.md`, ownership table, row `website/`)
 - `README.md`: § "Status" says what 0.1.0 does and what it does not do yet
 - `ROADMAP.md`: wave closed, next waves
-- `CHANGELOG.md`: the entries of the slice under `## [Unreleased]`, if a story left one out
+- `CHANGELOG.md`: every line of the slice under `## [Unreleased]`, one per story of
+  `epic:runnable-cli`, `epic:observe-adopt-reject` and `epic:first-consumer-ui-loop`
 
 ## Notes
 
 - A step that still fails here is a defect in the story that owns the command; it is fixed there
   first, with a test that failed before.
 - The page states only what the acceptance run shows. It names what is not built (design § 5
-  "Proposed CLI", the commands that answer with a refusal).
+  "Proposed CLI", the commands that return the unavailable answer).
 - Budget: the gate's test step, with the acceptance run in it, ends within 120 s.
-- After this story merges green on `main`, 0.1.0 is cut by the release procedure of
-  `story:changelog-release-procedure`.
+- No Python.
+- `story:release-0-1-0` follows this story.

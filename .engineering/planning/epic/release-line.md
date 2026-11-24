@@ -7,7 +7,7 @@ title: Changelog, release procedure and release 0.1.0
 summary: CHANGELOG.md, AGENTS.md § Release, a tag workflow that builds archives, and the first release.
 relations:
 - decomposes: initiative:first-milestone
-revision: 1
+revision: 2
 ---
 ## Context
 
@@ -19,18 +19,20 @@ a bare SemVer tag made by the bot, and a GitHub release whose archives a tag wor
 ## Outcome
 
 `CHANGELOG.md` exists with `## [Unreleased]`, `AGENTS.md` has a § "Release" a session can follow
-without asking, a tag workflow builds the `ratchet` archives for Linux with checksums, and 0.1.0
-is released when the slice of `epic:observe-adopt-reject` is green on `main` with the acceptance
-run at 7 of 7.
+without asking, a tag workflow builds the `ratchet` archives for Linux with checksums
+(`story:changelog-release-procedure`), and 0.1.0 is released when the slice of
+`epic:observe-adopt-reject` is green on `main` with the acceptance run at 7 of 7
+(`story:release-0-1-0`).
 
 ## What 0.1.0 holds
 
-`ratchet validate`, `ratchet assess`, `ratchet reference adopt` (first adoption) and `ratchet
-evaluate --gate` for exact numbers and identity sets, with the formats `ratchet/1`,
-`ratchet-evidence/1`, `ratchet-assessor/1` and `ratchet-reference/1` as read by that slice. The
-other 12 commands are declared and answer with a refusal.
+`ratchet validate`, `ratchet assess`, `ratchet reference adopt` (first adoption and tightening of
+an exact measurement) and `ratchet evaluate --gate` for exact numbers and identity sets, with the
+formats `ratchet/1`, `ratchet-evidence/1`, `ratchet-assessor/1` and `ratchet-reference/1` as read
+by that slice. The other 12 commands are declared and return the generated adapter's
+"unavailable" answer.
 
 ## Done when
 
-`story:changelog-release-procedure` is implemented and the release 0.1.0 exists, authored by the
-bot, with its archives and checksums attached.
+`story:changelog-release-procedure` and `story:release-0-1-0` are implemented: the release 0.1.0
+exists, authored by the bot, with its archives and checksums attached.
