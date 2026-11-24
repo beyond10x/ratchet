@@ -5,3 +5,10 @@ tasks:
     desc: Run the repository gate.
     cmds:
       - aep plan artifact validate
+      - task: check:spec
+
+  check:spec:
+    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands.
+    cmds:
+      - ess specify validate --path spec --strict-requires
+      - ess specify cli --path spec --binding spec/cli.yaml --strict-requires

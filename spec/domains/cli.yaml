@@ -2,15 +2,14 @@ domain: ratchet.cli
 
 summary: >-
   The typed inputs, results and refusals of the `ratchet` command line, which the ess-cli/2
-  binding in `spec/cli.yaml` presents (docs/design.md § 5 "Proposed CLI",
-  docs/product-brainstorm.md § 3). A presentation projection over the other domains, not a
-  model of its own: it declares no entity.
+  binding in `spec/cli.yaml` presents (docs/design.md § 5 "Proposed CLI"). A presentation
+  projection over the other domains, not a model of its own: it declares no entity.
 
 # ess-cli projects String, Boolean, Integer, enums, unconstrained newtypes and structs,
 # Optional, List, string-keyed Map, and Json in results only, never in error data. A Timestamp
-# is therefore written here as RFC 3339 text. A measured value is the JSON of
-# `ratchet.evidence.MeasuredValue` in results that are never error data, and a `ValueRow` or
-# `LimitRow` in those that are (the gate report).
+# is therefore written here as RFC 3339 text and a decimal as its exact text (§ 5 "Typed
+# reports"). A measured value is the JSON of `ratchet.evidence.MeasuredValue` in results that
+# are never error data, and a `ValueRow` or `LimitRow` in those that are (the gate report).
 
 types:
   - name: ratchet.cli.Refusal
@@ -18,7 +17,7 @@ types:
     naming:
       summary: >-
         Why a command refused, and the next step: what to fix or which evidence to recover
-        (product-brainstorm § 3, design § 5). It never repeats an argument value.
+        (design § 5). It never repeats an argument value.
     fields:
       - name: detail
         type: String
@@ -27,15 +26,11 @@ types:
 
   # A value without Json, for result types that are also error data (`gate_failed` carries the
   # gate report), where ess-cli refuses Json. Decimal numbers are their exact decimal text.
-  - name: ratchet.cli.ValueKind
-    kind: enum
-    variants: [number, identity_set, digest, assertion]
-
   - name: ratchet.cli.ValueRow
     kind: struct
     fields:
-      - name: kind
-        type: ratchet.cli.ValueKind
+      - name: value_type
+        type: ratchet.specification.ValueType
       - name: number
         type: Optional<String>
       - name: unit
@@ -67,7 +62,7 @@ types:
       - name: project
         type: Optional<ratchet.specification.ProjectName>
       - name: presets
-        type: Optional<List<String>>
+        type: Optional<List<ratchet.specification.PresetRef>>
         summary: Catalog presets to bind, each pinned, such as `web-ux@1`.
       - name: path
         type: Optional<String>
@@ -81,7 +76,7 @@ types:
       - name: spec_path
         type: String
       - name: presets
-        type: List<String>
+        type: List<ratchet.specification.PresetRef>
 
   # validate -----------------------------------------------------------------------------------
   - name: ratchet.cli.ValidateInput
@@ -89,27 +84,37 @@ types:
     fields:
       - name: spec
         type: Optional<String>
-        summary: One specification file; by default every path `ratchet.toml` lists.
+        summary: One specification file; by default every path of `[spec] paths` in `ratchet.toml`.
 
-  # design § 2 and § 5 "Proposed CLI", product-brainstorm § 4 layers 1 and 2.
   - name: ratchet.cli.ValidationLayer
     kind: enum
     variants: [shape, completeness]
 
+  # design § 2, § 3, § 4, § 5: what `ratchet validate` refuses or reports.
   - name: ratchet.cli.ValidationCode
     kind: enum
     variants:
       - schema_violation
       - unresolved_reference
+      - duplicate_id
       - kind_mismatch
       - unit_mismatch
       - scope_mismatch
+      - boundary_mismatch
       - target_binding_mismatch
       - assessor_configuration_invalid
+      - preset_digest_mismatch
+      - preset_input_invalid
       - sampled_without_conditions
+      - number_reference_without_better
+      - sampled_reference_without_tolerance
+      - sampled_reference_without_adoption
+      - report_mode_without_since
+      - requirement_without_qualifying_environment
       - exception_without_reason
       - exception_without_owner
       - exception_without_expiry
+      - statement_not_served
 
   - name: ratchet.cli.ValidationFinding
     kind: struct
@@ -120,7 +125,7 @@ types:
         type: ratchet.cli.ValidationLayer
       - name: location
         type: String
-        summary: The file and key path, such as `ratchet.yaml:assessments.test-step-time`.
+        summary: The file and key path, such as `ratchet.yaml:assessments.test-step`.
       - name: message
         type: String
 
@@ -140,7 +145,7 @@ types:
     fields:
       - name: assessments
         type: Optional<List<ratchet.specification.AssessmentName>>
-        summary: The assessment plans to run; every plan by default.
+        summary: The assessment plans to run; every plan by default, less the `[local] skip` ones.
       - name: candidate
         type: Optional<ratchet.specification.Revision>
       - name: report
@@ -150,8 +155,10 @@ types:
   - name: ratchet.cli.ResultRow
     kind: struct
     fields:
+      - name: measurement
+        type: ratchet.specification.MeasurementName
       - name: output
-        type: String
+        type: ratchet.specification.OutputName
       - name: kind
         type: ratchet.specification.MeasurementKind
       - name: scope
@@ -171,6 +178,7 @@ types:
         type: ratchet.specification.AssessmentName
       - name: completion
         type: ratchet.evidence.RunCompletion
+        summary: "`skipped_locally` is reported as \"skipped locally by ratchet.toml\" (§ 5)."
       - name: target_class
         type: ratchet.specification.TargetClass
       - name: coverage
@@ -201,6 +209,10 @@ types:
 
   - name: ratchet.cli.VerdictRow
     kind: struct
+    naming:
+      summary: >-
+        One gate entry in the report, with the same typed fields for a pass, a non-pass and an
+        entry that is not applicable (§ 5 "Typed reports").
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
@@ -208,8 +220,13 @@ types:
         type: ratchet.specification.GateMode
       - name: unenforced_since
         type: Optional<ratchet.specification.CalendarDate>
+      - name: entry_state
+        type: ratchet.gate.EntryState
+      - name: not_applicable_reason
+        type: Optional<String>
       - name: verdict
-        type: ratchet.gate.Verdict
+        type: Optional<ratchet.gate.Verdict>
+        summary: Absent when the entry is not applicable.
       - name: cause
         type: Optional<ratchet.gate.VerdictCause>
       - name: next_step
@@ -236,8 +253,8 @@ types:
       - name: proof
         type: ratchet.gate.ProofStatus
 
-  # design § 5 names active and expired exceptions; "expiring" (product-brainstorm § 3) is an
-  # active one inside `--within-days`.
+  # design § 5 names active and expired exceptions; "expiring" is an active one inside
+  # `--within-days`.
   - name: ratchet.cli.ExceptionStatus
     kind: enum
     variants: [active, expired]
@@ -257,6 +274,8 @@ types:
         type: ratchet.specification.CalendarDate
       - name: age_days
         type: Optional<Integer>
+        summary: >-
+          Counted from the entry's `created` date, or from the revision that added it (§ 5).
       - name: days_to_expiry
         type: Integer
         summary: Negative once expired.
@@ -268,13 +287,16 @@ types:
     naming:
       summary: >-
         What `ratchet evaluate` prints: the verdict, a summary line that says when report-mode
-        requirements fail, every requirement with its mode, and the active and expired
-        exceptions (§ 5).
+        requirements fail, every entry with its mode (report-mode, not applicable, enforced),
+        coverage, and the active and expired exceptions (§ 5). Fail precedes insufficient
+        evidence in the gate's verdict.
     fields:
       - name: decision
         type: ratchet.gate.DecisionId
       - name: gate
         type: ratchet.specification.GateName
+      - name: kind
+        type: ratchet.specification.GateKind
       - name: candidate
         type: ratchet.specification.Revision
       - name: policy_revision
@@ -288,9 +310,13 @@ types:
       - name: exceptions
         type: List<ratchet.cli.ExceptionRow>
 
-  # reference propose --------------------------------------------------------------------------
+  # reference propose and adopt ----------------------------------------------------------------
   - name: ratchet.cli.ProposeInput
     kind: struct
+    naming:
+      summary: >-
+        The input of `ratchet reference propose` and `ratchet reference adopt`: adopt writes
+        what propose with the same input prints (§ 5).
     fields:
       - name: requirement
         type: Optional<ratchet.specification.RequirementName>
@@ -298,6 +324,9 @@ types:
       - name: gains
         type: Optional<List<ratchet.specification.RequirementName>>
         summary: Present for a trade-off, the requirements whose gain it buys (§ 5).
+      - name: trade_off
+        type: Optional<ratchet.reference.TradeOffId>
+        summary: The trade-off's id; required with `gains`.
       - name: reason
         type: Optional<String>
         summary: The trade-off's reason; required with `gains`.
@@ -318,18 +347,25 @@ types:
         type: Json
       - name: evidence
         type: List<ratchet.evidence.RunId>
+      - name: needs_authorization
+        type: Boolean
+        summary: >-
+          A loosening that is not part of a trade-off: it lands in a change of its own, merged
+          before the candidate (D2, decided A by the owner on 2026-11-24).
 
   - name: ratchet.cli.TradeOffProposal
     kind: struct
     fields:
+      - name: trade_off
+        type: ratchet.reference.TradeOffId
       - name: reason
         type: String
       - name: owner
         type: ratchet.specification.OwnerRef
-      - name: loosened
-        type: List<ratchet.specification.RequirementName>
       - name: gains
-        type: List<ratchet.specification.RequirementName>
+        type: List<ratchet.reference.TradeOffEntry>
+      - name: loosens
+        type: List<ratchet.reference.TradeOffEntry>
 
   - name: ratchet.cli.ReferenceProposal
     kind: struct
@@ -338,6 +374,30 @@ types:
         type: List<ratchet.cli.ProposalRow>
       - name: trade_off
         type: Optional<ratchet.cli.TradeOffProposal>
+
+  - name: ratchet.cli.WrittenFile
+    kind: struct
+    fields:
+      - name: path
+        type: String
+        summary: Such as `ratchet/references/<requirement>.json` or `ratchet/trade-offs/<id>.json`.
+      - name: requirement
+        type: Optional<ratchet.specification.RequirementName>
+
+  - name: ratchet.cli.AdoptResult
+    kind: struct
+    naming:
+      summary: >-
+        What `ratchet reference adopt` wrote into the working tree: the reference records and
+        the trade-off record where there is one (§ 5). The reference change records follow when
+        the change reaches the trusted revision.
+    fields:
+      - name: written
+        type: List<ratchet.cli.WrittenFile>
+      - name: references
+        type: List<ratchet.reference.ReferenceId>
+      - name: trade_off
+        type: Optional<ratchet.reference.TradeOffId>
 
   # prove --------------------------------------------------------------------------------------
   - name: ratchet.cli.ProveInput
@@ -355,9 +415,11 @@ types:
       - name: proof
         type: ratchet.evidence.ProofId
       - name: planted
-        type: Integer
+        type: List<ratchet.specification.PlantedDefectId>
       - name: refused
-        type: Integer
+        type: List<ratchet.specification.PlantedDefectId>
+      - name: accepted
+        type: List<ratchet.specification.PlantedDefectId>
 
   - name: ratchet.cli.ProofReport
     kind: struct
@@ -372,9 +434,16 @@ types:
       - name: documents
         type: Optional<List<String>>
         summary: The documents holding marked blocks; every configured document by default.
+      - name: export
+        type: Optional<String>
+        summary: >-
+          The directory to write the static export of § 6 into: one page and one JSON data
+          document over the records. A proposal: the design names no flag for it.
       - name: check
         type: Optional<Boolean>
-        summary: Compare each block with a fresh one and write nothing (§ 5, § 6).
+        summary: >-
+          Compare each block and the export with a fresh one and write nothing; a committed
+          block or export is a generated reference (§ 5, § 6).
 
   - name: ratchet.cli.BlockRow
     kind: struct
@@ -386,11 +455,24 @@ types:
       - name: changed
         type: Boolean
 
+  - name: ratchet.cli.ExportRow
+    kind: struct
+    fields:
+      - name: page
+        type: String
+      - name: data
+        type: String
+        summary: The JSON data document; also the export a view across repositories reads (§ 6).
+      - name: changed
+        type: Boolean
+
   - name: ratchet.cli.RenderReport
     kind: struct
     fields:
       - name: blocks
         type: List<ratchet.cli.BlockRow>
+      - name: export
+        type: Optional<ratchet.cli.ExportRow>
 
   # status -------------------------------------------------------------------------------------
   - name: ratchet.cli.StatusInput
@@ -404,20 +486,23 @@ types:
     kind: struct
     naming:
       summary: >-
-        One requirement as `ratchet status` shows it (product-brainstorm § 3, § 5): verdict,
-        value against limit or reference, when last checked, by which run, in which
-        environment.
+        One requirement as `ratchet status` shows it (design § 5): verdict, value against limit
+        or reference, when last checked, by which run, in which environment, and whether it is
+        skipped locally.
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: verdict
         type: Optional<ratchet.gate.Verdict>
-        summary: Absent when no run qualifies yet.
+        summary: The last verdict; absent when no run qualifies yet.
       - name: skipped_locally
         type: Boolean
         summary: >-
-          `ratchet.toml` skipped it for this run. Shown beside the verdict, never as a pass
-          (product-brainstorm § 2).
+          `ratchet.toml` left its assessment out of runs on this machine. A state shown beside
+          the last verdict, never as a pass (§ 5 "Two states are not verdicts").
+      - name: observe_only
+        type: Boolean
+        summary: Listed in `[local] observe_only`; shown with its value and left out of the summary.
       - name: kind
         type: ratchet.specification.MeasurementKind
       - name: observed
@@ -461,19 +546,35 @@ types:
       - name: mode
         type: ratchet.specification.GateMode
 
+  - name: ratchet.cli.StatementRow
+    kind: struct
+    fields:
+      - name: statement
+        type: ratchet.specification.StatementName
+      - name: text
+        type: String
+
   - name: ratchet.cli.Explanation
     kind: struct
+    naming:
+      summary: >-
+        What `ratchet explain` prints: the requirement's `meaning`, the statements it serves,
+        its audience, how it is measured, and where its evidence is (§ 5).
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: meaning
         type: Optional<String>
+      - name: statements
+        type: List<ratchet.cli.StatementRow>
       - name: subject
         type: ratchet.specification.SubjectName
       - name: audiences
         type: List<ratchet.specification.AudienceName>
       - name: assessment
         type: ratchet.specification.AssessmentName
+      - name: measurement
+        type: ratchet.specification.MeasurementName
       - name: assessor
         type: ratchet.specification.AssessorRef
       - name: measurement_kind
@@ -483,7 +584,7 @@ types:
       - name: unit
         type: Optional<ratchet.specification.Unit>
       - name: condition
-        type: ratchet.cli.LimitRow
+        type: Optional<ratchet.cli.LimitRow>
       - name: reference_kind
         type: Optional<ratchet.specification.ReferenceKind>
       - name: gates
@@ -574,8 +675,7 @@ types:
         type: List<ratchet.cli.DiffRow>
 
   # doctor -------------------------------------------------------------------------------------
-  # product-brainstorm § 3: config, specs, tools, record store reachable; sampled plans without
-  # conditions.
+  # design § 5: the local config, the specifications, the tools and the record store reachable.
   - name: ratchet.cli.DoctorCheckKind
     kind: enum
     variants: [config, specs, tools, record_store, sampled_conditions]
@@ -597,16 +697,11 @@ types:
         type: List<ratchet.cli.DoctorCheck>
 
   # import -------------------------------------------------------------------------------------
-  # product-brainstorm § 3: forge runs, build-pool job logs, JUnit files.
-  - name: ratchet.cli.ImportSource
-    kind: enum
-    variants: [forge_runs, build_pool_log, junit]
-
   - name: ratchet.cli.ImportInput
     kind: struct
     fields:
       - name: source
-        type: ratchet.cli.ImportSource
+        type: ratchet.evidence.ImportSourceKind
       - name: assessment
         type: ratchet.specification.AssessmentName
         summary: The assessment plan the imported runs belong to.
@@ -620,7 +715,7 @@ types:
     kind: struct
     fields:
       - name: source
-        type: ratchet.cli.ImportSource
+        type: ratchet.evidence.ImportSourceKind
       - name: runs
         type: List<ratchet.evidence.RunId>
 

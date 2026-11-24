@@ -4,78 +4,155 @@ summary: >-
   Protected references and how they change: the accepted state regressions are compared with,
   the record of each change to one, and trade-offs (docs/design.md § 1, § 5, § 6).
 
+# Place (D1 of docs/design.md § 9, decided A by the owner on 2026-11-24): reference records and
+# trade-off records are files in the tree, one per requirement at
+# `ratchet/references/<requirement>.json` and one per trade-off at `ratchet/trade-offs/<id>.json`.
+# The gate reads the copy at the trusted revision (§ 5 rule 1). `ratchet reference propose`
+# writes nothing; `ratchet reference adopt` writes these files into the working tree. A
+# reference change becomes a record when its change reaches the trusted revision; the job that
+# appends records to `refs/ratchet/records` writes it (§ 6).
+#
+# Authorization (D2, decided A by the owner on 2026-11-24): a loosening never applies to the
+# candidate that carries it. It lands in a change of its own, merged before the candidate; the
+# forge's review of that change is the authorization. A regeneration, a tightening and a
+# trade-off whose gains the CLI checks need no separate authorization.
+
 types:
   - name: ratchet.reference.ReferenceId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of a protected reference record.
+      summary: >-
+        The id of a reference record as adopted, its type and a digest of its content (§ 6). The
+        file `ratchet/references/<requirement>.json` holds the requirement's current one.
 
   - name: ratchet.reference.ReferenceChangeId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of a reference change record.
+      summary: The id of a reference change record, its type and a digest of its content (§ 6).
 
   - name: ratchet.reference.TradeOffId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of a trade-off record.
+      summary: >-
+        The `id` of a trade-off record, such as `in-page-navigation`; the file is
+        `ratchet/trade-offs/<id>.json`.
 
-  # § 5 "Protected references" and "Policy changes": a first adoption from prior evidence; a
-  # candidate regenerating a generated reference; a candidate tightening an accepted value its
-  # own qualifying evidence meets (neither needs separate authorization); a loosening, which is
-  # a policy change; a loosening bought by a trade-off.
+  # § 6 "Reference change": first adoption, regeneration, tightening, loosening, trade-off.
   - name: ratchet.reference.ReferenceChangeKind
     kind: enum
     variants: [first_adoption, regeneration, tightening, loosening, trade_off]
 
-  - name: ratchet.reference.TradeOffGain
+  - name: ratchet.reference.ReferenceValue
     kind: struct
     naming:
-      summary: A requirement whose gain a trade-off buys, with the better value (§ 5).
+      summary: >-
+        One accepted value per scope item, as the § 3 record shows:
+        `{scope, item, value, unit}`. The value is text, so no decimal changes in a conversion;
+        for a generated reference it is the digest.
+    fields:
+      - name: scope
+        type: ratchet.specification.Scope
+      - name: item
+        type: Optional<String>
+        summary: The scope item, such as `ess-ui:partner-portal/search-by-name`.
+      - name: value
+        type: String
+      - name: unit
+        type: Optional<ratchet.specification.Unit>
+
+  - name: ratchet.reference.AcceptedItem
+    kind: struct
+    naming:
+      summary: >-
+        One item of an accepted identity set, keyed by the set's identity key. It can carry a
+        `reason` and an `owner`: an allowlist entry for a permanent false positive is such an
+        item. Adding an item is a loosening (§ 5).
+    fields:
+      - name: item
+        type: Json
+      - name: reason
+        type: Optional<String>
+      - name: owner
+        type: Optional<ratchet.specification.OwnerRef>
+
+  - name: ratchet.reference.LastChange
+    kind: struct
+    naming:
+      summary: >-
+        The context of a reference's last change, as the § 3 record shows:
+        `{kind, authorized_by}`, and the trade-off it belongs to where there is one.
+    fields:
+      - name: kind
+        type: ratchet.reference.ReferenceChangeKind
+      - name: authorized_by
+        type: Optional<ratchet.specification.DecisionRef>
+      - name: trade_off
+        type: Optional<ratchet.reference.TradeOffId>
+
+  - name: ratchet.reference.TradeOffEntry
+    kind: struct
+    naming:
+      summary: >-
+        One value of a trade-off, `{requirement, item, from, to}`: a requirement and, where it
+        has a value per scope item, the item, with the old and the new value as text (§ 5).
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
-      - name: value
-        type: ratchet.evidence.MeasuredValue
+      - name: item
+        type: Optional<String>
+      - name: from
+        type: String
+      - name: to
+        type: String
 
 entities:
   - name: ratchet.reference.ProtectedReference
     naming:
       summary: >-
-        An accepted state used for regression comparisons (§ 1): a generated reference, a
-        committed artifact a generator reproduces, compared by bytes or digest with tolerance
-        0; or an accepted value, a measured value, count or identity set, compared with a
-        tolerance per key. It has a revision, the conditions that produced it and the evidence
-        supporting its adoption. A gate reads it from the trusted revision (§ 5 rule 1).
+        A reference record (§ 5 "Reference records", format `ratchet-reference/1`): the
+        requirement, the kind, the revision it was adopted at, the values per scope item or the
+        items of a set, the conditions, the evidence ids and the context of its last change.
+        A generated reference names its committed files and is compared by bytes or digest with
+        tolerance 0; an accepted value is compared with a tolerance per key. A reference is
+        current or superseded by computation and not by a stored state: it is superseded when
+        a later reference change names it as the previous one, and no command moves it. Hence
+        one lifecycle state.
     identity:
       name: reference
       type: ratchet.reference.ReferenceId
     fields:
+      - name: format
+        type: String
+        summary: "`ratchet-reference/1`."
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: kind
         type: ratchet.specification.ReferenceKind
       - name: revision
         type: ratchet.specification.Revision
-      - name: artifact_path
-        type: Optional<String>
-        summary: For a generated reference, the committed file.
+        summary: The commit the value was adopted at.
+      - name: paths
+        type: Optional<List<String>>
+        summary: For a generated reference, the committed files.
       - name: values
-        type: List<ratchet.evidence.MeasurementResult>
-        summary: >-
-          The accepted values, one per scope item and key (§ 7 "exact values per scenario and
-          key"), or the digest of a generated reference.
+        type: Optional<List<ratchet.reference.ReferenceValue>>
+        summary: The accepted values per scope item; absent for an identity set.
+      - name: items
+        type: Optional<List<ratchet.reference.AcceptedItem>>
+        summary: The accepted set, in place of `values`, for an identity set.
       - name: conditions
         type: ratchet.evidence.ObservedConditions
-        summary: The toolchain, image, runner and host class that produced it (§ 5 rule 5).
+        summary: The tools, image, runner and host class that produced it (§ 5 rule 5).
       - name: evidence
         type: List<ratchet.evidence.RunId>
         summary: >-
-          The runs supporting its adoption, produced before the candidate (§ 5 rule 3); for
-          example the last 10 runs on the default branch.
+          The runs supporting its adoption, produced before the candidate (§ 5 rule 3), such as
+          the last 10 qualifying runs on the trusted revision.
+      - name: last_change
+        type: ratchet.reference.LastChange
     relations:
       - name: requirement
         kind: references
@@ -87,10 +164,6 @@ entities:
         target: ratchet.evidence.AssessmentRun
         cardinality: many
         via: evidence
-    # UNMAPPED: § 5 says an accepted reference "stays fixed until the next adoption decision",
-    # which retires it, and does not say whether a retired reference stays as a row (a
-    # Superseded state) or survives only as a reference change's `previous`. One state until
-    # the owner decides; a second needs the command that moves it.
     lifecycle:
       initial: Adopted
       states: [Adopted]
@@ -99,10 +172,11 @@ entities:
   - name: ratchet.reference.ReferenceChange
     naming:
       summary: >-
-        The record of one change to a protected reference (§ 6): requirement, kind, previous
-        and adopted references, supporting evidence, the gains a trade-off named, and the
-        revision or decision that authorized adoption. Regenerations and tightenings are
-        recorded too (§ 5).
+        The record of one change to a protected reference (§ 6): one requirement, the kind of
+        change, previous and adopted references, the conditions of the adopted one (on that
+        reference), supporting evidence, the trade-off it belongs to, and the revision or
+        decision that authorized adoption. Regenerations and tightenings are recorded too
+        (§ 5). A proposal is not a stored record.
     identity:
       name: change
       type: ratchet.reference.ReferenceChangeId
@@ -121,12 +195,12 @@ entities:
         summary: The supporting evidence (§ 6).
       - name: trade_off
         type: Optional<ratchet.reference.TradeOffId>
-        summary: The trade-off this change is part of, where it loosens a value one names.
+        summary: The trade-off this change belongs to; one change per requirement it loosens.
       - name: authorized_by
         type: Optional<ratchet.specification.DecisionRef>
         summary: >-
-          The revision or decision that authorized adoption. Absent only for a regeneration or
-          a tightening, which the gate verifies itself (§ 5).
+          The revision or decision that authorized adoption: for a loosening, the merge of its
+          own change (D2). Absent for a regeneration or a tightening, which the gate verifies.
     relations:
       - name: requirement
         kind: references
@@ -153,10 +227,6 @@ entities:
         target: ratchet.reference.TradeOff
         cardinality: one
         via: trade_off
-    # UNMAPPED: `ratchet reference propose` "produces an evidence-backed proposal" (§ 5), and
-    # § 3 says reference records are written by "the `ratchet reference` commands", plural; no
-    # command adopts a proposal and nothing says whether a proposal is itself a stored record
-    # (a Proposed state before Adopted). One state, Recorded, until that is decided.
     lifecycle:
       initial: Recorded
       states: [Recorded]
@@ -165,31 +235,33 @@ entities:
   - name: ratchet.reference.TradeOff
     naming:
       summary: >-
-        One reference change that accepts worse values for some requirements and names the
-        better values it buys (§ 1, § 5). The CLI checks both lists against the candidate's
-        evidence. It carries a reason and an owner reference; the loosened values become the
-        references, so it has no expiry.
+        A record that accepts worse values for some requirements and names the better values
+        it buys (§ 1, § 5, format `ratchet-trade-off/1`). `ratchet reference propose` with
+        gains named drafts it from the candidate's evidence and `ratchet reference adopt`
+        writes it; the CLI checks that the named gains are present and nothing outside
+        `loosens` got worse. The loosened values become the references, so it has no expiry.
     identity:
       name: trade_off
       type: ratchet.reference.TradeOffId
     fields:
+      - name: format
+        type: String
+        summary: "`ratchet-trade-off/1`."
       - name: project
         type: ratchet.specification.ProjectName
-      - name: revision
-        type: ratchet.specification.Revision
       - name: reason
         type: String
       - name: owner
         type: ratchet.specification.OwnerRef
       - name: gains
-        type: List<ratchet.reference.TradeOffGain>
-        summary: >-
-          The requirements whose gain it buys. The requirements it loosens are the reference
-          changes that name this trade-off.
-        # The gained requirement sits inside a struct element, which a relation's `via:` cannot
-        # name, so this link has no relation entry; `ratchet validate` resolves it.
+        type: List<ratchet.reference.TradeOffEntry>
+      - name: loosens
+        type: List<ratchet.reference.TradeOffEntry>
+        # The requirement of an entry sits inside a struct element, which a relation's `via:`
+        # cannot name, so these links have no relation entry; `ratchet validate` resolves them.
       - name: authorized_by
         type: Optional<ratchet.specification.DecisionRef>
+        summary: The decision that authorized it (§ 6).
     relations:
       - name: project
         kind: references

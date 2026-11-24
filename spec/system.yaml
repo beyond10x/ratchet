@@ -8,4 +8,5 @@ domains:
   - ratchet.evidence
   - ratchet.reference
   - ratchet.gate
+  - ratchet.config
   - ratchet.cli

@@ -1,13 +1,13 @@
 format: ess-cli/2
 binary: ratchet
 about: Specify software quality, assess it, and keep it from going backwards
-# Commands: docs/design.md § 5 "Proposed CLI" (init, validate, assess, evaluate, reference
-# propose, prove, render) and docs/product-brainstorm.md § 3 (status, explain, history, diff,
-# doctor, import, exceptions, serve). Every name, flag and field is a proposal.
+# Commands: docs/design.md revision 3, § 5 "Proposed CLI" (init, validate, assess, evaluate,
+# reference propose, reference adopt, prove, render, status, explain, diff, exceptions, doctor,
+# history, import, serve). Every name, flag and field is a proposal.
 #
-# Globals: `--config` is the local `ratchet.toml` (product-brainstorm § 2), `--state-dir` the
-# local state such as an index over the records (product-brainstorm § 6), `--output` human or
-# json. None of them enters a command payload.
+# Globals: `--config` is the local config `ratchet.toml` (design § 5 "Local config"),
+# `--state-dir` the local state such as an index over the records (docs/product-brainstorm.md
+# § 6), `--output` human or json. None of them enters a command payload.
 #
 # Every callable is a local action: the handler reads the specification, the record store and
 # the tools in this process. No ESS component serves them.
@@ -49,18 +49,31 @@ callables:
     target: {kind: local, owner: ratchet.cli, action: evaluate}
     input: ratchet.cli.EvaluateInput
     result: ratchet.cli.GateReport
-    # UNMAPPED: product-brainstorm § 2 leaves open whether `ratchet evaluate` in CI refuses a
-    # `ratchet.toml` that skips requirements, or ignores that section. No error code for it is
-    # declared until the owner decides.
+    # `local_skips_refused`: outside the class `local` (and always when a CI environment is
+    # detected) a `ratchet.toml` that carries `[local]` skips is refused, naming the key; the
+    # section is not ignored (design § 5 "Local config" rule 3).
     errors:
       gate_failed: ratchet.cli.GateReport
       insufficient_evidence: ratchet.cli.GateReport
       unknown_gate: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
+      local_skips_refused: ratchet.cli.Refusal
+  # `reference propose` writes nothing; `reference adopt` writes what propose prints, into the
+  # working tree (design § 5 "Reference records"; D1 decided A: files in the tree).
   reference-propose:
     target: {kind: local, owner: ratchet.cli, action: reference-propose}
     input: ratchet.cli.ProposeInput
     result: ratchet.cli.ReferenceProposal
+    errors:
+      unknown_requirement: ratchet.cli.Refusal
+      no_qualifying_evidence: ratchet.cli.Refusal
+      not_better: ratchet.cli.Refusal
+      gain_not_shown: ratchet.cli.Refusal
+      unnamed_regression: ratchet.cli.Refusal
+  reference-adopt:
+    target: {kind: local, owner: ratchet.cli, action: reference-adopt}
+    input: ratchet.cli.ProposeInput
+    result: ratchet.cli.AdoptResult
     errors:
       unknown_requirement: ratchet.cli.Refusal
       no_qualifying_evidence: ratchet.cli.Refusal
@@ -165,10 +178,20 @@ commands:
       - {field: trusted, source: {kind: option, long: trusted}}
   - path: [reference, propose]
     callable: reference-propose
-    about: Propose a stronger protected reference, or a trade-off that names its gains
+    about: Print a stronger protected reference, or a trade-off that names its gains; write nothing
     arguments:
       - {field: requirement, source: {kind: positional, index: 1}}
       - {field: gains, source: {kind: option, long: gains}}
+      - {field: trade_off, source: {kind: option, long: trade-off}}
+      - {field: reason, source: {kind: option, long: reason}}
+      - {field: owner, source: {kind: option, long: owner}}
+  - path: [reference, adopt]
+    callable: reference-adopt
+    about: Write the proposed reference records, and the trade-off record, into the working tree
+    arguments:
+      - {field: requirement, source: {kind: positional, index: 1}}
+      - {field: gains, source: {kind: option, long: gains}}
+      - {field: trade_off, source: {kind: option, long: trade-off}}
       - {field: reason, source: {kind: option, long: reason}}
       - {field: owner, source: {kind: option, long: owner}}
   - path: [prove]
@@ -178,9 +201,10 @@ commands:
       - {field: requirement, source: {kind: positional, index: 1}}
   - path: [render]
     callable: render
-    about: Write the marked blocks of numbers in documents from records
+    about: Write the marked blocks of numbers in documents and the static export from records
     arguments:
       - {field: documents, source: {kind: option, long: documents}}
+      - {field: export, source: {kind: option, long: export}}
       - {field: check, source: {kind: option, long: check}}
   - path: [status]
     callable: status
@@ -225,6 +249,6 @@ commands:
       - {field: requirement, source: {kind: option, long: requirement}}
   - path: [serve]
     callable: serve
-    about: Serve the web view over the record store
+    about: Serve the page and data document of the views over the record store
     arguments:
       - {field: listen, source: {kind: option, long: listen}}

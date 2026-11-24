@@ -15,21 +15,36 @@ types:
     kind: struct
     naming:
       summary: >-
-        One output an assessor declares: its kind, its scope, the identity key of a set and
-        the coverage counts it reports (§ 4 "custom assessor").
+        One output an assessor declares (§ 4 "Custom assessors"): the value type, the kind,
+        the scopes, the unit, the boundaries of a duration, the identity key of a set and the
+        fields of its items, and the coverage counts it reports. `ratchet validate` checks a
+        measurement's output, scope, unit, boundary and filter fields against it.
     fields:
       - name: name
-        type: String
+        type: ratchet.specification.OutputName
         summary: The output a measurement reads, such as `findings` or `duration`.
+      - name: value_type
+        type: ratchet.specification.ValueType
       - name: kind
         type: ratchet.specification.MeasurementKind
-      - name: scope
-        type: ratchet.specification.Scope
+      - name: scopes
+        type: List<ratchet.specification.Scope>
+        summary: The scopes a result of this output can belong to; `run` is always one.
       - name: unit
         type: Optional<ratchet.specification.Unit>
+      - name: boundaries
+        type: Optional<List<ratchet.specification.Boundary>>
+        summary: >-
+          For a duration, the parts it reports, such as `run_time`, `queue_wait` or
+          `request_start_to_response_complete` (§ 3).
       - name: identity_key
         type: Optional<List<String>>
         summary: The identity key of each set the output returns (§ 4).
+      - name: item_fields
+        type: Optional<List<String>>
+        summary: >-
+          The fields of the items of a set, which a measurement's `filter` may read, such as
+          `severity` (§ 3, § 4).
       - name: coverage
         type: List<ratchet.assessor.CoverageCount>
 
@@ -53,10 +68,15 @@ entities:
       - name: supported_targets
         type: List<ratchet.specification.TargetKind>
       - name: configuration_inputs
-        type: List<String>
-        summary: The names of the configuration inputs the assessor takes.
-        # UNMAPPED: § 4 says an assessor "declares ... configuration inputs" and gives them no
-        # type or shape; names only are a placeholder.
+        type: List<ratchet.specification.InputDeclaration>
+        summary: >-
+          The inputs a plan passes as `inputs`: the workflow to read, the path of a report, an
+          exclusion the tool applies (§ 4).
+      - name: conditions
+        type: Optional<List<String>>
+        summary: >-
+          The observation conditions it declares beyond `host_load_per_cpu`, `tools` and
+          `runner`, such as `cache` (§ 3).
       - name: outputs
         type: List<ratchet.assessor.AssessorOutput>
     lifecycle:

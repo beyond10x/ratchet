@@ -2,31 +2,35 @@ domain: ratchet.evidence
 
 summary: >-
   Observations: what one assessment run produced, with its resolved target, conditions,
-  coverage and values (docs/design.md § 3, § 6), and the proof records `ratchet prove` writes
-  (§ 4). Records are stored apart from gate decisions and reference changes, so old evidence
-  can be re-evaluated against a new requirement (§ 6).
+  coverage and values per measurement (docs/design.md § 3, § 6), and the proof records
+  `ratchet prove` writes (§ 4). Records are stored apart from gate decisions and reference
+  changes, so old evidence can be re-evaluated against a new requirement (§ 6).
 
 # Who writes a record: the `ratchet` commands of the CLI binding (`spec/cli.yaml`). They are
-# local actions; this draft declares no ESS command that creates a record, so each record has
-# one lifecycle state.
+# local actions; this specification declares no ESS command that creates a record, so each
+# record has one lifecycle state. A record gets its id from the CLI when it is written, as its
+# type and a digest of its content, `run:<digest>` (§ 6). Records reach the series on
+# `refs/ratchet/records` as described in `domains/config.yaml`.
 
 types:
   - name: ratchet.evidence.RunId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of an assessment run record, citable from prose (§ 6).
+      summary: >-
+        The id of an assessment run record, `run:<digest of its content>`, citable from prose
+        (§ 6).
 
   - name: ratchet.evidence.ProofId
     kind: newtype
     of: String
     naming:
-      summary: The stable id of a proof record.
+      summary: The id of a proof record, its type and a digest of its content (§ 6).
 
   - name: ratchet.evidence.Window
     kind: struct
     naming:
-      summary: Exact window bounds of a time-window observation (§ 3).
+      summary: The exact bounds of a time-window observation (§ 3).
     fields:
       - name: starts_at
         type: Timestamp
@@ -45,6 +49,9 @@ types:
         type: ratchet.specification.TargetKind
       - name: class
         type: ratchet.specification.TargetClass
+        summary: Where the evidence was produced; `ci` when a CI environment is detected (§ 5).
+      - name: selection
+        type: Optional<ratchet.specification.Selection>
       - name: revision
         type: Optional<ratchet.specification.Revision>
       - name: identifiers
@@ -55,23 +62,39 @@ types:
       - name: window
         type: Optional<ratchet.evidence.Window>
 
+  - name: ratchet.evidence.HostLoad
+    kind: struct
+    naming:
+      summary: >-
+        The observed `host_load_per_cpu`: the 1-minute load average over the run divided by
+        the number of CPUs, as mean, minimum and maximum (§ 3). The declared bound applies to
+        the mean.
+    fields:
+      - name: mean
+        type: Decimal
+      - name: min
+        type: Decimal
+      - name: max
+        type: Decimal
+
   - name: ratchet.evidence.ObservedConditions
     kind: struct
     naming:
       summary: >-
-        The conditions the evidence was observed under (§ 3, § 6): runner, host load,
-        toolchain, cache profile, and for exact measurements the libraries, CPU and tool
-        version.
+        The conditions the evidence was observed under (§ 3, § 6): runner, host load, tools and
+        cache profile, and every further condition the plan or the assessor declares. A value
+        the source does not hold, such as the host load of an imported run, is absent, which
+        records it as unknown; evidence with an unknown value for a declared condition does not
+        qualify for a gate and still extends a series (§ 6).
     fields:
       - name: runner
         type: Optional<String>
       - name: host_load_per_cpu
-        type: Optional<Decimal>
-      - name: toolchain
-        type: Optional<String>
+        type: Optional<ratchet.evidence.HostLoad>
+      - name: tools
+        type: Map<String, String>
+        summary: The resolved version of each tool the plan's `tools` names (§ 3).
       - name: cache_profile
-        type: Optional<String>
-      - name: tool_version
         type: Optional<String>
       - name: other
         type: Map<String, String>
@@ -96,9 +119,9 @@ types:
         type: Integer
       - name: failed
         type: Integer
-      - name: executed_items
+      - name: executed_ids
         type: Optional<List<String>>
-        summary: The ids of the executed items, where the plan asks for an exact set.
+        summary: The ids of the executed items, where the plan declares `executed_ids`.
 
   - name: ratchet.evidence.IdentitySet
     kind: struct
@@ -113,8 +136,8 @@ types:
       - name: items
         type: List<Json>
         summary: >-
-          The items, each an object with at least the key's members. A member may be nested,
-          as `environment: {viewport: narrow}` in the § 3 YAML.
+          The items, each an object with the key's members and the item fields the assessor
+          declares. A member may be nested, as `environment: {viewport: narrow}` in § 3.
 
   - name: ratchet.evidence.NumberValue
     kind: struct
@@ -126,8 +149,8 @@ types:
       - name: at_least
         type: Boolean
         summary: >-
-          The run reached the limit and was stopped there, so the value is "at least the
-          limit" (§ 3).
+          The run reached the limit and was stopped there under qualifying conditions, so the
+          value is "at least the limit" (§ 3).
 
   - name: ratchet.evidence.DigestValue
     kind: struct
@@ -138,14 +161,18 @@ types:
 
   - name: ratchet.evidence.AssertionValue
     kind: struct
+    naming:
+      summary: >-
+        An assertion holds or does not hold for each item of its scope (§ 3); a value is one
+        item's result.
     fields:
       - name: holds
         type: Boolean
-        summary: Whether an assertion, such as a scenario passing, held.
 
+  # The value types of § 3 "Comparisons"; the tag is the value type.
   - name: ratchet.evidence.MeasuredValue
     kind: union
-    tag: kind
+    tag: value_type
     variants:
       number: ratchet.evidence.NumberValue
       identity_set: ratchet.evidence.IdentitySet
@@ -156,35 +183,55 @@ types:
     kind: struct
     naming:
       summary: >-
-        One result at the scope where it was observed. Aggregation does not repeat a result
-        outside its scope (§ 3 "Scope and aggregation").
+        One result at the scope where it was observed, with its kind and value type (§ 6).
+        Aggregation does not repeat a result outside its scope (§ 3 "Scope and aggregation").
     fields:
       - name: output
-        type: String
+        type: ratchet.specification.OutputName
       - name: kind
         type: ratchet.specification.MeasurementKind
       - name: scope
         type: ratchet.specification.Scope
       - name: scope_item
         type: Optional<String>
-        summary: The page, journey, test, state or variant the result belongs to.
+        summary: The page, journey, test, scenario or variant the result belongs to.
+      - name: boundary
+        type: Optional<ratchet.specification.Boundary>
       - name: value
         type: ratchet.evidence.MeasuredValue
 
   # § 5 "Verdicts": a timed-out assessor and an assessor stopped by its infrastructure return
-  # no result about the subject; § 3: a killed run is never recorded as such a result.
+  # no result about the subject; § 3: a killed run is never recorded as such a result. § 5
+  # "Local config" rule 2: a skipped assessment is recorded as a run that executed nothing.
   - name: ratchet.evidence.RunCompletion
     kind: enum
-    variants: [completed, timed_out, stopped_by_infrastructure]
+    variants: [completed, timed_out, stopped_by_infrastructure, skipped_locally]
+
+  # The sources § 5 "Proposed CLI" names for `ratchet import`.
+  - name: ratchet.evidence.ImportSourceKind
+    kind: enum
+    variants: [forge_runs, build_pool_log, junit]
+
+  - name: ratchet.evidence.ImportSource
+    kind: struct
+    naming:
+      summary: Where an imported run came from (§ 6).
+    fields:
+      - name: kind
+        type: ratchet.evidence.ImportSourceKind
+      - name: location
+        type: String
+        summary: The forge run, the job log or the JUnit file read.
 
 entities:
   - name: ratchet.evidence.AssessmentRun
     naming:
       summary: >-
         The record of one run of an assessment plan (§ 6): candidate, resolved target and its
-        class, assessor and protocol versions, timestamps or window bounds, values with kind,
-        unit and scope, sample or run count, coverage counts, observed conditions, queue wait
-        and run time, and artifact references.
+        class, assessor and protocol versions, timestamps or window bounds, values per
+        measurement, sample or run count, coverage counts, observed conditions, queue wait and
+        run time, artifact references, and for an imported run where it came from. A run that
+        `ratchet.toml` skipped locally is recorded as a run that executed nothing.
     identity:
       name: run
       type: ratchet.evidence.RunId
@@ -212,7 +259,10 @@ entities:
       - name: completion
         type: ratchet.evidence.RunCompletion
       - name: results
-        type: List<ratchet.evidence.MeasurementResult>
+        type: Map<String, List<ratchet.evidence.MeasurementResult>>
+        summary: >-
+          The results per measurement, keyed by the plan's measurement name; one result per
+          scope item.
       - name: samples
         type: Optional<Integer>
         summary: The sample or run count behind an aggregated value.
@@ -227,13 +277,9 @@ entities:
       - name: artifacts
         type: List<String>
         summary: Pointers to the relevant logs, traces or findings (§ 5, § 6).
-      - name: imported_from
-        type: Optional<String>
-        summary: >-
-          Where an imported run came from: a forge run, a build pool job log, a JUnit file.
-        # UNMAPPED: `ratchet import` and its sources are docs/product-brainstorm.md § 3;
-        # docs/design.md § 6 says only that an assessor imports history from the forge or the
-        # build pool. Whether an import is a run record or something else is open.
+      - name: source
+        type: Optional<ratchet.evidence.ImportSource>
+        summary: Present on an imported run, which is an assessment run record (§ 6).
     relations:
       # references, not owns: a record outlives the document that governed it, so old evidence
       # can be re-evaluated against a new requirement (§ 6).
@@ -260,9 +306,11 @@ entities:
   - name: ratchet.evidence.ProofRecord
     naming:
       summary: >-
-        What `ratchet prove` records: a requirement's planted defects run and how many the check
-        refused (§ 4). A gate report marks an enforced requirement with no proof record and no
-        recorded fail as unproven.
+        What `ratchet prove` records (§ 4, § 6): the requirement, the revision, the planted
+        defects run, and the ids refused and accepted. `ratchet prove` runs the assessment once
+        per defect, never in the working tree, and expects the verdict fail; insufficient
+        evidence is not a refusal. A gate report marks an enforced requirement with no proof
+        record and no recorded fail as unproven.
     identity:
       name: proof
       type: ratchet.evidence.ProofId
@@ -272,9 +320,16 @@ entities:
       - name: revision
         type: ratchet.specification.Revision
       - name: planted
-        type: Integer
+        type: List<ratchet.specification.PlantedDefectId>
+        summary: The planted defects run.
       - name: refused
-        type: Integer
+        type: List<ratchet.specification.PlantedDefectId>
+        summary: The defects whose run returned fail.
+      - name: accepted
+        type: List<ratchet.specification.PlantedDefectId>
+        summary: >-
+          The defects the check did not refuse. A defect in neither list returned insufficient
+          evidence: a reading of "insufficient evidence is not a refusal" (§ 4).
       - name: recorded_at
         type: Timestamp
     relations:
