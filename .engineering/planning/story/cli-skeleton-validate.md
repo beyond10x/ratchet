@@ -8,19 +8,11 @@ summary: Cargo workspace, ess-generated CLI and model with a drift check, CI job
 relations:
 - decomposes: epic:runnable-cli
 - depends_on: story:record-formats-in-spec
+- depends_on: story:workspace-cli-contract
+- depends_on: story:changelog-release-procedure
 scope:
 - confidence: cited
-  path: .cargo
-- confidence: cited
-  path: .config
-- confidence: cited
-  path: .github/scripts/check-generated.test.sh
-- confidence: cited
-  path: .github/workflows/gate.yml
-- confidence: cited
-  path: .github/workflows/pages.yml
-- confidence: cited
-  path: .gitignore
+  path: .github/scripts/check-generated.sh
 - confidence: cited
   path: AGENTS.md
 - confidence: cited
@@ -28,76 +20,122 @@ scope:
 - confidence: cited
   path: Cargo.toml
 - confidence: cited
-  path: Taskfile.yml
+  path: crates/ratchet-core
 - confidence: cited
-  path: crates
+  path: crates/ratchet-model
 - confidence: cited
-  path: rust-toolchain.toml
-revision: 7
+  path: crates/ratchet/Cargo.toml
+- confidence: cited
+  path: crates/ratchet/src/commands/validate.rs
+- confidence: cited
+  path: crates/ratchet/tests/fixtures/validate
+- confidence: cited
+  path: crates/ratchet/tests/validate.rs
+revision: 26
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Context
 
-No code exists. This story lays the workspace every later story builds in, and ends with the first
-command a project can run. It starts after `story:record-formats-in-spec`, so both generators run
-once, on the specification 0.1.0 is built from.
+`story:workspace-cli-contract` lays the workspace: the manifests, the pinned compiler, the
+generated command surface with its drift check, the binary whose 16 commands answer
+"unavailable", the gate tasks and the CI job. This story adds the model crate and the
+hand-written library, and ends with the first command a project can run.
 
-Measured on 2026-11-24 with `ess` 0.98.0:
+It waits on one question to the owner. Measured on 2026-11-24 with `ess` 0.98.0:
 
-- `ess generate cli --path spec --binding spec/cli.yaml --out <dir>` writes a Cargo package
-  `ratchet-cli-contract` (10 artifacts; a `Handler` seam, a `ratchet` binary, `help.txt`, a bash
-  completion). A command without a handler gets the generated adapter's "unavailable" answer.
 - `ess generate synthesize --path spec --target rust --layout crate --out <dir>` writes one crate
-  with no dependencies: one module per domain, typed decoders, a JSON reader and writer. Every
-  generated file carries a digest of the whole specification.
+  with no dependencies: one module per domain, the types, a `broken_constraint` check per type
+  with invariants, the entity lifecycles, a JSON reader and writer. It holds no typed decoder:
+  ESS emits those only with a server (`review-result:adversary-record-formats-pass-1`,
+  finding 5).
+- `ess generate types --path spec --target rust --all-types --package ratchet-model --out <dir>`
+  writes a serde data library: 191 types that decode and encode, dependencies `serde`,
+  `serde_json`, `time`. Its `types-report.json` lists 116 obligations it leaves to the consumer,
+  12 of them `model_invariants` (55 statements: 4 types of `ratchet.specification`, 1 of
+  `ratchet.config`, 6 of `ratchet.evidence`, 1 of `ratchet.assessor`).
+- Both write a package that carries its own `[workspace]` table.
+
+The question: which of the two `crates/ratchet-model/` holds, or whether the story waits for ESS
+to emit decoders without a server. The story starts when it is answered. Before it is dispatched
+this body is amended with the answer, and with it the note of `story:evidence-reader` that names
+the decoders.
+
+A `ratchet/1` file is not the declared entities written out. `spec/README.md` § "How a
+`ratchet/1` file differs from the declared entities" lists the twelve rules a reader applies
+(the root, an entity keyed by its id, `project` written once, a bare requirement name, an absent
+`serves`, a number as the decimal of its text, the YAML 1.2 core schema).
 
 ## Acceptance
 
-`slot task check` exits 0 in a clean checkout, and its output lists as passed the tests
-`validate::accepts_valid_project` (exit 0, `valid: true`) and `validate::reports_duplicate_id`
-(exit 1, code `spec_invalid`, a finding `duplicate_id` for an id declared in two files) and the
-script `.github/scripts/check-generated.test.sh`, which changes one byte of a generated file in a
-copy of the tree and gets a non-zero exit from `task check:generated`.
+`slot task check` exits 0 in a clean checkout, and:
+
+- its test step lists as passed `validate::accepts_valid_project`: in
+  `crates/ratchet/tests/fixtures/validate/valid/` (a `ratchet.toml` and two files of one project
+  that declare an assessment with a measurement, a requirement that names both and a gate that
+  names the requirement) the command exits 0 with `valid: true`;
+- its test step lists as passed `validate::reports_duplicate_id`: in
+  `crates/ratchet/tests/fixtures/validate/duplicate/` (the same project with one id declared in
+  both files) the command exits 1 with code `spec_invalid` and a finding `duplicate_id` for that
+  id;
+- its test step lists as passed `validate::reports_schema_violation`: in
+  `crates/ratchet/tests/fixtures/validate/undeclared-member/` (the valid project with one member
+  the format does not declare) the command exits 1 with a finding `schema_violation` that names
+  the file and the key path;
+- its test step lists as passed `validate::reports_unresolved_reference`: in
+  `crates/ratchet/tests/fixtures/validate/unresolved/` (the valid project with a requirement that
+  names a measurement no file declares) the command exits 1 with a finding
+  `unresolved_reference` for that name;
+- its test step lists as passed `validate::accepts_examples`: for each of the five
+  `examples/*.ratchet.yaml`, given with `--spec`, the command prints a report with the member
+  `valid` and no finding `schema_violation`;
+- its test step lists as passed `invariants::each_listed_domain_is_covered`, which fails when an
+  invariant of a type of `ratchet.specification` or `ratchet.config` in `spec/domains/` has no
+  entry in the list file of its domain, or an entry names no test;
+- its step `check:scripts` runs `.github/scripts/check-generated.test.sh`, whose case for
+  `crates/ratchet-model/` gets a non-zero exit from `task check:generated` after one byte of a
+  file of that crate changed in a copy of the tree.
 
 ## Scope
 
-- `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.cargo/config.toml`, `.config/nextest.toml`
-- `crates/ratchet-model/`: the output of `ess generate synthesize --target rust --layout crate`,
-  never edited
-- `crates/ratchet-cli-contract/`: the output of `ess generate cli`, never edited
+- `crates/ratchet-model/`: the output of the generator the answer names, never edited. The root
+  workspace holds it the way `AGENTS.md` records for `crates/ratchet-cli-contract` since
+  `story:workspace-cli-contract`
 - `crates/ratchet-core/`: the hand-written library. This story writes `spec` (find and read
-  `ratchet.toml` and the files of `[spec] paths`, YAML to the generated decoders) and `validate`
-  (the report). `spec` takes the content of each file from a source the caller gives it, with
-  the working tree as the one source built here, so `story:evaluate-command` reads the files of
-  a revision in its own module and does not edit `spec`. It creates the empty modules `evidence`, `assessor`, `reference`, `compare`,
-  `store`, `assess`, `adopt`, `gate` and `validate/assessor`, and in `tests/main.rs` the empty
-  test modules `evidence`, `store`, `assessor`, `compare`, `reference`, each with its file
-- `crates/ratchet/`: the binary. It implements the generated `Handler` and wires all 16
-  commands. `src/commands/` holds `validate.rs` (built) and `assess.rs`, `reference_adopt.rs`,
-  `evaluate.rs` (each returns the unavailable answer); the 12 other commands share one function
-  that returns it. `tests/main.rs` declares the test modules `validate`, `assess`,
-  `reference_adopt`, `evaluate`, each with its file
-- The dependencies of the whole slice, declared here in the manifests: SHA-256, a decimal type,
-  a YAML reader, a TOML reader. Git is read through the `git` binary and a child process is
+  `ratchet.toml` and the files of `[spec] paths` into the types of `crates/ratchet-model`, by the
+  twelve rules of `spec/README.md`) and `validate` (the report). `spec` takes the content of each
+  file from a source the caller gives it, with the working tree as the one source built here, so
+  `story:evaluate-command` reads the files of a revision in its own module and does not edit
+  `spec`. It creates the empty modules `evidence`, `assessor`, `reference`, `compare`, `store`,
+  `assess`, `adopt`, `gate` and `validate/assessor`, and in `tests/main.rs` the test module
+  `invariants` and the empty test modules `evidence`, `store`, `assessor`, `compare`,
+  `reference`, each with its file
+- `crates/ratchet-core/tests/invariants.rs` and `crates/ratchet-core/tests/invariants/`: the
+  test that compares the invariants the specification declares with the tests that break them.
+  One list file per domain (`specification.txt` and `config.txt` here) names, for each invariant
+  of the domain's types, the test or fixture that breaks only it. The test reads
+  `spec/domains/*.yaml` and fails for a domain with a list file when an invariant has no entry or
+  an entry names no test. A later story adds the list file of its domain and edits no file of
+  this story
+- `crates/ratchet/src/commands/validate.rs` (built), `crates/ratchet/tests/validate.rs`, where the
+  five `validate` tests of the acceptance replace `validate::unavailable`, the fixtures under
+  `crates/ratchet/tests/fixtures/validate/`, and `crates/ratchet/Cargo.toml` for the dependency
+  on `ratchet-core`
+- `Cargo.toml`, `Cargo.lock`: the two crates and the dependencies of the whole slice: SHA-256, a
+  decimal type, a YAML reader that gives the text of a scalar as written and reads by the YAML
+  1.2 core schema, a TOML reader. Git is read through the `git` binary and a child process is
   started with the standard library, so no later story of 0.1.0 edits a `Cargo.toml` or
   `Cargo.lock`
-- `Taskfile.yml`: `includes` of `acceptance/Taskfile.yml` as optional, `check:scripts` (runs
-  every `.github/scripts/*.test.sh`), `check:generated` (both generators with their check mode,
-  or a byte comparison with a fresh generation), `check:rust` (fmt, clippy with `-D warnings`),
-  `test`
-- `.github/scripts/check-generated.test.sh`
-- `.github/workflows/`: a job that runs the gate for a change classified `code`, using the one
-  path list the repository already has (`pages.yml`, `task check:ci-paths`)
-- `AGENTS.md`: the ownership table, the gate section, how to regenerate
-- `.gitignore`
+- `.github/scripts/check-generated.sh`: the line of `crates/ratchet-model/`. The script test
+  reads the same lines and is not edited
+- `AGENTS.md`: the rows of the ownership table for the two crates, and how to regenerate the model
 
 ## What `ratchet validate` checks in this story
 
 - `ratchet.toml` is found from the working directory upward; `--spec` overrides `[spec] paths`.
-- Every file decodes as a `ratchet/1` document through the generated decoders (`schema_violation`
-  with the file and key path).
+- Every file decodes as a `ratchet/1` document into the generated types (`schema_violation` with
+  the file and key path).
 - The files declare one `format` and one `project`; an id is unique across the files
   (`duplicate_id`, design § 5 "Local config" rule 5).
 - A requirement names an assessment and a measurement that exist; a gate names requirements that
@@ -107,22 +145,29 @@ copy of the tree and gets a non-zero exit from `task check:generated`.
 
 ## Notes
 
-- Red first: the two `validate` tests and `check-generated.test.sh` fail before the code exists.
-- Test budget: one integration-test binary per crate (`tests/main.rs` with modules); nextest
-  `slow-timeout` 60 s with `terminate-after`, and the step fails over 120 s and prints its ten
-  slowest tests. No cargo test calls `ess`: `check:generated` and its script test are gate steps
-  outside the test step. The story times both and reports the two times.
-- The story reports the text and the exit status of the unavailable answer.
+- Red first: the five `validate` tests and the test `invariants` fail before the code exists.
+  `check-generated.test.sh` derives its case from the line of `crates/ratchet-model/`, so that
+  case exists from the moment the line does; the story shows it red once by running it against
+  a copy with one changed byte.
+- Test budget: one integration-test binary per crate (`tests/main.rs` with modules); no test over
+  60 s, the step within 120 s. No cargo test calls `ess`.
+- The story times `task check:generated` and `.github/scripts/check-generated.test.sh` before
+  and after the line of `crates/ratchet-model/` and reports the four times; a jump is fixed here.
+- Cargo unifies features across the build. `ess generate types` turns on
+  `serde_json/arbitrary_precision` by default, which then also holds for
+  `crates/ratchet-cli-contract` and the binary. The gate of this story runs the tests of
+  `story:workspace-cli-contract` with the model crate in the build; a test whose answer changes
+  is fixed here.
 - Each invariant of a type `validate` reads (`ratchet.specification`, `ratchet.config`) has a test
-  with a value that breaks only it, and the test step fails when the specification holds an
-  invariant of those types that no test names (`review-result:adversary-record-formats-pass-2`,
-  finding 4). The story reports how it compares the two lists.
+  with a value that breaks only it, and the test `invariants` fails when the specification holds
+  an invariant of those types that no entry names
+  (`review-result:adversary-record-formats-pass-2`, finding 4).
 - A later story that needs a dependency this story did not declare names it in its report, and
   its change merges after the other stories of its wave.
-- `rust-toolchain.toml` pins one rustc for the local gate and CI.
+- `story:changelog-release-procedure` edits `AGENTS.md` too (§ "Release"). It merges before this
+  story; the `depends_on` edge to it records that order and nothing else this story reads.
 - No Python. No `RUSTC_WRAPPER`, `SCCACHE_*` or `CARGO_PROFILE_DEV_DEBUG` setting.
-- The CI job needs the `ess` and `aep` binaries at pinned versions; `spec/ess-inputs.yaml` already
-  requires `ess 0.98`.
-- A required check in the ruleset is the owner's to add; the story reports the job's name.
 - No specification file, `docs/design.md` or example changes here: those belong to
   `story:record-formats-in-spec`.
+- Not edited here: `rust-toolchain.toml`, `.config/nextest.toml`, `.github/workflows/`,
+  `Taskfile.yml`, `.github/scripts/check-generated.test.sh`, `crates/ratchet-cli-contract/`.

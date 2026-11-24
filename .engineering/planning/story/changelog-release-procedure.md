@@ -7,7 +7,7 @@ title: CHANGELOG.md, release procedure and tag workflow
 summary: 'Keep a Changelog file, AGENTS.md § Release, a tag workflow and the scripts it runs: checks, archives with checksums, release verification.'
 relations:
 - decomposes: epic:release-line
-- depends_on: story:cli-skeleton-validate
+- depends_on: story:workspace-cli-contract
 scope:
 - confidence: cited
   path: .github/scripts/release-check.sh

@@ -7,7 +7,7 @@ title: A ratchet command a project can run
 summary: Rust workspace, generated command surface and model, drift check, ratchet validate.
 relations:
 - decomposes: initiative:first-milestone
-revision: 2
+revision: 3
 ---
 ## Context
 
@@ -26,11 +26,13 @@ step within 120 s), a drift check for every generated file, and a CI job that ru
 
 The specification changes first and alone (`story:record-formats-in-spec`), because every
 generated file carries a digest of the whole specification; the workspace is generated from it
-once (`story:cli-skeleton-validate`).
+once: the workspace and the command surface in `story:workspace-cli-contract`, the model crate in
+`story:cli-skeleton-validate`.
 
 ## Done when
 
-`story:record-formats-in-spec` and `story:cli-skeleton-validate` are implemented.
+`story:record-formats-in-spec`, `story:workspace-cli-contract` and `story:cli-skeleton-validate`
+are implemented.
 
 ## Not in this epic
 

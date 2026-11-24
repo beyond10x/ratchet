@@ -18,7 +18,7 @@ scope:
   path: crates/ratchet/tests/fixtures/reference_adopt
 - confidence: cited
   path: crates/ratchet/tests/reference_adopt.rs
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
@@ -55,8 +55,8 @@ worse than the reference), `unknown_requirement` (no such requirement), `no_qual
 
 ## Notes
 
-- `crates/ratchet/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited: the skeleton
-  declared the test module and wired the command.
+- `crates/ratchet/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited:
+  `story:workspace-cli-contract` declared the test module and wired the command.
 - The run adopted from is the newest complete run of the requirement's plan in the local record
   directory; `--candidate` narrows it to one revision.
 - With a reference present the command answers with the three declared outcomes above, so no

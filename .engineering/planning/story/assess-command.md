@@ -18,7 +18,7 @@ scope:
   path: crates/ratchet/tests/assess.rs
 - confidence: cited
   path: crates/ratchet/tests/fixtures/assess
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
@@ -53,8 +53,8 @@ breaks its declaration as `stopped_by_infrastructure`, each with no result.
 ## Notes
 
 - `crates/ratchet/tests/main.rs`, `crates/ratchet/src/commands/mod.rs`, `Cargo.toml` and
-  `Cargo.lock` are not edited: the skeleton declared the test module, wired the command and
-  declared the dependencies. The child process and its time limit use the standard library.
+  `Cargo.lock` are not edited: `story:workspace-cli-contract` declared the test module and wired
+  the command, `story:cli-skeleton-validate` declared the dependencies. The child process and its time limit use the standard library.
 - `--assessments` selects plans; `--candidate` gives the revision, HEAD by default.
 - `[tools]` of `ratchet.toml` says how a `command` is started on this machine; without an entry
   the `command` of the declaration is looked up in `PATH`.

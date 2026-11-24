@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-24T18:13:07Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:workspace-cli-contract",
+  "kind": "story",
+  "revision": 19,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:scope-split-round-2",
+    "reference": ".engineering/planning/story/record-formats-in-spec.md:71",
+    "review": "review-result:scope-split-round-2",
+    "outcome": "fixed"
+  }
+}

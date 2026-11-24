@@ -22,20 +22,27 @@ The order is the one `aep plan artifact waves --kind story` derives.
 1. `story:record-formats-in-spec`: every specification change 0.1.0 needs, in one change. Each
    generated file carries a digest of the whole specification, so the specification settles before
    code is generated from it.
-2. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the command surface and the
-   model are generated from `spec/` and checked for drift.
-3. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`,
-   `story:changelog-release-procedure`: evidence files are read and checked, a plan is checked
-   against its assessor's declaration, values are compared with a reference, the release procedure
-   is written.
-4. `story:assess-command`, `story:reference-adopt-command`, `story:evaluate-command`,
+2. `story:workspace-cli-contract`: the Rust workspace, the pinned compiler, the command surface
+   generated from `spec/` and checked for drift, a `ratchet` binary whose 16 commands answer
+   "unavailable", the gate tasks and the CI job.
+3. `story:changelog-release-procedure`: the changelog and the release procedure.
+4. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the model is generated from
+   `spec/` and checked for drift. It waits on one question to the owner: which generated crate
+   holds the model.
+5. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`: evidence files
+   are read and checked, a plan is checked against its assessor's declaration, values are compared
+   with a reference.
+6. `story:assess-command`, `story:reference-adopt-command`, `story:evaluate-command`,
    `story:ui-loop-acceptance`: observe, adopt a reference, reject a regression from the trusted
    revision's policy; the consumer's loop is an acceptance run that counts its passing steps.
-5. `story:acceptance-in-gate`: the acceptance run passes 7 of 7 inside the gate; getting-started
+7. `story:acceptance-in-gate`: the acceptance run passes 7 of 7 inside the gate; getting-started
    page.
-6. `story:release-0-1-0`: the release, by `AGENTS.md` § "Release".
+8. `story:release-0-1-0`: the release, by `AGENTS.md` § "Release".
 
 Acceptance run `ui-loop`: not built yet (0 of 7 steps).
+
+Wave 2 was split on 2026-11-24: the workspace and the command surface do not depend on the open
+question, so they are built first, and the release procedure follows them.
 
 Wave 1 is delivered (2026-11-24): the specification 0.1.0 is built from, with seven checks of it in
 `task check:spec`. Record: `.engineering/waves/0.1.0-wave-1.md`.

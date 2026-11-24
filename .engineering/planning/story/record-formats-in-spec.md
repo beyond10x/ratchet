@@ -50,7 +50,7 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 15
+revision: 16
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 7, decided_on: {"recorded":{"review_outcome":4}}}
@@ -68,7 +68,8 @@ nouns no specification declares.
 Every generated file carries a digest of the whole specification, so each specification change
 rewrites both generated crates. This story is therefore the one owner of every specification
 change 0.1.0 needs. It lands alone, before any generated file exists on `main`;
-`story:cli-skeleton-validate` then generates once.
+`story:workspace-cli-contract` then generates the command surface once, and
+`story:cli-skeleton-validate` the model.
 
 Measured on 2026-11-24 with `ess` 0.98.0 at `7673482`: `ess generate synthesize --path spec
 --target rust --layout crate` refuses the specification, because three structs declare a

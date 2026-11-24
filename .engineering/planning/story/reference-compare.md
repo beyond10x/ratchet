@@ -18,7 +18,7 @@ scope:
   path: crates/ratchet-core/tests/compare.rs
 - confidence: cited
   path: crates/ratchet-core/tests/reference.rs
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
@@ -54,8 +54,8 @@ record written and read back is byte-identical).
 
 ## Notes
 
-- `crates/ratchet-core/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited: the
-  skeleton declared the test modules and the decimal type.
+- `crates/ratchet-core/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited:
+  `story:cli-skeleton-validate` declared the test modules and the decimal type.
 - Decimal arithmetic on text with the decimal type; no float. A percent tolerance is computed on
   the reference value and compared exactly.
 - The readings `reference_missing` and `coverage_below_plan` per scope item are in design § 5
