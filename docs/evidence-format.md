@@ -1,6 +1,6 @@
 # Evidence format `ratchet-evidence/1`
 
-**Status:** Design proposal, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)). Field names and shapes are proposals, as in the design.
+**Status:** Design proposal, 2026-11-24. Written against [design](design.md) revision 4 and the ESS specification at revision 3 ([`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml)). Field names and shapes are proposals, as in the design. The six questions E1 to E6 are decided, all A (the owner's delegate, 2026-11-24).
 
 An assessment run is an entity of the specification and a row of the records table (design § 6). Neither says how a run is written to a file. The first assessor built against the design, `ux-static@1` of the [`uxui`](https://github.com/beyond10x/uxui) repository, wrote a shape of its own, `ratchet-evidence/draft`, and reported nine gaps, U1 to U9 ([consumer input](../research/consumer-input-ux-ui.md), section “Second input”, which is on the branch `uxui-input-2` until that branch is merged). This document names the format, lists every field, decides the gaps, and maps the draft onto the format. Six decisions are the owner’s: E1 to E6 in § 5, each with a default. The document is written under the defaults.
 
@@ -259,7 +259,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | Uses `build` with the identifier `artifact_digest`. | No new value. A generated document and a compiled artifact share a kind, and a plan cannot say which of the two its assessor supports. |
 | C | Makes target kinds a list that the assessor declares, with `ui-variant` as the consumer’s. | Ratchet cannot compute the candidate identity of a kind it does not know, so it cannot check that evidence belongs to a candidate. |
 
-**Default: A.** What would change the answer: a second consumer whose target is neither a revision nor one file.
+**Decided: A** (2026-11-24). What would change the answer: a second consumer whose target is neither a revision nor one file.
 
 ### E2. Where do cantTell and inapplicable go? (U3)
 
@@ -269,7 +269,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | Adds the counts `cant_tell` and `inapplicable` to the evidence and to the plan’s `coverage` keys. | Six count keys for every assessor, two of which only a rule-based assessor uses. Changes design § 3. |
 | C | Counts cantTell as executed, with a third outcome beside passed and failed. | `executed` no longer means that the unit gave a result, and `unsupported: 0` no longer catches it. |
 
-**Default: A.** What would change the answer: a requirement that must bound cantTell apart from other unsupported units.
+**Decided: A** (2026-11-24). What would change the answer: a requirement that must bound cantTell apart from other unsupported units.
 
 ### E3. Who writes the document, and what does a result name? (U1)
 
@@ -279,7 +279,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | The CLI writes the document from what the assessor returns, keyed by measurement name as in the specification. | A second format between the assessor and the CLI, which nothing names. The consumer cannot write evidence before the CLI exists. |
 | C | Both: `ratchet-evidence/1` from the assessor as in A, and a record of its own that the CLI writes around it. | Two formats and two ids for one run. |
 
-**Default: A.** A custom assessor “returns evidence in the same format as bundled assessors” (design § 4). What would change the answer: an output that several measurements read with different aggregations that the assessor cannot know.
+**Decided: A** (2026-11-24). A custom assessor “returns evidence in the same format as bundled assessors” (design § 4). What would change the answer: an output that several measurements read with different aggregations that the assessor cannot know.
 
 ### E4. What does the id of a run digest? (U8)
 
@@ -289,7 +289,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | `run:<hex>` digests `evidence` alone. | Two sampled runs of one candidate with equal values are one record. `adoption: {runs: N}` and `window: {last: N}` then count one where there were two. |
 | C | As B, and a document with a sampled result carries its start time inside `evidence`. | A time in the digested part, and one field in two places by kind. |
 
-**Default: A.** Design § 6 gives a record “a digest of its content” as its id. What would change the answer: references that must cite evidence and not a run. They then cite the evidence digest.
+**Decided: A** (2026-11-24). Design § 6 gives a record “a digest of its content” as its id. What would change the answer: references that must cite evidence and not a run. They then cite the evidence digest.
 
 ### E5. What does a reader do with a member it does not know? (U1)
 
@@ -299,7 +299,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | Ignores it everywhere. | A reader of version 1 judges a document whose values mean something else, without notice. |
 | C | Rejects it everywhere. | A new pointer or duration in `run` needs a version too. |
 
-**Default: A.** `details`, `identifiers`, `conditions.other`, and an item’s `fields` are the places an assessor extends without a version.
+**Decided: A** (2026-11-24). `details`, `identifiers`, `conditions.other`, and an item’s `fields` are the places an assessor extends without a version.
 
 ### E6. Does a failure stand when the run is below its coverage? (U3, U6)
 
@@ -309,7 +309,7 @@ An incomplete identity set is a bound of the same kind: it holds the items that 
 | B | A run below its coverage is insufficient evidence for every requirement, as design § 3 says. The bound is shown and decides nothing. | A defect that the run found is reported as a problem of the assessment, and the agent is told to leave the candidate as it is (design § 5). |
 | C | The plan decides, with a key of its own. | A key for a question that has the same answer in every project. |
 
-**Default: A.** Design § 5 puts a fail first “because a fail is a result about the candidate”, and what a partial run found is true of the candidate. What would change the answer: an assessor whose partial runs report failures that a full run would not.
+**Decided: A** (2026-11-24). Design § 5 puts a fail first “because a fail is a result about the candidate”, and what a partial run found is true of the candidate. What would change the answer: an assessor whose partial runs report failures that a full run would not.
 
 ## 6. Example
 
