@@ -116,21 +116,41 @@ tasks:
 
   check:ci-paths:
     silent: true
-    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty."
+    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, and each document a script of check:spec reads: the job runs check for code, check:spec for docs-site and nothing for planning."
     cmds:
       - |
         set -eu
-        step=$(awk '
-          /- name: Classify the changed files$/ { f = 1; next }
-          f && !r && /run: \|$/ { r = 1; i = match($0, /[^ ]/); next }
-          r && /^ *$/ { print ""; next }
-          r { j = match($0, /[^ ]/); if (j <= i) exit; print substr($0, i + 2) }
-        ' .github/workflows/pages.yml)
+        # block <name>: the `run: |` block of the step of pages.yml with that name.
+        block() {
+          awk -v name="- name: $1" '
+            { line = $0; sub(/^ */, "", line) }
+            line == name { f = 1; next }
+            f && !r && /run: \|$/ { r = 1; i = match($0, /[^ ]/); next }
+            r && /^ *$/ { print ""; next }
+            r { j = match($0, /[^ ]/); if (j <= i) exit; print substr($0, i + 2) }
+          ' .github/workflows/pages.yml
+        }
+        step=$(block 'Classify the changed files')
         test -n "$step" || { echo "no classifier step in .github/workflows/pages.yml"; exit 1; }
+        gate=$(block 'Read the change class of the job build')
+        test -n "$gate" || { echo "no step of the job gate in .github/workflows/pages.yml reads the change class"; exit 1; }
+        # class <files>: the class of a change of these files.
+        class() {
+          printf '%s' "$1" | tr ' ' '\n' | CHANGED_FILES= GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p'
+        }
+        # runs <class>: the task the job gate runs for the class, `none` for no task, and
+        # `refused` when its first step fails.
+        runs() {
+          if answer=$(CHANGE_CLASS=$1 GITHUB_OUTPUT=/dev/stdout bash -c "$gate"); then
+            printf '%s\n' "$answer" | sed -n 's/^task=//p'
+          else
+            echo refused
+          fi
+        }
         fail=0 n=0
         while IFS='|' read -r want files; do
           n=$((n + 1))
-          got=$(printf '%s' "$files" | tr ' ' '\n' | CHANGED_FILES= GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p')
+          got=$(class "$files")
           if [ "$got" = "$want" ]; then echo "ok   $want <- ${files:-(none)}"; else echo "FAIL $want <- ${files:-(none)}: got ${got:-nothing}"; fail=1; fi
         done <<'CASES'
         planning|.engineering/planning/project.yaml
@@ -160,5 +180,27 @@ tasks:
         code|crates/ratchet-cli-contract/README.md
         code|.engineering/planning/story/x.md crates/ratchet-cli-contract/README.md
         CASES
+        while IFS='|' read -r want class; do
+          n=$((n + 1))
+          got=$(runs "$class")
+          if [ "$got" = "$want" ]; then echo "ok   the job gate: $want <- class ${class:-(none)}"; else echo "FAIL the job gate: $want <- class ${class:-(none)}: got ${got:-nothing}"; fail=1; fi
+        done <<'CASES'
+        check|code
+        check:spec|docs-site
+        none|planning
+        refused|
+        refused|docs
+        CASES
+        # A document a script of check:spec reads is a change the job gate runs that task for.
+        documents=$(grep -h -o 'docs/[A-Za-z0-9_.-]*\.md' spec/*.test.sh | LC_ALL=C sort -u)
+        test -n "$documents" || { echo "no script of spec/ names a document under docs/"; exit 1; }
+        for document in $documents; do
+          n=$((n + 1))
+          got=$(runs "$(class "$document")")
+          case $got in
+            check | check:spec) echo "ok   the job gate: $got <- $document, which a script of check:spec reads" ;;
+            *) echo "FAIL the job gate: check:spec <- $document, which a script of check:spec reads: got ${got:-nothing}"; fail=1 ;;
+          esac
+        done
         echo "$n cases"
         exit $fail

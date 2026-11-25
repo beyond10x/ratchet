@@ -7,11 +7,15 @@
 # 1. .config/nextest.toml. `[profile.default]` holds a `slow-timeout` whose `period` times
 #    `terminate-after` is at most 60 s, and a `global-timeout` of at most 120 s. No other line
 #    of the file (another profile, an override) sets one of the two to more. cargo-nextest ends
-#    such a test and such a run and exits non-zero.
+#    such a test and such a run and exits non-zero. Each of the two is read as `<key> = ...` on
+#    one line; a line that names one in another form (dotted keys, a table of its own) is
+#    refused, and so are `on-timeout`, with which an ended test can count as passed, and a
+#    `grace-period` over the 10 s cargo-nextest gives by default.
 # 2. The task `test` of Taskfile.yml, run with a stand-in for `cargo` first in PATH, so nothing
 #    is built. The stand-in prints twelve test lines in the form cargo-nextest prints them and
 #    exits as told. The task has to call `cargo nextest run` without naming another
-#    configuration file, print the ten slowest of the twelve, slowest first, after the line
+#    configuration file, call `cargo` for nothing else (`cargo test` reads no
+#    .config/nextest.toml), print the ten slowest of the twelve, slowest first, after the line
 #    `test: the ten slowest tests`, and exit non-zero when the stand-in does. Each run is made
 #    three times, in the environments `step` names: that of a workstation, CI=true, in which
 #    task writes its own lines in colour, and CI=true with GITHUB_ACTIONS=true, the environment
@@ -98,18 +102,34 @@ EXPECTED
 limits() {
   awk '
     function seconds(text) { return text ~ /^[0-9]+s$/ ? substr(text, 1, length(text) - 1) + 0 : -1 }
+    # quoted(key): the text in quotes after `key =`, where the key follows `{`, `,` or a blank,
+    # so `period` is not read out of `grace-period`; "" when the line has none.
+    function quoted(key,   t) {
+      if (!match($0, "[{, \t]" key "[ \t]*=[ \t]*\"[^\"]*\"")) return ""
+      t = substr($0, RSTART, RLENGTH); sub(/^[^"]*"/, "", t); sub(/"$/, "", t)
+      return t
+    }
     /^[ \t]*#/ { next }
-    /^[ \t]*\[/ { section = $0; gsub(/[ \t]/, "", section); next }
-    /^[ \t]*slow-timeout[ \t]*=/ {
-      period = -1; after = -1
-      if (match($0, /period[ \t]*=[ \t]*"[^"]*"/)) {
-        t = substr($0, RSTART, RLENGTH); sub(/^[^"]*"/, "", t); sub(/"$/, "", t); period = seconds(t)
+    /on-timeout/ {
+      print "nextest.toml line " NR ": on-timeout can let a test that was ended count as passed"; bad = 1
+    }
+    /^[ \t]*\[/ {
+      section = $0; gsub(/[ \t]/, "", section)
+      if (section ~ /slow-timeout|global-timeout/) {
+        print "nextest.toml line " NR ": a table of its own is a form of slow-timeout this script does not read"; bad = 1
       }
-      if (match($0, /terminate-after[ \t]*=[ \t]*[0-9]+/)) {
+      next
+    }
+    /^[ \t]*slow-timeout[ \t]*=/ {
+      period = seconds(quoted("period")); after = -1; grace = 0
+      if (match($0, /[{, \t]terminate-after[ \t]*=[ \t]*[0-9]+[ \t]*[,}]/)) {
         t = substr($0, RSTART, RLENGTH); sub(/^[^0-9]*/, "", t); after = t + 0
       }
+      if ($0 ~ /grace-period/) grace = seconds(quoted("grace-period"))
       if (period < 1 || after < 1 || period * after > 60) {
         print "nextest.toml line " NR ": this slow-timeout does not end a test within 60 s"; bad = 1
+      } else if (grace < 0 || grace > 10) {
+        print "nextest.toml line " NR ": this grace-period gives a test that ignores the first signal more than the 10 s cargo-nextest gives by default"; bad = 1
       } else if (section == "[profile.default]") kill = period * after
       next
     }
@@ -119,6 +139,9 @@ limits() {
         print "nextest.toml line " NR ": this global-timeout does not end the run within 120 s"; bad = 1
       } else if (section == "[profile.default]") run = bound
       next
+    }
+    /slow-timeout|global-timeout/ {
+      print "nextest.toml line " NR ": this script reads slow-timeout and global-timeout as `<key> = ...` on one line, not in this form"; bad = 1
     }
     END {
       if (!kill) { print "nextest.toml: [profile.default] has no slow-timeout with period and terminate-after"; bad = 1 }
@@ -167,6 +190,9 @@ step() {
   held=0
   if ! grep '^nextest run' "$work/calls" | grep -q -v -e '--no-run'; then
     echo "Taskfile.yml: the task test does not call cargo nextest run"; held=1
+  fi
+  if grep -q -v '^nextest run' "$work/calls"; then
+    echo "Taskfile.yml: the task test calls \`cargo $(grep -v '^nextest run' "$work/calls" | head -n 1)\`: only cargo nextest run reads .config/nextest.toml, so no file bounds that call"; held=1
   fi
   if grep -q -e '--config-file' -e '--tool-config-file' "$work/calls"; then
     echo "Taskfile.yml: the task test names another configuration file than .config/nextest.toml"; held=1
@@ -265,6 +291,26 @@ copy override
 edit "$nextest" '{ print } END { print ""; print "[[profile.default.overrides]]"; print "filter = \"all()\""; print "slow-timeout = { period = \"300s\", terminate-after = 1 }" }'
 broken "an override that gives every test 300 s"
 
+copy grace-period-first
+edit "$nextest" '/^slow-timeout/ { print "slow-timeout = { grace-period = \"1s\", period = \"600s\", terminate-after = 1 }"; next } { print }'
+broken "slow-timeout with a period of 600 s written after a grace-period of 1 s"
+
+copy dotted-override
+edit "$nextest" '{ print } END { print ""; print "[[profile.default.overrides]]"; print "filter = \"all()\""; print "slow-timeout.period = \"300s\""; print "slow-timeout.terminate-after = 1" }'
+broken "an override that gives every test 300 s, written with dotted keys"
+
+copy table-of-its-own
+edit "$nextest" '{ print } END { print ""; print "[profile.other.slow-timeout]"; print "period = \"300s\""; print "terminate-after = 1" }'
+broken "another profile whose slow-timeout is a table of its own with a period of 300 s"
+
+copy on-timeout-pass
+edit "$nextest" '/^slow-timeout/ { sub(/terminate-after *= *1/, "terminate-after = 1, on-timeout = \"pass\"") } { print }'
+broken "slow-timeout with on-timeout = pass: a test ended at 60 s counts as passed"
+
+copy long-grace-period
+edit "$nextest" '/^slow-timeout/ { sub(/terminate-after *= *1/, "terminate-after = 1, grace-period = \"600s\"") } { print }'
+broken "slow-timeout with a grace-period of 600 s: a test that ignores the first signal runs on"
+
 copy no-list
 edit "$taskfile" '
   /^  test:$/ { print; print "    cmds:"; print "      - cargo nextest run --workspace --locked"; inside = 1; next }
@@ -280,6 +326,10 @@ broken "a task test that exits 0 when the run failed"
 copy other-config
 edit "$taskfile" '{ sub(/cargo nextest run --workspace --locked >/, "cargo nextest run --workspace --locked --config-file other.toml >") } { print }'
 broken "a task test that reads another configuration file"
+
+copy cargo-test-beside
+edit "$taskfile" '{ print } /^      - cargo nextest run --workspace --locked --no-run$/ { print "      - cargo test --workspace --locked --doc" }'
+broken "a task test that also runs cargo test, which no file bounds"
 
 if [ "$fail" != 0 ]; then
   echo "test-budget: $refused of $cases broken copies refused" >&2
