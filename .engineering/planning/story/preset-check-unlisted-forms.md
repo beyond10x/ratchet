@@ -14,7 +14,7 @@ scope:
   path: presets/README.md
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 4
+revision: 5
 ---
 ## Context
 
@@ -44,6 +44,13 @@ comparison.
 
 ## Notes
 
+- State after the corrections of attack 1 (`791fdc4`): `tolerance: {}` is refused on a
+  requirement that compares a sampled measurement with an accepted value
+  (`spec/presets.test.sh:1141`); the story checks the other places a tolerance stands. A
+  tenth form, an adoption from the trusted revision without `runs`, is accepted and stands
+  under "Not checked" with its reason (`spec/presets.test.sh:123`): `docs/design.md` § 5 says
+  that the number has no default and names no report of `ratchet validate` for it. The story
+  asks the design whether `validate` reports it.
 - Where the design does not say whether a form is an error (the seven of the second list), the
   story asks the design first and writes the answer into `docs/design.md`.
 - The story is a draft. It was there before the planned waves to 0.1.0 and waits for them.
