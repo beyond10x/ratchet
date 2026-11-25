@@ -52,6 +52,11 @@ check, a `ratchet` binary whose 16 commands answer "unavailable" and that prints
 test budget in the gate, and the CI job `Repository gate`. Record:
 `.engineering/waves/0.1.0-wave-2.md`.
 
+Wave 3 is delivered (2026-11-25): `CHANGELOG.md`, the release procedure in `AGENTS.md` § "Release",
+the tag workflow `Release` and the scripts that check a tag, build the archives and verify a
+published release. The workflow has not run on the forge yet; release 0.0.1 is its first run.
+Record: `.engineering/waves/0.1.0-wave-3.md`.
+
 ## Releases
 
 - **0.0.1**: the first release, cut when waves 2 and 3 are on `main` (the owner ordered a release

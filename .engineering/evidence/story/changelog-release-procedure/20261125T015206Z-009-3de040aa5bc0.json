@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T01:52:06Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:changelog-release-procedure",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check, whole gate by the coordinator on commit 15cd5fd: exit 0, 11 tests passed, release: 130 of 130 cases pass",
+    "reference": ".engineering/waves/0.1.0-wave-3.md"
+  }
+}

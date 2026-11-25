@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: The tag, the workspace version and the changelog agree
+        run: sh .github/scripts/release-check.sh "$GITHUB_REF_NAME"
+      - name: Read the rustc pinned in rust-toolchain.toml
+        id: rustc
+        run: |
+          set -euo pipefail
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
+        with:
+          toolchain: ${{ steps.rustc.outputs.channel }}
+          components: rustfmt, clippy
+      - name: Show the rustc the gate builds with
+        env:
+          CHANNEL: ${{ steps.rustc.outputs.channel }}
+        run: |
+          set -euo pipefail
+          rustc --version
+          rustc --version | grep -F "rustc $CHANNEL "
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install task
+        env:
+          GO_TASK_VERSION: "3.54.0"
+          GO_TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
+        run: |
+          set -euo pipefail
+          asset=task_linux_amd64.tar.gz
+          mkdir -p "$RUNNER_TEMP/task"
+          cd "$RUNNER_TEMP/task"
+          curl --fail --silent --show-error --location --output "$asset" \
+            "https://github.com/go-task/task/releases/download/v$GO_TASK_VERSION/$asset"
+          echo "$GO_TASK_SHA256  $asset" | sha256sum --check --strict
+          tar -xzf "$asset" task
+          echo "$RUNNER_TEMP/task" >> "$GITHUB_PATH"
+          ./task --version | grep -Fx "$GO_TASK_VERSION"
+      - name: Install cargo-nextest
+        env:
+          NEXTEST_VERSION: "0.9.143"
+          NEXTEST_SHA256: 66786b9abe23920d022a182d1416b1bbc8130dd4872a9553d76985a1708dcd1e
+        run: |
+          set -euo pipefail
+          asset="cargo-nextest-$NEXTEST_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p "$RUNNER_TEMP/nextest"
+          cd "$RUNNER_TEMP/nextest"
+          curl --fail --silent --show-error --location --output "$asset" \
+            "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$NEXTEST_VERSION/$asset"
+          echo "$NEXTEST_SHA256  $asset" | sha256sum --check --strict
+          tar -xzf "$asset" cargo-nextest
+          echo "$RUNNER_TEMP/nextest" >> "$GITHUB_PATH"
+          ./cargo-nextest --version | grep -F "cargo-nextest $NEXTEST_VERSION "
+      - name: Install ess
+        env:
+          ESS_VERSION: "0.98.0"
+          ESS_SHA256: c6c9a3a3d6956ce1a237f0340905dfadc431d31b1a15b104a6d2e64bb5acaa8e
+        run: |
+          set -euo pipefail
+          name="ess-$ESS_VERSION-x86_64-unknown-linux-gnu"
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --output "$name.tar.gz" \
+            "https://github.com/beyond10x/ess/releases/download/$ESS_VERSION/$name.tar.gz"
+          echo "$ESS_SHA256  $name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$name.tar.gz"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+          "./$name/ess" --version | grep -Fx "ess $ESS_VERSION"
+      - name: Install aep
+        env:
+          AEP_VERSION: "0.80.0"
+          AEP_SHA256: 9277f3977397b540767497917bdb9666719249364901c466939343d1787d502a
+        run: |
+          set -euo pipefail
+          name="aep-$AEP_VERSION-x86_64-unknown-linux-gnu"
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --output "$name.tar.gz" \
+            "https://github.com/beyond10x/aep/releases/download/$AEP_VERSION/$name.tar.gz"
+          echo "$AEP_SHA256  $name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$name.tar.gz"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+          "./$name/aep" --version | grep -Fx "aep $AEP_VERSION"
+      - name: Run the repository gate
+        run: task check
+
+  package:
+    name: Package ${{ matrix.target }}
+    needs: gate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read the rustc pinned in rust-toolchain.toml
+        id: rustc
+        run: |
+          set -euo pipefail
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
+        with:
+          toolchain: ${{ steps.rustc.outputs.channel }}
+          components: rustfmt, clippy
+          targets: ${{ matrix.target }}
+      - name: Build ratchet and write its archive
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --bin ratchet --target "$TARGET"
+          sh .github/scripts/release-package.sh archive "$GITHUB_REF_NAME" "$TARGET" "target/$TARGET/release/ratchet" dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  bundle:
+    name: Bundle the release assets
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Write the checksums and the notes
+        run: |
+          set -euo pipefail
+          sh .github/scripts/release-package.sh sums "$GITHUB_REF_NAME" dist
+          sh .github/scripts/release-package.sh notes "$GITHUB_REF_NAME" CHANGELOG.md > dist/notes.md
+          cat dist/notes.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ratchet-${{ github.ref_name }}-release
+          path: dist/*
+          if-no-files-found: error

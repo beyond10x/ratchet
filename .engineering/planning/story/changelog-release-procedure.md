@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:changelog-release-procedure
 kind: story
-status: active
+status: implemented
 title: CHANGELOG.md, release procedure and tag workflow
 summary: 'Keep a Changelog file, AGENTS.md § Release, a tag workflow and the scripts it runs: checks, archives with checksums, release verification.'
 relations:
@@ -23,10 +23,11 @@ scope:
   path: AGENTS.md
 - confidence: cited
   path: CHANGELOG.md
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:22Z", actor: "agent:ratchet", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-25T01:52:06Z", actor: "agent:ratchet", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":12}}}
 ---
 ## Context
 
