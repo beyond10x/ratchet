@@ -6,6 +6,17 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+### Added
+
+- `presets/` holds the preset catalog with its first family: the presets `conformance-cases@1`, `differential-equality@1` and `known-failures@1` and the assessor declarations they name; the catalog ships no program that reads a report
+- `presets/functional.md` states for each measurement of the functional family the direction, the unit, the tolerance and the source of the evidence, and names what `ratchet/1` cannot say yet
+- A preset is the file `<name>@<version>.preset.yaml` in a catalog source and holds `statements`, `assessments` and `requirements`; no command resolves a binding yet, and `presets/README.md` says what a project writes until one does
+- `task check:spec` checks every file of `presets/` against the specification and every measurement against its row on a page of the catalog
+
+### Changed
+
+- CI runs `task check` for every change under `presets/`, a page included
+
 ## [0.0.1] - 2026-11-25
 
 ### Added

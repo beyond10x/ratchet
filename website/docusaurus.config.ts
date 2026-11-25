@@ -67,7 +67,7 @@ const pages: Record<string, Page> = {
   'research/candidate-presets.md': {
     slug: '/research/candidate-presets',
     title: 'Candidate presets',
-    lede: `First presets the survey answers support. Design input: no preset exists yet. ${designPhase}`,
+    lede: `First presets the survey answers support. Design input: the catalog presets/ holds the functional family, and no command resolves a binding yet. ${designPhase}`,
     status: 'planned',
   },
   'research/consumer-input-ux-ui.md': {

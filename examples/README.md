@@ -462,8 +462,8 @@ workstation checkout of example 5.
   assessment run records the resolved path. The path is the illustration of § 5: the pool prints
   queue wait per job (swell B2) and another answer names the log `jobs.jsonl` (slot B2). A key
   there for an input that is not local is refused with `input_not_local`.
-- The first catalog source is this repository. `presets/` does not exist in it yet, and
-  `<commit>` is not a commit, so the entry resolves to nothing.
+- The first catalog source is this repository, whose `presets/` holds the catalog. `<commit>` is
+  not a commit, so the entry resolves to nothing.
 - The second catalog source has no `git`: it is the directory `quality/assessors` of the checkout,
   relative to the root. The declaration of an assessor is a file there, such as
   `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory is an illustration and
