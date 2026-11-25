@@ -764,7 +764,9 @@ types:
         decimal, `decimal` for a decimal, `boolean` for a boolean. No key is a reference, and
         the `preset` block holds none. Inside a flow mapping or a flow list the reference is
         quoted, `"${inputs.<name>}"`: a plain scalar there holds no brace. A quoted reference
-        and a plain one mean the same.
+        and a plain one mean the same. The spelling is the only one: a scalar of a preset that
+        holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as
+        `${ inputs.report }` and `${{inputs.report}}`, is an error and no text.
 
 entities:
   - name: ratchet.specification.QualitySpecification

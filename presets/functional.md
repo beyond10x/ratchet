@@ -161,9 +161,13 @@ beside `conformance-cases@1`. The list gains no case, and its size does not rise
 | `no-new-known-failure` | `listed-cases` | `no_new_items` against the accepted set |
 | `size-does-not-rise` | `size` | Not above the accepted value |
 
-A list that passes `no-new-known-failure` is no longer than the accepted list, so
-`size-does-not-rise` adds no refusal. `size` is there as a number: a view and a history show how
-the list shrinks.
+Each of the two requirements has a reference record of its own, and each is adopted on its own.
+While the accepted size is the size of the accepted set, a list that passes
+`no-new-known-failure` is no longer than the accepted list, and `size-does-not-rise` refuses
+nothing the first passes. After an adoption of one of the two alone that does not hold: with a
+lower accepted size and the older accepted set, a list that takes back a case of that set
+passes `no-new-known-failure` and fails `size-does-not-rise`. `size` is there as a number: a view
+and a history show how the list shrinks.
 
 What the program of `case-list@1` returns for a run: `cases` holds one item per entry of the
 list, with the id of the case under `case_id`, and `count` is the number of entries. Coverage, in

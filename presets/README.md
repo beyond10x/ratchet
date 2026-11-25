@@ -18,8 +18,10 @@ Pages:
 - [functional.md](functional.md): conformance cases, differential equality against a reference
   implementation, the known-failure list.
 
-A file is named by the name and the version it states. Nothing else lies in the directory, and it
-has no subdirectory.
+A file is named by the name and the version it states, and neither holds an `@`. Nothing else
+lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name
+starts with `.`. A file is UTF-8 and holds no NUL byte and no control character; its lines end
+with a line feed, and a page may hold tabs.
 
 ## What a preset is
 
@@ -32,7 +34,11 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
   (`string`, `integer`, `decimal`, `boolean` or `path`), may be a list, is required or has a
   default, and is never local.
 - An entry refers to an input as `${inputs.<name>}`. The reference is the whole of a value. Inside
-  `{...}` or `[...]` it is quoted, `"${inputs.<name>}"`.
+  `{...}` or `[...]` it is quoted, `"${inputs.<name>}"`. The spelling is the only one: a value
+  that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as
+  `${ inputs.report }` and `${{inputs.report}}`, is an error and no text.
+- A preset holds at least one requirement. A file with assessments alone gives a project
+  nothing to bind.
 - An entry states no `project`. The binding gives it one.
 - A preset declares no subject, no gate, no exception and no binding of its own. The subject of
   a plan is an input, and which requirement blocks at which stage is the project's decision.
@@ -58,15 +64,29 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 - **A row per measurement.** Every measurement of a preset has one row on the page of its
   family, under the header `| Measurement | Direction | Unit | Tolerance | Evidence |`, named
   `<name>@<version>/<assessment>/<measurement>`, and none of the four cells after the name is
-  empty. The rows of one preset stand on one page.
+  empty. The rows of one preset stand on one page. A row inside a code fence or an HTML comment
+  is no row, and a cell that holds only spaces, tabs, no-break spaces or an HTML comment is
+  empty.
+- **A measurement as its assessor declares it.** A measurement has the kind of the output it
+  names, the unit of that output or none where the output has none, and a boundary and an
+  identity key that the output declares. An assessment passes every input its assessor
+  requires, with the declared type, and names a target kind the assessor takes.
+- **A comparison its value type allows.** A requirement compares its measurement as the table
+  "Comparisons" of [`docs/design.md`](../docs/design.md) § 3 allows for the value type of the
+  output: the operator, the `value`, the kind of the reference, `better` and the unit.
+- **No text that is empty.** A member without a value is left out, not written as `""`.
 - **No comment in a preset or a declaration.** A binding carries the digest of the preset file,
-  so a reworded comment would be a new digest. What a file means is on the page.
+  so a reworded comment would be a new digest. What a file means is on the page. The script
+  refuses a comment line and a comment after a value.
 - **Generic examples.** No file names a consumer, a product or a customer. Examples are
   `service`, `orders-api` and `case-0042`.
 
 `sh spec/presets.test.sh`, a step of `task check:spec`, checks every file of this directory
-against the specification and against the pages. Its header says what it checks and what it
-does not.
+against the specification, against the declaration of its assessor and against the pages. Its
+header says what it checks and what it does not: among the latter the invariants of the types,
+a value that an input gives where a rule reads the value, and the prose of a row. No script
+checks the rules "Tolerance", "A value against a reference implementation", "Names",
+"Evidence" and "Generic examples".
 
 ## What the catalog does not ship
 

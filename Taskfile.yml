@@ -117,7 +117,7 @@ tasks:
 
   check:ci-paths:
     silent: true
-    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, each document a script of check:spec reads and each file of presets/: the job runs check for code, check:spec for docs-site and nothing for planning."
+    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, each document a script of check:spec reads and each file of presets/: the job runs check for code, check:spec for docs-site and nothing for planning. Then run its step that lists the changed files on a rename out of presets/ and one out of crates/, for a pull request and for a push: the list holds the old path and the class is code."
     cmds:
       - |
         set -eu
@@ -217,5 +217,58 @@ tasks:
             *) echo "FAIL the job gate: check:spec <- $file, which spec/presets.test.sh reads: got ${got:-nothing}"; fail=1 ;;
           esac
         done
+        # A file renamed out of presets/ or crates/ is a change of code. The step that lists the
+        # changed files runs here as the workflow holds it, once per event, in a clone of depth 2
+        # of a repository whose last commit is the rename; the classifier reads the list the step
+        # wrote. The list has to hold the path the file had.
+        lister=$(block 'List the changed files')
+        test -n "$lister" || { echo "no step in .github/workflows/pages.yml lists the changed files"; exit 1; }
+        renames=$PWD/target/check-ci-paths
+        rm -rf "$renames"
+        mkdir -p "$renames/source/presets" "$renames/source/crates/ratchet-cli-contract"
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+        export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+        export GIT_AUTHOR_NAME=check GIT_AUTHOR_EMAIL=check@example.invalid
+        export GIT_COMMITTER_NAME=check GIT_COMMITTER_EMAIL=check@example.invalid
+        (
+          cd "$renames/source"
+          git init -q -b main .
+          printf 'A page of the catalog.\n' > presets/functional.md
+          printf 'A generated page.\n' > crates/ratchet-cli-contract/README.md
+          git add .
+          git commit -q -m 'two files'
+          git checkout -q -b out-of-presets main
+          mkdir examples
+          git mv presets/functional.md examples/functional.md
+          git commit -q -m 'a rename out of presets/'
+          git checkout -q -b out-of-crates main
+          mkdir notes
+          git mv crates/ratchet-cli-contract/README.md notes/contract.md
+          git commit -q -m 'a rename out of crates/'
+        )
+        while IFS='|' read -r branch old; do
+          for event in pull_request push; do
+            n=$((n + 1))
+            clone=$renames/$branch-$event
+            mkdir "$clone.temp"
+            git clone -q --depth 2 --branch "$branch" "file://$renames/source" "$clone" 2> "$clone.temp/clone.txt"
+            before=$(git -C "$clone" rev-parse HEAD^1)
+            if (cd "$clone" && EVENT=$event BEFORE=$before RUNNER_TEMP=$clone.temp GITHUB_ENV=$clone.temp/env bash -c "$lister") > "$clone.temp/step.txt" 2>&1; then
+              list=$(sed -n 's/^CHANGED_FILES=//p' "$clone.temp/env")
+              got=$(CHANGED_FILES=$list GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p')
+              listed=$(tr '\n' ' ' < "$list")
+            else
+              got='a failed step' listed= list=/dev/null
+            fi
+            if [ "$got" = code ] && grep -q -x -F -e "$old" "$list"; then
+              echo "ok   code <- on $event, a rename out of $old: the step lists ${listed% }"
+            else
+              echo "FAIL code <- on $event, a rename out of $old: got ${got:-nothing}, the step lists ${listed:-nothing}"; fail=1
+            fi
+          done
+        done <<'CASES'
+        out-of-presets|presets/functional.md
+        out-of-crates|crates/ratchet-cli-contract/README.md
+        CASES
         echo "$n cases"
         exit $fail
