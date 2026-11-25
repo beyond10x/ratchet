@@ -24,7 +24,7 @@ scope:
   path: crates/ratchet-core/tests/invariants/evidence.txt
 - confidence: cited
   path: crates/ratchet-core/tests/store.rs
-revision: 8
+revision: 9
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
@@ -61,8 +61,9 @@ runs of its assessment under its record id and read back byte-identical, in the 
 
 - `crates/ratchet-core/tests/main.rs`, `Cargo.toml` and `Cargo.lock` are not edited:
   `story:cli-skeleton-validate` declared the test modules and the SHA-256 dependency.
-- Whether the decoders of `crates/ratchet-model` are generated or hand-written follows the
-  owner's answer in `story:cli-skeleton-validate`; this note is amended with that answer. Decoding
+- The decoders of `crates/ratchet-model` are generated: the owner answered on 2026-11-25 that
+  the crate is the output of `ess generate synthesize` alone (`story:cli-skeleton-validate`).
+  This story writes no decoder and starts after the ESS release that emits them. Decoding
   goes through them
   (`story:record-formats-in-spec` declares the fields, the target kind `document` among them). A
   member of `evidence` the reader does not know is rejected, a member of `run` it does not know

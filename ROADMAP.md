@@ -27,8 +27,9 @@ The order is the one `aep plan artifact waves --kind story` derives.
    "unavailable", the gate tasks and the CI job.
 3. `story:changelog-release-procedure`: the changelog and the release procedure.
 4. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the model is generated from
-   `spec/` and checked for drift. It waits on one question to the owner: which generated crate
-   holds the model.
+   `spec/` and checked for drift. The owner answered on 2026-11-25 that the model crate is the
+   output of `ess generate synthesize` alone, decoders included; the wave is not dispatched
+   until an ESS release emits typed decoders without a server.
 5. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`: evidence files
    are read and checked, a plan is checked against its assessor's declaration, values are compared
    with a reference.

@@ -31,7 +31,7 @@ scope:
   path: crates/ratchet/tests/fixtures/validate
 - confidence: cited
   path: crates/ratchet/tests/validate.rs
-revision: 26
+revision: 27
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
@@ -43,7 +43,8 @@ generated command surface with its drift check, the binary whose 16 commands ans
 "unavailable", the gate tasks and the CI job. This story adds the model crate and the
 hand-written library, and ends with the first command a project can run.
 
-It waits on one question to the owner. Measured on 2026-11-24 with `ess` 0.98.0:
+It waited on one question to the owner: which generated crate `crates/ratchet-model/` holds.
+Measured on 2026-11-24 with `ess` 0.98.0:
 
 - `ess generate synthesize --path spec --target rust --layout crate --out <dir>` writes one crate
   with no dependencies: one module per domain, the types, a `broken_constraint` check per type
@@ -57,10 +58,29 @@ It waits on one question to the owner. Measured on 2026-11-24 with `ess` 0.98.0:
   `ratchet.config`, 6 of `ratchet.evidence`, 1 of `ratchet.assessor`).
 - Both write a package that carries its own `[workspace]` table.
 
-The question: which of the two `crates/ratchet-model/` holds, or whether the story waits for ESS
-to emit decoders without a server. The story starts when it is answered. Before it is dispatched
-this body is amended with the answer, and with it the note of `story:evidence-reader` that names
-the decoders.
+The owner's answer, 2026-11-25: ESS first. `crates/ratchet-model/` is the output of
+`ess generate synthesize` and nothing else: the types, the invariant checks, the lifecycles and
+the decoders. No model code is written by hand, and `ess generate types` is not used. ESS gets
+a story for typed decoders from `generate synthesize` without a server.
+
+The story is not dispatched until an ESS release emits those decoders. What that release has
+to give, as sent to the ESS repository on 2026-11-25 with a minimal specification:
+
+1. a typed decoder and encoder for every struct, enum, newtype and entity snapshot, emitted by
+   `--layout crate` with no HTTP binding; a decoder refuses an undeclared member of a closed
+   struct, ignores one of a struct with `undeclared_fields: ignored`, refuses a value that
+   breaks an invariant and names the key path;
+2. a name for the package (`--package ratchet-model`): the synthesized package is named after
+   the system, which is the name of the binary crate;
+3. a package without its own `[workspace]` table;
+4. a struct with `shorthand:` in the Rust target;
+5. declarations for the rules of the file form (below), so that the decoder applies them;
+6. a `.ess-output/state.json` that does not change between two runs on one specification, or
+   the rule that the file is not committed: its `anchor_id` is new on every run.
+
+Items 1 to 3 are what this story needs before it starts. Until ESS has items 4 and 5, the
+mapping from the file form to the entities is hand-written in `crates/ratchet-core` (`spec`),
+outside the model crate, and hands the generated decoders a value tree.
 
 A `ratchet/1` file is not the declared entities written out. `spec/README.md` § "How a
 `ratchet/1` file differs from the declared entities" lists the twelve rules a reader applies
@@ -99,7 +119,7 @@ A `ratchet/1` file is not the declared entities written out. `spec/README.md` §
 
 ## Scope
 
-- `crates/ratchet-model/`: the output of the generator the answer names, never edited. The root
+- `crates/ratchet-model/`: the output of `ess generate synthesize`, never edited. The root
   workspace holds it the way `AGENTS.md` records for `crates/ratchet-cli-contract` since
   `story:workspace-cli-contract`
 - `crates/ratchet-core/`: the hand-written library. This story writes `spec` (find and read
@@ -153,11 +173,9 @@ A `ratchet/1` file is not the declared entities written out. `spec/README.md` §
   60 s, the step within 120 s. No cargo test calls `ess`.
 - The story times `task check:generated` and `.github/scripts/check-generated.test.sh` before
   and after the line of `crates/ratchet-model/` and reports the four times; a jump is fixed here.
-- Cargo unifies features across the build. `ess generate types` turns on
-  `serde_json/arbitrary_precision` by default, which then also holds for
-  `crates/ratchet-cli-contract` and the binary. The gate of this story runs the tests of
-  `story:workspace-cli-contract` with the model crate in the build; a test whose answer changes
-  is fixed here.
+- The model crate has no dependencies, so it turns on no feature of another crate. The gate of
+  this story runs the tests of `story:workspace-cli-contract` with the model crate in the
+  build; a test whose answer changes is fixed here.
 - Each invariant of a type `validate` reads (`ratchet.specification`, `ratchet.config`) has a test
   with a value that breaks only it, and the test `invariants` fails when the specification holds
   an invariant of those types that no entry names
