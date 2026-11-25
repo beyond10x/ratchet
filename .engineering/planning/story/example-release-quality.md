@@ -19,7 +19,7 @@ scope:
   path: examples/README.md
 - confidence: inferred
   path: examples/release-quality.ratchet.yaml
-revision: 6
+revision: 7
 ---
 ## Context
 
@@ -57,8 +57,10 @@ examples/release-quality.ratchet.yaml` exits 0; before the story the file does n
 ## Notes
 
 - First consumer: the repository that reviews releases. The story is a draft behind the waves
-  to 0.1.0; it needs `ratchet validate` (`story:cli-skeleton-validate`) for its acceptance and
-  shares the declarations with `story:example-assessor-declarations`.
+  to 0.1.0; it needs `ratchet validate` (`story:cli-skeleton-validate`) for its acceptance. In
+  its own change it adds the declaration of each assessor it names that has none in
+  `examples/quality/assessors/` or `presets/`, and `spec/example-declarations.test.sh` of
+  `story:example-assessor-declarations` checks it.
 - The counts of the example are generic: open defects of the release, failed checks of its
   run, reverted changes since the release before. No name of a product or a tracker.
 - A thing the example needs and the format cannot say is named in the report and filed as a

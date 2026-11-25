@@ -7,7 +7,7 @@ title: The formats say what the first format consumer's quality definition needs
 summary: '16 findings from writing the quality definition of beyond10x/inference against the formats: 8 things a format cannot say, 1 missing set of declarations, 7 silent or disagreeing places.'
 relations:
 - decomposes: initiative:first-milestone
-revision: 4
+revision: 5
 ---
 ## Context
 
@@ -48,7 +48,10 @@ it now leaves out or writes in a weaker form.
 
 ## Order
 
-The epic is beside the waves to 0.1.0 and changes none of them. Its stories are drafts. A story
+The epic is beside the waves to 0.1.0 and changes none of them. Its stories are drafts, except
+`story:example-assessor-declarations`, taken ahead of the waves on 2026-11-25: every planned
+wave starts behind `story:cli-skeleton-validate`, which waits for a release of ESS, and that
+story needs no generated model. A story
 that changes a type the slice of 0.1.0 reads (`ratchet.evidence.EvidenceCoverage`,
 `ratchet.evidence.ImportSourceKind`, `ratchet.specification.Condition`) is built after the wave
 that reads the type, or with it when the wave's story is amended.
