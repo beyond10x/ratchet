@@ -1,0 +1,4258 @@
+{
+  "format": "ess-cli-plan/2",
+  "binary": "ratchet",
+  "about": "Specify software quality, assess it, and keep it from going backwards",
+  "globals": {
+    "config": "config",
+    "state": "state-dir",
+    "output": "output"
+  },
+  "callables": {
+    "assess": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "assess"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.AssessInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "assessments": {
+              "kind": "optional",
+              "of": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            },
+            "candidate": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "report": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.AssessResult",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "runs": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "assessment": {
+                    "kind": "string"
+                  },
+                  "completion": {
+                    "kind": "enum",
+                    "variants": [
+                      "completed",
+                      "timed_out",
+                      "stopped_by_infrastructure",
+                      "skipped_locally",
+                      "refused_inputs"
+                    ]
+                  },
+                  "coverage": {
+                    "kind": "struct",
+                    "fields": {
+                      "executed": {
+                        "kind": "integer"
+                      },
+                      "executed_ids": {
+                        "kind": "optional",
+                        "of": {
+                          "kind": "list",
+                          "of": {
+                            "kind": "string"
+                          }
+                        }
+                      },
+                      "failed": {
+                        "kind": "integer"
+                      },
+                      "not_executed": {
+                        "kind": "optional",
+                        "of": {
+                          "kind": "list",
+                          "of": {
+                            "kind": "struct",
+                            "fields": {
+                              "id": {
+                                "kind": "string"
+                              },
+                              "reason": {
+                                "kind": "optional",
+                                "of": {
+                                  "kind": "string"
+                                }
+                              },
+                              "state": {
+                                "kind": "enum",
+                                "variants": [
+                                  "skipped",
+                                  "not_run",
+                                  "unsupported"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "not_run": {
+                        "kind": "integer"
+                      },
+                      "passed": {
+                        "kind": "integer"
+                      },
+                      "skipped": {
+                        "kind": "integer"
+                      },
+                      "unit": {
+                        "kind": "string"
+                      },
+                      "unsupported": {
+                        "kind": "integer"
+                      }
+                    }
+                  },
+                  "local_inputs": {
+                    "kind": "map",
+                    "value": {
+                      "kind": "string"
+                    }
+                  },
+                  "results": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "item": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "kind": {
+                          "kind": "enum",
+                          "variants": [
+                            "exact",
+                            "sampled"
+                          ]
+                        },
+                        "measurement": {
+                          "kind": "string"
+                        },
+                        "output": {
+                          "kind": "string"
+                        },
+                        "scope": {
+                          "kind": "string"
+                        },
+                        "value": {
+                          "kind": "json"
+                        }
+                      }
+                    }
+                  },
+                  "run": {
+                    "kind": "string"
+                  },
+                  "target_class": {
+                    "kind": "enum",
+                    "variants": [
+                      "local",
+                      "ci",
+                      "ephemeral",
+                      "staging",
+                      "production"
+                    ]
+                  },
+                  "window": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "ends_at": {
+                          "kind": "string"
+                        },
+                        "items": {
+                          "kind": "integer"
+                        },
+                        "left_out": {
+                          "kind": "integer"
+                        },
+                        "newest_at": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "starts_at": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "assessor_unavailable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "candidate_unresolved": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "input_not_local": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_assessment": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "diff": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "diff"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.DiffInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "candidate": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "requirement": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.DiffReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "items": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "candidate": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "json"
+                    }
+                  },
+                  "change": {
+                    "kind": "enum",
+                    "variants": [
+                      "new_item",
+                      "lost_item",
+                      "worse_value",
+                      "better_value"
+                    ]
+                  },
+                  "item": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "json"
+                    }
+                  },
+                  "reference": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "json"
+                    }
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "reference_missing": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "doctor": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "doctor"
+      },
+      "input": null,
+      "result": {
+        "type_ref": "ratchet.cli.DoctorReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "checks": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "check": {
+                    "kind": "enum",
+                    "variants": [
+                      "config",
+                      "specs",
+                      "tools",
+                      "local_inputs",
+                      "record_store",
+                      "sampled_conditions"
+                    ]
+                  },
+                  "detail": {
+                    "kind": "string"
+                  },
+                  "ok": {
+                    "kind": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "unhealthy": {
+          "type_ref": "ratchet.cli.DoctorReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "checks": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "check": {
+                      "kind": "enum",
+                      "variants": [
+                        "config",
+                        "specs",
+                        "tools",
+                        "local_inputs",
+                        "record_store",
+                        "sampled_conditions"
+                      ]
+                    },
+                    "detail": {
+                      "kind": "string"
+                    },
+                    "ok": {
+                      "kind": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evaluate": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "evaluate"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.EvaluateInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "candidate": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "gate": {
+              "kind": "string"
+            },
+            "trusted": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.GateReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "candidate": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "decision": {
+              "kind": "string"
+            },
+            "exceptions": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "age_days": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "integer"
+                    }
+                  },
+                  "days_to_expiry": {
+                    "kind": "integer"
+                  },
+                  "exception": {
+                    "kind": "string"
+                  },
+                  "expires": {
+                    "kind": "string"
+                  },
+                  "owner": {
+                    "kind": "string"
+                  },
+                  "reason": {
+                    "kind": "string"
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  },
+                  "status": {
+                    "kind": "enum",
+                    "variants": [
+                      "active",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            },
+            "gate": {
+              "kind": "string"
+            },
+            "kind": {
+              "kind": "enum",
+              "variants": [
+                "candidate",
+                "operational"
+              ]
+            },
+            "policy_revision": {
+              "kind": "string"
+            },
+            "requirements": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "allowed": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "operator": {
+                          "kind": "enum",
+                          "variants": [
+                            "lt",
+                            "lte",
+                            "gt",
+                            "gte",
+                            "eq",
+                            "no_new_items",
+                            "no_lost_items",
+                            "holds"
+                          ]
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "cause": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "limit_crossed",
+                        "regression",
+                        "new_items",
+                        "lost_items",
+                        "assertion_not_held",
+                        "generated_reference_differs",
+                        "stale_reference_not_adopted",
+                        "too_few_samples",
+                        "assessor_timed_out",
+                        "assessor_infrastructure_failure",
+                        "stale_telemetry",
+                        "incompatible_target",
+                        "conditions_outside_declared",
+                        "coverage_below_plan",
+                        "tool_mismatch",
+                        "reference_missing",
+                        "reference_not_comparable",
+                        "not_attributable_to_candidate",
+                        "not_assessable_here",
+                        "skipped_locally",
+                        "evidence_missing"
+                      ]
+                    }
+                  },
+                  "conditions": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "map",
+                      "value": {
+                        "kind": "string"
+                      }
+                    }
+                  },
+                  "coverage": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "executed": {
+                          "kind": "integer"
+                        },
+                        "executed_ids": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "list",
+                            "of": {
+                              "kind": "string"
+                            }
+                          }
+                        },
+                        "failed": {
+                          "kind": "integer"
+                        },
+                        "not_executed": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "list",
+                            "of": {
+                              "kind": "struct",
+                              "fields": {
+                                "id": {
+                                  "kind": "string"
+                                },
+                                "reason": {
+                                  "kind": "optional",
+                                  "of": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "state": {
+                                  "kind": "enum",
+                                  "variants": [
+                                    "skipped",
+                                    "not_run",
+                                    "unsupported"
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "not_run": {
+                          "kind": "integer"
+                        },
+                        "passed": {
+                          "kind": "integer"
+                        },
+                        "skipped": {
+                          "kind": "integer"
+                        },
+                        "unit": {
+                          "kind": "string"
+                        },
+                        "unsupported": {
+                          "kind": "integer"
+                        }
+                      }
+                    }
+                  },
+                  "entry_state": {
+                    "kind": "enum",
+                    "variants": [
+                      "evaluated",
+                      "not_applicable"
+                    ]
+                  },
+                  "evidence": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "exceptions": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "mode": {
+                    "kind": "enum",
+                    "variants": [
+                      "enforce",
+                      "report"
+                    ]
+                  },
+                  "next_step": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "candidate",
+                        "assessment",
+                        "system"
+                      ]
+                    }
+                  },
+                  "not_applicable_reason": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "observed": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "at_least": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "digest": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "holds": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "items": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
+                        },
+                        "number": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value_type": {
+                          "kind": "enum",
+                          "variants": [
+                            "number",
+                            "identity_set",
+                            "digest",
+                            "assertion"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "proof": {
+                    "kind": "enum",
+                    "variants": [
+                      "proven",
+                      "unproven"
+                    ]
+                  },
+                  "reference": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "reference_stale": {
+                    "kind": "boolean"
+                  },
+                  "reference_value": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "at_least": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "digest": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "holds": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "items": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
+                        },
+                        "number": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value_type": {
+                          "kind": "enum",
+                          "variants": [
+                            "number",
+                            "identity_set",
+                            "digest",
+                            "assertion"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  },
+                  "unenforced_since": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "verdict": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "pass",
+                        "fail",
+                        "insufficient_evidence"
+                      ]
+                    }
+                  },
+                  "window": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "ends_at": {
+                          "kind": "string"
+                        },
+                        "items": {
+                          "kind": "integer"
+                        },
+                        "left_out": {
+                          "kind": "integer"
+                        },
+                        "newest_at": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "starts_at": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "summary": {
+              "kind": "string"
+            },
+            "verdict": {
+              "kind": "enum",
+              "variants": [
+                "pass",
+                "fail",
+                "insufficient_evidence"
+              ]
+            }
+          }
+        }
+      },
+      "errors": {
+        "gate_failed": {
+          "type_ref": "ratchet.cli.GateReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "candidate": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              },
+              "decision": {
+                "kind": "string"
+              },
+              "exceptions": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "age_days": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "integer"
+                      }
+                    },
+                    "days_to_expiry": {
+                      "kind": "integer"
+                    },
+                    "exception": {
+                      "kind": "string"
+                    },
+                    "expires": {
+                      "kind": "string"
+                    },
+                    "owner": {
+                      "kind": "string"
+                    },
+                    "reason": {
+                      "kind": "string"
+                    },
+                    "requirement": {
+                      "kind": "string"
+                    },
+                    "status": {
+                      "kind": "enum",
+                      "variants": [
+                        "active",
+                        "expired"
+                      ]
+                    }
+                  }
+                }
+              },
+              "gate": {
+                "kind": "string"
+              },
+              "kind": {
+                "kind": "enum",
+                "variants": [
+                  "candidate",
+                  "operational"
+                ]
+              },
+              "policy_revision": {
+                "kind": "string"
+              },
+              "requirements": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "allowed": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "operator": {
+                            "kind": "enum",
+                            "variants": [
+                              "lt",
+                              "lte",
+                              "gt",
+                              "gte",
+                              "eq",
+                              "no_new_items",
+                              "no_lost_items",
+                              "holds"
+                            ]
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "cause": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "limit_crossed",
+                          "regression",
+                          "new_items",
+                          "lost_items",
+                          "assertion_not_held",
+                          "generated_reference_differs",
+                          "stale_reference_not_adopted",
+                          "too_few_samples",
+                          "assessor_timed_out",
+                          "assessor_infrastructure_failure",
+                          "stale_telemetry",
+                          "incompatible_target",
+                          "conditions_outside_declared",
+                          "coverage_below_plan",
+                          "tool_mismatch",
+                          "reference_missing",
+                          "reference_not_comparable",
+                          "not_attributable_to_candidate",
+                          "not_assessable_here",
+                          "skipped_locally",
+                          "evidence_missing"
+                        ]
+                      }
+                    },
+                    "conditions": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "map",
+                        "value": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "coverage": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "executed": {
+                            "kind": "integer"
+                          },
+                          "executed_ids": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "string"
+                              }
+                            }
+                          },
+                          "failed": {
+                            "kind": "integer"
+                          },
+                          "not_executed": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "struct",
+                                "fields": {
+                                  "id": {
+                                    "kind": "string"
+                                  },
+                                  "reason": {
+                                    "kind": "optional",
+                                    "of": {
+                                      "kind": "string"
+                                    }
+                                  },
+                                  "state": {
+                                    "kind": "enum",
+                                    "variants": [
+                                      "skipped",
+                                      "not_run",
+                                      "unsupported"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "not_run": {
+                            "kind": "integer"
+                          },
+                          "passed": {
+                            "kind": "integer"
+                          },
+                          "skipped": {
+                            "kind": "integer"
+                          },
+                          "unit": {
+                            "kind": "string"
+                          },
+                          "unsupported": {
+                            "kind": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "entry_state": {
+                      "kind": "enum",
+                      "variants": [
+                        "evaluated",
+                        "not_applicable"
+                      ]
+                    },
+                    "evidence": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "exceptions": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "mode": {
+                      "kind": "enum",
+                      "variants": [
+                        "enforce",
+                        "report"
+                      ]
+                    },
+                    "next_step": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "candidate",
+                          "assessment",
+                          "system"
+                        ]
+                      }
+                    },
+                    "not_applicable_reason": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "observed": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "digest": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "holds": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "items": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
+                          },
+                          "number": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value_type": {
+                            "kind": "enum",
+                            "variants": [
+                              "number",
+                              "identity_set",
+                              "digest",
+                              "assertion"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "proof": {
+                      "kind": "enum",
+                      "variants": [
+                        "proven",
+                        "unproven"
+                      ]
+                    },
+                    "reference": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "reference_stale": {
+                      "kind": "boolean"
+                    },
+                    "reference_value": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "digest": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "holds": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "items": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
+                          },
+                          "number": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value_type": {
+                            "kind": "enum",
+                            "variants": [
+                              "number",
+                              "identity_set",
+                              "digest",
+                              "assertion"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "requirement": {
+                      "kind": "string"
+                    },
+                    "unenforced_since": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "verdict": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "pass",
+                          "fail",
+                          "insufficient_evidence"
+                        ]
+                      }
+                    },
+                    "window": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "ends_at": {
+                            "kind": "string"
+                          },
+                          "items": {
+                            "kind": "integer"
+                          },
+                          "left_out": {
+                            "kind": "integer"
+                          },
+                          "newest_at": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "starts_at": {
+                            "kind": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "summary": {
+                "kind": "string"
+              },
+              "verdict": {
+                "kind": "enum",
+                "variants": [
+                  "pass",
+                  "fail",
+                  "insufficient_evidence"
+                ]
+              }
+            }
+          }
+        },
+        "insufficient_evidence": {
+          "type_ref": "ratchet.cli.GateReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "candidate": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              },
+              "decision": {
+                "kind": "string"
+              },
+              "exceptions": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "age_days": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "integer"
+                      }
+                    },
+                    "days_to_expiry": {
+                      "kind": "integer"
+                    },
+                    "exception": {
+                      "kind": "string"
+                    },
+                    "expires": {
+                      "kind": "string"
+                    },
+                    "owner": {
+                      "kind": "string"
+                    },
+                    "reason": {
+                      "kind": "string"
+                    },
+                    "requirement": {
+                      "kind": "string"
+                    },
+                    "status": {
+                      "kind": "enum",
+                      "variants": [
+                        "active",
+                        "expired"
+                      ]
+                    }
+                  }
+                }
+              },
+              "gate": {
+                "kind": "string"
+              },
+              "kind": {
+                "kind": "enum",
+                "variants": [
+                  "candidate",
+                  "operational"
+                ]
+              },
+              "policy_revision": {
+                "kind": "string"
+              },
+              "requirements": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "allowed": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "operator": {
+                            "kind": "enum",
+                            "variants": [
+                              "lt",
+                              "lte",
+                              "gt",
+                              "gte",
+                              "eq",
+                              "no_new_items",
+                              "no_lost_items",
+                              "holds"
+                            ]
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "cause": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "limit_crossed",
+                          "regression",
+                          "new_items",
+                          "lost_items",
+                          "assertion_not_held",
+                          "generated_reference_differs",
+                          "stale_reference_not_adopted",
+                          "too_few_samples",
+                          "assessor_timed_out",
+                          "assessor_infrastructure_failure",
+                          "stale_telemetry",
+                          "incompatible_target",
+                          "conditions_outside_declared",
+                          "coverage_below_plan",
+                          "tool_mismatch",
+                          "reference_missing",
+                          "reference_not_comparable",
+                          "not_attributable_to_candidate",
+                          "not_assessable_here",
+                          "skipped_locally",
+                          "evidence_missing"
+                        ]
+                      }
+                    },
+                    "conditions": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "map",
+                        "value": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "coverage": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "executed": {
+                            "kind": "integer"
+                          },
+                          "executed_ids": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "string"
+                              }
+                            }
+                          },
+                          "failed": {
+                            "kind": "integer"
+                          },
+                          "not_executed": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "struct",
+                                "fields": {
+                                  "id": {
+                                    "kind": "string"
+                                  },
+                                  "reason": {
+                                    "kind": "optional",
+                                    "of": {
+                                      "kind": "string"
+                                    }
+                                  },
+                                  "state": {
+                                    "kind": "enum",
+                                    "variants": [
+                                      "skipped",
+                                      "not_run",
+                                      "unsupported"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "not_run": {
+                            "kind": "integer"
+                          },
+                          "passed": {
+                            "kind": "integer"
+                          },
+                          "skipped": {
+                            "kind": "integer"
+                          },
+                          "unit": {
+                            "kind": "string"
+                          },
+                          "unsupported": {
+                            "kind": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "entry_state": {
+                      "kind": "enum",
+                      "variants": [
+                        "evaluated",
+                        "not_applicable"
+                      ]
+                    },
+                    "evidence": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "exceptions": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "mode": {
+                      "kind": "enum",
+                      "variants": [
+                        "enforce",
+                        "report"
+                      ]
+                    },
+                    "next_step": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "candidate",
+                          "assessment",
+                          "system"
+                        ]
+                      }
+                    },
+                    "not_applicable_reason": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "observed": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "digest": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "holds": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "items": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
+                          },
+                          "number": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value_type": {
+                            "kind": "enum",
+                            "variants": [
+                              "number",
+                              "identity_set",
+                              "digest",
+                              "assertion"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "proof": {
+                      "kind": "enum",
+                      "variants": [
+                        "proven",
+                        "unproven"
+                      ]
+                    },
+                    "reference": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "reference_stale": {
+                      "kind": "boolean"
+                    },
+                    "reference_value": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "digest": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "holds": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "boolean"
+                            }
+                          },
+                          "items": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
+                          },
+                          "number": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "unit": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "value_type": {
+                            "kind": "enum",
+                            "variants": [
+                              "number",
+                              "identity_set",
+                              "digest",
+                              "assertion"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "requirement": {
+                      "kind": "string"
+                    },
+                    "unenforced_since": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "verdict": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "enum",
+                        "variants": [
+                          "pass",
+                          "fail",
+                          "insufficient_evidence"
+                        ]
+                      }
+                    },
+                    "window": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "ends_at": {
+                            "kind": "string"
+                          },
+                          "items": {
+                            "kind": "integer"
+                          },
+                          "left_out": {
+                            "kind": "integer"
+                          },
+                          "newest_at": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "starts_at": {
+                            "kind": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "summary": {
+                "kind": "string"
+              },
+              "verdict": {
+                "kind": "enum",
+                "variants": [
+                  "pass",
+                  "fail",
+                  "insufficient_evidence"
+                ]
+              }
+            }
+          }
+        },
+        "local_skips_refused": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "operational_gate_takes_no_candidate": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_gate": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "exceptions": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "exceptions"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ExceptionsInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "requirement": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "status": {
+              "kind": "optional",
+              "of": {
+                "kind": "enum",
+                "variants": [
+                  "active",
+                  "expired"
+                ]
+              }
+            },
+            "within_days": {
+              "kind": "optional",
+              "of": {
+                "kind": "integer"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ExceptionList",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "exceptions": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "age_days": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "integer"
+                    }
+                  },
+                  "days_to_expiry": {
+                    "kind": "integer"
+                  },
+                  "exception": {
+                    "kind": "string"
+                  },
+                  "expires": {
+                    "kind": "string"
+                  },
+                  "owner": {
+                    "kind": "string"
+                  },
+                  "reason": {
+                    "kind": "string"
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  },
+                  "status": {
+                    "kind": "enum",
+                    "variants": [
+                      "active",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "explain": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "explain"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ExplainInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "requirement": {
+              "kind": "string"
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.Explanation",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "assessment": {
+              "kind": "string"
+            },
+            "assessor": {
+              "kind": "string"
+            },
+            "audiences": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "condition": {
+              "kind": "optional",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "operator": {
+                    "kind": "enum",
+                    "variants": [
+                      "lt",
+                      "lte",
+                      "gt",
+                      "gte",
+                      "eq",
+                      "no_new_items",
+                      "no_lost_items",
+                      "holds"
+                    ]
+                  },
+                  "unit": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "value": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "evidence": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "gates": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "gate": {
+                    "kind": "string"
+                  },
+                  "mode": {
+                    "kind": "enum",
+                    "variants": [
+                      "enforce",
+                      "report"
+                    ]
+                  }
+                }
+              }
+            },
+            "meaning": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "measurement": {
+              "kind": "string"
+            },
+            "measurement_kind": {
+              "kind": "enum",
+              "variants": [
+                "exact",
+                "sampled"
+              ]
+            },
+            "reference_kind": {
+              "kind": "optional",
+              "of": {
+                "kind": "enum",
+                "variants": [
+                  "generated",
+                  "accepted_value"
+                ]
+              }
+            },
+            "requirement": {
+              "kind": "string"
+            },
+            "scope": {
+              "kind": "string"
+            },
+            "statements": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "statement": {
+                    "kind": "string"
+                  },
+                  "text": {
+                    "kind": "string"
+                  }
+                }
+              }
+            },
+            "subject": {
+              "kind": "string"
+            },
+            "unit": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "history": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "history"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.HistoryInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "limit": {
+              "kind": "optional",
+              "of": {
+                "kind": "integer"
+              }
+            },
+            "requirement": {
+              "kind": "string"
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.History",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "exceptions": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "age_days": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "integer"
+                    }
+                  },
+                  "days_to_expiry": {
+                    "kind": "integer"
+                  },
+                  "exception": {
+                    "kind": "string"
+                  },
+                  "expires": {
+                    "kind": "string"
+                  },
+                  "owner": {
+                    "kind": "string"
+                  },
+                  "reason": {
+                    "kind": "string"
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  },
+                  "status": {
+                    "kind": "enum",
+                    "variants": [
+                      "active",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            },
+            "points": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "at": {
+                    "kind": "string"
+                  },
+                  "environment": {
+                    "kind": "enum",
+                    "variants": [
+                      "local",
+                      "ci",
+                      "ephemeral",
+                      "staging",
+                      "production"
+                    ]
+                  },
+                  "run": {
+                    "kind": "string"
+                  },
+                  "value": {
+                    "kind": "json"
+                  },
+                  "verdict": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "pass",
+                        "fail",
+                        "insufficient_evidence"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "reference_changes": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "adopted": {
+                    "kind": "json"
+                  },
+                  "change": {
+                    "kind": "string"
+                  },
+                  "kind": {
+                    "kind": "enum",
+                    "variants": [
+                      "first_adoption",
+                      "regeneration",
+                      "tightening",
+                      "loosening",
+                      "trade_off"
+                    ]
+                  }
+                }
+              }
+            },
+            "requirement": {
+              "kind": "string"
+            }
+          }
+        }
+      },
+      "errors": {
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "import": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "import"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ImportInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "assessment": {
+              "kind": "string"
+            },
+            "path": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "since": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "source": {
+              "kind": "enum",
+              "variants": [
+                "forge_runs",
+                "build_pool_log",
+                "junit"
+              ]
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ImportResult",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "runs": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "source": {
+              "kind": "enum",
+              "variants": [
+                "forge_runs",
+                "build_pool_log",
+                "junit"
+              ]
+            }
+          }
+        }
+      },
+      "errors": {
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "source_unreadable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_assessment": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "init": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "init"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.InitInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "path": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "presets": {
+              "kind": "optional",
+              "of": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            },
+            "project": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.InitResult",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "presets": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "project": {
+              "kind": "string"
+            },
+            "spec_path": {
+              "kind": "string"
+            }
+          }
+        }
+      },
+      "errors": {
+        "preset_unresolved": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "spec_exists": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "prove": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "prove"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ProveInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "requirement": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ProofReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "proofs": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "accepted": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "planted": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "proof": {
+                    "kind": "string"
+                  },
+                  "refused": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "defect_accepted": {
+          "type_ref": "ratchet.cli.ProofReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "proofs": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "accepted": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "planted": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "proof": {
+                      "kind": "string"
+                    },
+                    "refused": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "requirement": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "no_planted_defects": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reference-adopt": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "reference-adopt"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ProposeInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "gains": {
+              "kind": "optional",
+              "of": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            },
+            "owner": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "reason": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "requirement": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "trade_off": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.AdoptResult",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "references": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "trade_off": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "written": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "path": {
+                    "kind": "string"
+                  },
+                  "requirement": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "gain_not_shown": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "no_qualifying_evidence": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "not_better": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "requirement_without_reference": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unnamed_regression": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reference-propose": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "reference-propose"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ProposeInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "gains": {
+              "kind": "optional",
+              "of": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            },
+            "owner": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "reason": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "requirement": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "trade_off": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ReferenceProposal",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "proposals": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "evidence": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "kind": {
+                    "kind": "enum",
+                    "variants": [
+                      "first_adoption",
+                      "regeneration",
+                      "tightening",
+                      "loosening",
+                      "trade_off"
+                    ]
+                  },
+                  "needs_authorization": {
+                    "kind": "boolean"
+                  },
+                  "previous": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "json"
+                    }
+                  },
+                  "proposed": {
+                    "kind": "json"
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  }
+                }
+              }
+            },
+            "trade_off": {
+              "kind": "optional",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "gains": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "from": {
+                          "kind": "string"
+                        },
+                        "item": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "requirement": {
+                          "kind": "string"
+                        },
+                        "to": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "loosens": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "from": {
+                          "kind": "string"
+                        },
+                        "item": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "requirement": {
+                          "kind": "string"
+                        },
+                        "to": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "owner": {
+                    "kind": "string"
+                  },
+                  "reason": {
+                    "kind": "string"
+                  },
+                  "trade_off": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "gain_not_shown": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "no_qualifying_evidence": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "not_better": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "requirement_without_reference": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_requirement": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unnamed_regression": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "render": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "render"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.RenderInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "check": {
+              "kind": "optional",
+              "of": {
+                "kind": "boolean"
+              }
+            },
+            "documents": {
+              "kind": "optional",
+              "of": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            },
+            "export": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.RenderReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "blocks": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "block": {
+                    "kind": "string"
+                  },
+                  "changed": {
+                    "kind": "boolean"
+                  },
+                  "document": {
+                    "kind": "string"
+                  }
+                }
+              }
+            },
+            "export": {
+              "kind": "optional",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "changed": {
+                    "kind": "boolean"
+                  },
+                  "data": {
+                    "kind": "string"
+                  },
+                  "page": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "render_drift": {
+          "type_ref": "ratchet.cli.RenderReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "blocks": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "block": {
+                      "kind": "string"
+                    },
+                    "changed": {
+                      "kind": "boolean"
+                    },
+                    "document": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "export": {
+                "kind": "optional",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "changed": {
+                      "kind": "boolean"
+                    },
+                    "data": {
+                      "kind": "string"
+                    },
+                    "page": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "unknown_record": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "serve": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "serve"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ServeInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "listen": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ServeResult",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "url": {
+              "kind": "string"
+            }
+          }
+        }
+      },
+      "errors": {
+        "listen_failed": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "status"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.StatusInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "gate": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.StatusReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "requirements": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "environment": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "local",
+                        "ci",
+                        "ephemeral",
+                        "staging",
+                        "production"
+                      ]
+                    }
+                  },
+                  "kind": {
+                    "kind": "enum",
+                    "variants": [
+                      "exact",
+                      "sampled"
+                    ]
+                  },
+                  "last_checked": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "limit": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "operator": {
+                          "kind": "enum",
+                          "variants": [
+                            "lt",
+                            "lte",
+                            "gt",
+                            "gte",
+                            "eq",
+                            "no_new_items",
+                            "no_lost_items",
+                            "holds"
+                          ]
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "observe_only": {
+                    "kind": "boolean"
+                  },
+                  "observed": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "at_least": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "digest": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "holds": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "items": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
+                        },
+                        "number": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value_type": {
+                          "kind": "enum",
+                          "variants": [
+                            "number",
+                            "identity_set",
+                            "digest",
+                            "assertion"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "open_exception": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "proof": {
+                    "kind": "enum",
+                    "variants": [
+                      "proven",
+                      "unproven"
+                    ]
+                  },
+                  "reference": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "at_least": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "digest": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "holds": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "items": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
+                        },
+                        "number": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "unit": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "value_type": {
+                          "kind": "enum",
+                          "variants": [
+                            "number",
+                            "identity_set",
+                            "digest",
+                            "assertion"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "requirement": {
+                    "kind": "string"
+                  },
+                  "revision": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "run": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "skipped_locally": {
+                    "kind": "boolean"
+                  },
+                  "verdict": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "enum",
+                      "variants": [
+                        "pass",
+                        "fail",
+                        "insufficient_evidence"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "errors": {
+        "record_store_unreachable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
+        "unknown_gate": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "validate": {
+      "target": {
+        "kind": "local",
+        "owner": "ratchet.cli",
+        "action": "validate"
+      },
+      "input": {
+        "type_ref": "ratchet.cli.ValidateInput",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "spec": {
+              "kind": "optional",
+              "of": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type_ref": "ratchet.cli.ValidationReport",
+        "shape": {
+          "kind": "struct",
+          "fields": {
+            "findings": {
+              "kind": "list",
+              "of": {
+                "kind": "struct",
+                "fields": {
+                  "code": {
+                    "kind": "enum",
+                    "variants": [
+                      "schema_violation",
+                      "unresolved_reference",
+                      "duplicate_id",
+                      "kind_mismatch",
+                      "unit_mismatch",
+                      "unit_missing",
+                      "unit_not_declared",
+                      "population_field_mismatch",
+                      "time_window_incomplete",
+                      "window_on_other_kind",
+                      "plan_does_not_fit_gate_kind",
+                      "when_in_operational_gate",
+                      "local_input_in_specification",
+                      "preset_input_local",
+                      "scope_mismatch",
+                      "boundary_mismatch",
+                      "target_binding_mismatch",
+                      "assessor_configuration_invalid",
+                      "preset_digest_mismatch",
+                      "preset_input_invalid",
+                      "sampled_without_conditions",
+                      "number_reference_without_better",
+                      "sampled_reference_without_tolerance",
+                      "sampled_reference_without_adoption",
+                      "report_mode_without_since",
+                      "requirement_without_qualifying_environment",
+                      "exception_without_reason",
+                      "exception_without_owner",
+                      "exception_without_expiry",
+                      "statement_not_served"
+                    ]
+                  },
+                  "layer": {
+                    "kind": "enum",
+                    "variants": [
+                      "shape",
+                      "completeness"
+                    ]
+                  },
+                  "location": {
+                    "kind": "string"
+                  },
+                  "message": {
+                    "kind": "string"
+                  }
+                }
+              }
+            },
+            "specs": {
+              "kind": "list",
+              "of": {
+                "kind": "string"
+              }
+            },
+            "valid": {
+              "kind": "boolean"
+            }
+          }
+        }
+      },
+      "errors": {
+        "spec_invalid": {
+          "type_ref": "ratchet.cli.ValidationReport",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "findings": {
+                "kind": "list",
+                "of": {
+                  "kind": "struct",
+                  "fields": {
+                    "code": {
+                      "kind": "enum",
+                      "variants": [
+                        "schema_violation",
+                        "unresolved_reference",
+                        "duplicate_id",
+                        "kind_mismatch",
+                        "unit_mismatch",
+                        "unit_missing",
+                        "unit_not_declared",
+                        "population_field_mismatch",
+                        "time_window_incomplete",
+                        "window_on_other_kind",
+                        "plan_does_not_fit_gate_kind",
+                        "when_in_operational_gate",
+                        "local_input_in_specification",
+                        "preset_input_local",
+                        "scope_mismatch",
+                        "boundary_mismatch",
+                        "target_binding_mismatch",
+                        "assessor_configuration_invalid",
+                        "preset_digest_mismatch",
+                        "preset_input_invalid",
+                        "sampled_without_conditions",
+                        "number_reference_without_better",
+                        "sampled_reference_without_tolerance",
+                        "sampled_reference_without_adoption",
+                        "report_mode_without_since",
+                        "requirement_without_qualifying_environment",
+                        "exception_without_reason",
+                        "exception_without_owner",
+                        "exception_without_expiry",
+                        "statement_not_served"
+                      ]
+                    },
+                    "layer": {
+                      "kind": "enum",
+                      "variants": [
+                        "shape",
+                        "completeness"
+                      ]
+                    },
+                    "location": {
+                      "kind": "string"
+                    },
+                    "message": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "specs": {
+                "kind": "list",
+                "of": {
+                  "kind": "string"
+                }
+              },
+              "valid": {
+                "kind": "boolean"
+              }
+            }
+          }
+        },
+        "spec_unreadable": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "commands": [
+    {
+      "path": [
+        "assess"
+      ],
+      "aliases": [],
+      "callable": "assess",
+      "about": "Run selected assessors or ingest their results and record structured evidence",
+      "arguments": [
+        {
+          "field": "assessments",
+          "source": {
+            "kind": "option",
+            "long": "assessments"
+          }
+        },
+        {
+          "field": "candidate",
+          "source": {
+            "kind": "option",
+            "long": "candidate"
+          }
+        },
+        {
+          "field": "report",
+          "source": {
+            "kind": "option",
+            "long": "report"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "diff"
+      ],
+      "aliases": [],
+      "callable": "diff",
+      "about": "Compare the candidate with the reference item by item",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        },
+        {
+          "field": "candidate",
+          "source": {
+            "kind": "option",
+            "long": "candidate"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "doctor"
+      ],
+      "aliases": [],
+      "callable": "doctor",
+      "about": "Check that config, specifications, tools, local inputs and the record store are reachable",
+      "arguments": []
+    },
+    {
+      "path": [
+        "evaluate"
+      ],
+      "aliases": [],
+      "callable": "evaluate",
+      "about": "Evaluate a named gate with qualifying evidence, or an operational gate over its windows; only a pass exits 0",
+      "arguments": [
+        {
+          "field": "gate",
+          "source": {
+            "kind": "option",
+            "long": "gate"
+          }
+        },
+        {
+          "field": "candidate",
+          "source": {
+            "kind": "option",
+            "long": "candidate"
+          }
+        },
+        {
+          "field": "trusted",
+          "source": {
+            "kind": "option",
+            "long": "trusted"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "exceptions"
+      ],
+      "aliases": [],
+      "callable": "exceptions",
+      "about": "List active, expiring and expired exceptions",
+      "arguments": [
+        {
+          "field": "status",
+          "source": {
+            "kind": "option",
+            "long": "status"
+          }
+        },
+        {
+          "field": "within_days",
+          "source": {
+            "kind": "option",
+            "long": "within-days"
+          }
+        },
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "option",
+            "long": "requirement"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "explain"
+      ],
+      "aliases": [],
+      "callable": "explain",
+      "about": "Say what a requirement means, who cares, how it is measured and where its evidence is",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "history"
+      ],
+      "aliases": [],
+      "callable": "history",
+      "about": "Show a requirement's series with reference changes and exceptions marked",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        },
+        {
+          "field": "limit",
+          "source": {
+            "kind": "option",
+            "long": "limit"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "import"
+      ],
+      "aliases": [],
+      "callable": "import",
+      "about": "Import history that exists elsewhere as assessment runs",
+      "arguments": [
+        {
+          "field": "source",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        },
+        {
+          "field": "assessment",
+          "source": {
+            "kind": "option",
+            "long": "assessment"
+          }
+        },
+        {
+          "field": "path",
+          "source": {
+            "kind": "option",
+            "long": "path"
+          }
+        },
+        {
+          "field": "since",
+          "source": {
+            "kind": "option",
+            "long": "since"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "init"
+      ],
+      "aliases": [],
+      "callable": "init",
+      "about": "Create a project specification and bind selected catalog presets",
+      "arguments": [
+        {
+          "field": "project",
+          "source": {
+            "kind": "option",
+            "long": "project"
+          }
+        },
+        {
+          "field": "presets",
+          "source": {
+            "kind": "option",
+            "long": "presets"
+          }
+        },
+        {
+          "field": "path",
+          "source": {
+            "kind": "option",
+            "long": "path"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "prove"
+      ],
+      "aliases": [],
+      "callable": "prove",
+      "about": "Run a requirement's planted defects and record that the check refuses each",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "reference",
+        "adopt"
+      ],
+      "aliases": [],
+      "callable": "reference-adopt",
+      "about": "Write the proposed reference records, and the trade-off record, into the working tree",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        },
+        {
+          "field": "gains",
+          "source": {
+            "kind": "option",
+            "long": "gains"
+          }
+        },
+        {
+          "field": "trade_off",
+          "source": {
+            "kind": "option",
+            "long": "trade-off"
+          }
+        },
+        {
+          "field": "reason",
+          "source": {
+            "kind": "option",
+            "long": "reason"
+          }
+        },
+        {
+          "field": "owner",
+          "source": {
+            "kind": "option",
+            "long": "owner"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "reference",
+        "propose"
+      ],
+      "aliases": [],
+      "callable": "reference-propose",
+      "about": "Print a stronger protected reference, or a trade-off that names its gains; write nothing",
+      "arguments": [
+        {
+          "field": "requirement",
+          "source": {
+            "kind": "positional",
+            "index": 1
+          }
+        },
+        {
+          "field": "gains",
+          "source": {
+            "kind": "option",
+            "long": "gains"
+          }
+        },
+        {
+          "field": "trade_off",
+          "source": {
+            "kind": "option",
+            "long": "trade-off"
+          }
+        },
+        {
+          "field": "reason",
+          "source": {
+            "kind": "option",
+            "long": "reason"
+          }
+        },
+        {
+          "field": "owner",
+          "source": {
+            "kind": "option",
+            "long": "owner"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "render"
+      ],
+      "aliases": [],
+      "callable": "render",
+      "about": "Write the marked blocks of numbers in documents and the static export from records",
+      "arguments": [
+        {
+          "field": "documents",
+          "source": {
+            "kind": "option",
+            "long": "documents"
+          }
+        },
+        {
+          "field": "export",
+          "source": {
+            "kind": "option",
+            "long": "export"
+          }
+        },
+        {
+          "field": "check",
+          "source": {
+            "kind": "option",
+            "long": "check"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "serve"
+      ],
+      "aliases": [],
+      "callable": "serve",
+      "about": "Serve the page and data document of the views over the record store",
+      "arguments": [
+        {
+          "field": "listen",
+          "source": {
+            "kind": "option",
+            "long": "listen"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "status"
+      ],
+      "aliases": [],
+      "callable": "status",
+      "about": "Show every requirement's verdict, value, limit or reference, and when it was checked",
+      "arguments": [
+        {
+          "field": "gate",
+          "source": {
+            "kind": "option",
+            "long": "gate"
+          }
+        }
+      ]
+    },
+    {
+      "path": [
+        "validate"
+      ],
+      "aliases": [],
+      "callable": "validate",
+      "about": "Check the specification, resolve references and validate assessor configuration",
+      "arguments": [
+        {
+          "field": "spec",
+          "source": {
+            "kind": "option",
+            "long": "spec"
+          }
+        }
+      ]
+    }
+  ],
+  "obligations": [
+    "handler:assess: implement the owner-qualified callable and its declared result/error contract",
+    "handler:diff: implement the owner-qualified callable and its declared result/error contract",
+    "handler:doctor: implement the owner-qualified callable and its declared result/error contract",
+    "handler:evaluate: implement the owner-qualified callable and its declared result/error contract",
+    "handler:exceptions: implement the owner-qualified callable and its declared result/error contract",
+    "handler:explain: implement the owner-qualified callable and its declared result/error contract",
+    "handler:history: implement the owner-qualified callable and its declared result/error contract",
+    "handler:import: implement the owner-qualified callable and its declared result/error contract",
+    "handler:init: implement the owner-qualified callable and its declared result/error contract",
+    "handler:prove: implement the owner-qualified callable and its declared result/error contract",
+    "handler:reference-adopt: implement the owner-qualified callable and its declared result/error contract",
+    "handler:reference-propose: implement the owner-qualified callable and its declared result/error contract",
+    "handler:render: implement the owner-qualified callable and its declared result/error contract",
+    "handler:serve: implement the owner-qualified callable and its declared result/error contract",
+    "handler:status: implement the owner-qualified callable and its declared result/error contract",
+    "handler:validate: implement the owner-qualified callable and its declared result/error contract"
+  ]
+}

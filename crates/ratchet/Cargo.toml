@@ -1,0 +1,16 @@
+[package]
+name = "ratchet"
+description = "Specify software quality, assess it, and keep it from going backwards"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+autotests = false
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[dependencies]
+ratchet-cli-contract.workspace = true

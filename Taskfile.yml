@@ -1,13 +1,84 @@
 version: '3'
 
+includes:
+  acceptance:
+    taskfile: acceptance/Taskfile.yml
+    optional: true
+
 tasks:
   check:
     desc: Run the repository gate.
     cmds:
       - aep plan artifact validate
       - task: check:spec
+      - task: check:rust
+      - task: check:generated
+      - task: check:scripts
+      - task: test
       - task: check:ci-paths
       - task: site
+
+  check:rust:
+    desc: Check the format and the lints of the hand-written crates. A generated crate is no member of the workspace, so it is neither formatted nor linted.
+    cmds:
+      - cargo fmt --check
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  check:generated:
+    desc: Compare each generated crate, byte for byte, with a fresh generation into target/check-generated. The crates and their generator lines are in .github/scripts/check-generated.sh.
+    cmds:
+      - sh .github/scripts/check-generated.sh
+
+  generate:
+    desc: Replace each generated crate with a fresh generation. Run it after a change of the specification; a generated file is never edited.
+    cmds:
+      - sh .github/scripts/check-generated.sh --write
+
+  check:scripts:
+    desc: Run every script test, .github/scripts/*.test.sh.
+    cmds:
+      - |
+        set -eu
+        n=0
+        for t in .github/scripts/*.test.sh; do
+          [ -f "$t" ] || { echo "check:scripts: no .github/scripts/*.test.sh"; exit 1; }
+          echo "check:scripts: sh $t"
+          sh "$t"
+          n=$((n + 1))
+        done
+        echo "check:scripts: $n script test(s) passed"
+
+  test:
+    desc: Run the tests of the workspace with cargo-nextest. .config/nextest.toml ends a test at 60 s and the run at 120 s, each as a failure. The ten slowest tests are printed last.
+    cmds:
+      - cargo nextest run --workspace --locked --no-run
+      - |
+        set -eu
+        log=target/test-step/nextest.txt
+        mkdir -p target/test-step
+        status=0
+        cargo nextest run --workspace --locked > "$log" 2>&1 || status=$?
+        cat "$log"
+        slowest=$(awk '
+          { gsub(/\033\[[0-9;]*m/, "") }
+          match($0, /^ *[A-Z][A-Z0-9 ]*\[ *[0-9]+\.[0-9]+s\] +/) {
+            name = substr($0, RSTART + RLENGTH)
+            sub(/^\([^)]*\) +/, "", name)
+            time = $0
+            sub(/^[^[]*\[ */, "", time)
+            sub(/s\].*$/, "", time)
+            if (!(name in times) || time + 0 > times[name] + 0) times[name] = time
+          }
+          END { for (name in times) printf "%10ss  %s\n", times[name], name }
+        ' "$log" | LC_ALL=C sort -k1,1nr -k2 | head -10)
+        echo "test: the ten slowest tests"
+        if [ -n "$slowest" ]; then
+          printf '%s\n' "$slowest"
+        elif [ "$status" = 0 ]; then
+          echo "test: cargo nextest run exited 0 and its output names no test with its time"
+          exit 1
+        fi
+        exit "$status"
 
   check:spec:
     desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
@@ -45,21 +116,41 @@ tasks:
 
   check:ci-paths:
     silent: true
-    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty."
+    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, and each document a script of check:spec reads: the job runs check for code, check:spec for docs-site and nothing for planning."
     cmds:
       - |
         set -eu
-        step=$(awk '
-          /- name: Classify the changed files$/ { f = 1; next }
-          f && !r && /run: \|$/ { r = 1; i = match($0, /[^ ]/); next }
-          r && /^ *$/ { print ""; next }
-          r { j = match($0, /[^ ]/); if (j <= i) exit; print substr($0, i + 2) }
-        ' .github/workflows/pages.yml)
+        # block <name>: the `run: |` block of the step of pages.yml with that name.
+        block() {
+          awk -v name="- name: $1" '
+            { line = $0; sub(/^ */, "", line) }
+            line == name { f = 1; next }
+            f && !r && /run: \|$/ { r = 1; i = match($0, /[^ ]/); next }
+            r && /^ *$/ { print ""; next }
+            r { j = match($0, /[^ ]/); if (j <= i) exit; print substr($0, i + 2) }
+          ' .github/workflows/pages.yml
+        }
+        step=$(block 'Classify the changed files')
         test -n "$step" || { echo "no classifier step in .github/workflows/pages.yml"; exit 1; }
+        gate=$(block 'Read the change class of the job build')
+        test -n "$gate" || { echo "no step of the job gate in .github/workflows/pages.yml reads the change class"; exit 1; }
+        # class <files>: the class of a change of these files.
+        class() {
+          printf '%s' "$1" | tr ' ' '\n' | CHANGED_FILES= GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p'
+        }
+        # runs <class>: the task the job gate runs for the class, `none` for no task, and
+        # `refused` when its first step fails.
+        runs() {
+          if answer=$(CHANGE_CLASS=$1 GITHUB_OUTPUT=/dev/stdout bash -c "$gate"); then
+            printf '%s\n' "$answer" | sed -n 's/^task=//p'
+          else
+            echo refused
+          fi
+        }
         fail=0 n=0
         while IFS='|' read -r want files; do
           n=$((n + 1))
-          got=$(printf '%s' "$files" | tr ' ' '\n' | CHANGED_FILES= GITHUB_OUTPUT=/dev/stdout bash -c "$step" | sed -n 's/^class=//p')
+          got=$(class "$files")
           if [ "$got" = "$want" ]; then echo "ok   $want <- ${files:-(none)}"; else echo "FAIL $want <- ${files:-(none)}: got ${got:-nothing}"; fail=1; fi
         done <<'CASES'
         planning|.engineering/planning/project.yaml
@@ -79,6 +170,37 @@ tasks:
         code|README.md crates/ratchet/src/lib.rs
         code|docs/design.md src/main.rs
         code|
+        planning|spec/README.md
+        code|spec/cli.yaml
+        code|Cargo.lock
+        code|rust-toolchain.toml
+        code|.config/nextest.toml
+        code|.github/scripts/check-generated.sh
+        code|crates/ratchet/tests/validate.rs
+        code|crates/ratchet-cli-contract/README.md
+        code|.engineering/planning/story/x.md crates/ratchet-cli-contract/README.md
         CASES
+        while IFS='|' read -r want class; do
+          n=$((n + 1))
+          got=$(runs "$class")
+          if [ "$got" = "$want" ]; then echo "ok   the job gate: $want <- class ${class:-(none)}"; else echo "FAIL the job gate: $want <- class ${class:-(none)}: got ${got:-nothing}"; fail=1; fi
+        done <<'CASES'
+        check|code
+        check:spec|docs-site
+        none|planning
+        refused|
+        refused|docs
+        CASES
+        # A document a script of check:spec reads is a change the job gate runs that task for.
+        documents=$(grep -h -o 'docs/[A-Za-z0-9_.-]*\.md' spec/*.test.sh | LC_ALL=C sort -u)
+        test -n "$documents" || { echo "no script of spec/ names a document under docs/"; exit 1; }
+        for document in $documents; do
+          n=$((n + 1))
+          got=$(runs "$(class "$document")")
+          case $got in
+            check | check:spec) echo "ok   the job gate: $got <- $document, which a script of check:spec reads" ;;
+            *) echo "FAIL the job gate: check:spec <- $document, which a script of check:spec reads: got ${got:-nothing}"; fail=1 ;;
+          esac
+        done
         echo "$n cases"
         exit $fail

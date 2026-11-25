@@ -1,0 +1,36 @@
+Specify software quality, assess it, and keep it from going backwards
+
+Usage: ratchet [OPTIONS] <COMMAND>
+
+Commands:
+  assess       Run selected assessors or ingest their results and record structured evidence
+  diff         Compare the candidate with the reference item by item
+  doctor       Check that config, specifications, tools, local inputs and the record store are reachable
+  evaluate     Evaluate a named gate with qualifying evidence, or an operational gate over its windows; only a pass exits 0
+  exceptions   List active, expiring and expired exceptions
+  explain      Say what a requirement means, who cares, how it is measured and where its evidence is
+  history      Show a requirement's series with reference changes and exceptions marked
+  import       Import history that exists elsewhere as assessment runs
+  init         Create a project specification and bind selected catalog presets
+  prove        Run a requirement's planted defects and record that the check refuses each
+  reference    
+  render       Write the marked blocks of numbers in documents and the static export from records
+  serve        Serve the page and data document of the views over the record store
+  status       Show every requirement's verdict, value, limit or reference, and when it was checked
+  validate     Check the specification, resolve references and validate assessor configuration
+  completions  Emit shell completions
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+      --config <global_config>
+          
+
+      --state-dir <global_state>
+          
+
+      --output <global_output>
+          [default: human]
+          [possible values: human, json]
+
+  -h, --help
+          Print help

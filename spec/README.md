@@ -79,11 +79,13 @@ per table), 3 examples in § 6 (`record-examples`), 2 examples in § 10 (`contra
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.
 
-Nothing generated is committed yet. The parser and process adapter come from `ess generate cli`.
-The crate from `ess generate synthesize` holds the types, a `broken_constraint` check on each
-type with invariants, the lifecycles of the entities, and the JSON helpers of `json.rs`. It
-holds nothing that reads a file into the types: what does is settled by the story that builds
-the workspace. Both are drift-checked in the gate once they are in the tree.
+The parser and process adapter come from `ess generate cli` and are committed as
+`crates/ratchet-cli-contract/`: `task check:generated` compares the crate with a fresh
+generation, and `task generate` rewrites it (`AGENTS.md` § "Generated crates"). The crate from
+`ess generate synthesize` is not committed yet. It holds the types, a `broken_constraint` check
+on each type with invariants, the lifecycles of the entities, and the JSON helpers of
+`json.rs`. It holds nothing that reads a file into the types: what does is settled by the
+story that adds the model crate. It is drift-checked in the gate once it is in the tree.
 
 ## Resolved in design revision 4
 
@@ -300,5 +302,6 @@ specification is committed.
 - **Population filter values** are text (`{service: portal, region: eu}`); the design shows no
   other value.
 
-`ess generate cli` accepts `cli.yaml` and writes a Cargo package `ratchet-cli-contract` with a
-`ratchet` binary into the ignored `target/ess-scratch/cli`.
+`ess generate cli` accepts `cli.yaml` and writes the Cargo package `ratchet-cli-contract`,
+committed as `crates/ratchet-cli-contract/`. The workspace builds its library only; the
+`ratchet` binary is that of `crates/ratchet/`.
