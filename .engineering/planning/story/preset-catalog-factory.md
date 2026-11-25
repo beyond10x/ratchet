@@ -10,11 +10,21 @@ relations:
 - depends_on: story:preset-catalog-functional
 - depends_on: story:preset-catalog-runtime
 scope:
+- confidence: inferred
+  path: AGENTS.md
 - confidence: cited
   path: CHANGELOG.md
 - confidence: cited
   path: presets
-revision: 6
+- confidence: inferred
+  path: presets/README.md
+- confidence: inferred
+  path: spec/README.md
+- confidence: inferred
+  path: spec/presets.test.sh
+- confidence: inferred
+  path: website/docusaurus.config.ts
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:32Z", actor: "agent:ratchet", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 6}
@@ -35,7 +45,12 @@ those files are absent and the last line holds the counts of the five families b
 ## Scope
 
 - `presets/`: the preset files and declarations of the three families, and the three pages.
-  `presets/README.md` and `spec/presets.test.sh` are not edited.
+  `presets/README.md` gains the three pages in its list.
+- `spec/presets.test.sh`: a rule that a family of this story is the first to reach, with a
+  defect that is refused with the message of the rule, as the second catalog story added
+  three for sampled measurements. A broken copy keeps its fixed set of files.
+- `spec/README.md`, `AGENTS.md`: the description of the script, where it changes.
+- `website/docusaurus.config.ts`: the sentence that names the families the catalog holds.
 - `CHANGELOG.md`: lines under `## [Unreleased]`.
 
 ## The three families
