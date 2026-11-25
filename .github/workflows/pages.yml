@@ -36,11 +36,11 @@ jobs:
           out="$RUNNER_TEMP/changed-files"
           : > "$out"
           case "$EVENT" in
-            pull_request) git diff --name-only HEAD^1 HEAD > "$out" ;;
+            pull_request) git diff --no-renames --name-only HEAD^1 HEAD > "$out" ;;
             push)
               if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] \
                 && git fetch --no-tags --depth=1 origin "$BEFORE" \
-                && git diff --name-only "$BEFORE" HEAD > "$out"; then :; else : > "$out"; fi
+                && git diff --no-renames --name-only "$BEFORE" HEAD > "$out"; then :; else : > "$out"; fi
               ;;
           esac
           echo "CHANGED_FILES=$out" >> "$GITHUB_ENV"
@@ -55,7 +55,7 @@ jobs:
               '') ;;
               .engineering/*) planning=1 ;;
               website/* | vision.md | docs/* | research/*) site=1 ;;
-              crates/*) code=1 ;;
+              crates/* | presets/*) code=1 ;;
               *.md) planning=1 ;;
               *) code=1 ;;
             esac

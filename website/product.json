@@ -3,13 +3,13 @@
   "product": {
     "name": "ratchet",
     "mark": "R",
-    "eyebrow": "Quality specification · design phase",
+    "eyebrow": "Quality specification · release 0.0.1",
     "promise": [
       "Specify software quality,",
       "then keep it from going backwards."
     ],
-    "lede": "Ratchet is a proposed versioned YAML format, a CLI, a preset catalog and assessors for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. A gate returns pass, fail or insufficient evidence; only a pass clears it. Nothing is implemented yet; field names and commands are proposals.",
-    "description": "A proposed YAML format and CLI to declare software quality requirements and refuse regressions. Design phase: nothing is implemented.",
+    "lede": "Ratchet is a proposed versioned YAML format, a CLI, a preset catalog and assessors for declaring what quality means for a project, how to assess it, and what evidence a candidate must produce before it can advance. A gate returns pass, fail or insufficient evidence; only a pass clears it. Release 0.0.1 ships a ratchet binary that parses the 16 commands and prints its version; no command is built yet, so it checks nothing for a project. The formats and the design are proposals, and presets/ holds the first family of the catalog.",
+    "description": "A proposed YAML format and CLI to declare software quality requirements and refuse regressions. Release 0.0.1 ships a binary that parses the 16 commands; no command is built yet, so it checks nothing for a project.",
     "actions": [
       {
         "label": "Vision",
@@ -29,7 +29,7 @@
         "href": "/docs/research/candidate-presets"
       }
     ],
-    "meta": "Design phase · no code yet · Apache-2.0"
+    "meta": "Release 0.0.1 · no command built yet · Apache-2.0"
   },
   "sections": [
     {
@@ -85,7 +85,7 @@
         },
         {
           "title": "Preset catalog",
-          "description": "Reusable YAML for web, backend, code quality, build and CI concerns.",
+          "description": "Reusable YAML for web, backend, code quality, build and CI concerns. The first family, the functional one, is in presets/; no command resolves a binding yet.",
           "status": "planned",
           "href": "/docs/design#4-presets-and-custom-assessors"
         },

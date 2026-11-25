@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T11:16:17Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:preset-catalog-functional",
+  "kind": "story",
+  "revision": 17,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check on the build node, whole gate by the coordinator on the content of commit 996cba2: exit 0; presets: 220 of 220 defects refused, 90 of 90 broken copies refused, 48 classifier cases, 11 tests passed",
+    "reference": ".engineering/waves/catalog-functional.md"
+  }
+}

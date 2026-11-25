@@ -656,7 +656,7 @@ An assessor writes one line per problem to the standard error, and the CLI shows
 
 ### Declaration `ratchet-assessor/1`
 
-One YAML document per assessor and version (E8). `ratchet validate` checks a plan against it: the target kind, the names and types of the inputs, and for each measurement the output, the scope, the unit, the boundary, and the fields of a `filter` (design § 4). The CLI checks an evidence document against it: `assessor`, `coverage.unit`, and for each result `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields`.
+One YAML document per assessor and version (E8). `ratchet validate` checks a plan against it: the target kind, the names and types of the inputs, and for each measurement the output, the kind, the scope, the unit, the boundary, the identity key, and the fields of a `filter` (design § 4). The CLI checks an evidence document against it: `assessor`, `coverage.unit`, and for each result `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields`.
 
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |

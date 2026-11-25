@@ -83,9 +83,9 @@ types:
         output's name, such as `findings` or `duration`: the value type, the kind, the scopes,
         the unit or that the output has none, the boundaries of a duration, and the identity
         key of a set and the fields of its items. `ratchet validate` checks a measurement's
-        output, scope, unit, boundary and filter fields against it, and the CLI checks each
-        result of an evidence document against it. Coverage is declared once for the assessor,
-        not per output (§ 4 "Coverage").
+        output, kind, scope, unit, boundary, identity key and filter fields against it, and the
+        CLI checks each result of an evidence document against it. Coverage is declared once for
+        the assessor, not per output (§ 4 "Coverage").
     fields:
       - name: value_type
         type: ratchet.specification.ValueType

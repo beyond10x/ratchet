@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-25T11:16:16Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:preset-catalog-functional",
+  "kind": "story",
+  "revision": 17,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-preset-catalog-functional-attack-2",
+    "reference": "spec/presets.test.sh:785",
+    "review": "review-result:adversary-preset-catalog-functional-attack-2",
+    "outcome": "fixed"
+  }
+}

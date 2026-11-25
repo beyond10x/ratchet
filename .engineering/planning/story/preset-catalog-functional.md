@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-catalog-functional
 kind: story
-status: active
+status: implemented
 title: 'The preset catalog: layout, the check in the gate and the functional family'
 summary: presets/ with file names declared in the specification, spec/presets.test.sh in check:spec, and the presets for conformance, differential equality and the known-failure list.
 relations:
@@ -33,10 +33,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 16
+revision: 18
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:31Z", actor: "agent:ratchet", revision: 15}
 - {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 16}
+- {from: "active", to: "implemented", at: "2026-11-25T11:16:17Z", actor: "agent:ratchet", revision: 18, decided_on: {"recorded":{"test_result":1,"review_outcome":27}}}
 ---
 ## Context
 
@@ -83,7 +84,8 @@ before the story the script and `presets/` are absent.
   - every measurement of a preset has one row on the page of its family, and the four cells
     of the row (direction, unit, tolerance, source of the evidence) are not empty; a row that
     names no measurement of a preset fails.
-  One broken copy per rule; the script fails when a copy is accepted. It reads YAML with the
+  Each rule has a defect in a broken copy, refused with the message of the rule; defects that
+  stand apart share a copy, and the script fails when a defect is accepted. It reads YAML with the
   tools the gate already needs; where it needs one more tool, the tool is pinned by version
   and digest in the job `gate` of `pages.yml` in the same change.
 - `Taskfile.yml`: the script as one command of `check:spec`.

@@ -14,7 +14,8 @@ const siteDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(siteDir, '..');
 const sourceBase = 'https://github.com/beyond10x/ratchet/blob/main/';
 
-const designPhase = 'Ratchet is in its design phase: nothing is implemented.';
+const releaseState =
+  'Release 0.0.1 ships a ratchet binary that parses the 16 commands and prints its version; no command is built yet, so it checks nothing for a project.';
 
 interface Page {
   slug: string;
@@ -28,25 +29,25 @@ const pages: Record<string, Page> = {
   'vision.md': {
     slug: '/',
     title: 'Vision',
-    lede: `Why Ratchet exists, the outcomes it aims for and what it does not do. ${designPhase}`,
+    lede: `Why Ratchet exists, the outcomes it aims for and what it does not do. ${releaseState}`,
     status: 'planned',
   },
   'docs/design.md': {
     slug: '/design',
     title: 'Design proposal',
-    lede: `${designPhase} Field names, document shapes and CLI commands on this page are proposals, not settled.`,
+    lede: `${releaseState} Field names, document shapes and CLI commands on this page are proposals, not settled.`,
     status: 'planned',
   },
   'docs/product-brainstorm.md': {
     slug: '/product-brainstorm',
     title: 'Product brainstorm',
-    lede: `${designPhase} What Ratchet is beyond the specification: binary, local config, record store, views and integrations. Nothing on this page is decided.`,
+    lede: `${releaseState} What Ratchet is beyond the specification: binary, local config, record store, views and integrations. Nothing on this page is decided.`,
     status: 'planned',
   },
   'docs/open-questions.md': {
     slug: '/open-questions',
     title: 'Open questions',
-    lede: `${designPhase} Six product questions with lettered options and a recommended default each.`,
+    lede: `${releaseState} Six product questions with lettered options and a recommended default each.`,
     status: 'planned',
   },
   'research/README.md': {
@@ -67,7 +68,7 @@ const pages: Record<string, Page> = {
   'research/candidate-presets.md': {
     slug: '/research/candidate-presets',
     title: 'Candidate presets',
-    lede: `First presets the survey answers support. Design input: no preset exists yet. ${designPhase}`,
+    lede: `First presets the survey answers support. Design input: the catalog presets/ holds the functional family, and no command resolves a binding yet. ${releaseState}`,
     status: 'planned',
   },
   'research/consumer-input-ux-ui.md': {

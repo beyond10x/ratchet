@@ -28,8 +28,10 @@ The order is the one `aep plan artifact waves --kind story` derives.
 3. `story:changelog-release-procedure`: the changelog and the release procedure.
 4. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the model is generated from
    `spec/` and checked for drift. The owner answered on 2026-11-25 that the model crate is the
-   output of `ess generate synthesize` alone, decoders included; the wave is not dispatched
-   until an ESS release emits typed decoders without a server.
+   output of `ess generate synthesize` alone, decoders included, and that the reading rules of
+   the file formats are declared in the specification and applied by the generated decoder.
+   The wave is not dispatched until an ESS release emits typed decoders without a server and
+   applies those rules; nothing of the model or of the reading rules is written by hand.
 5. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`: evidence files
    are read and checked, a plan is checked against its assessor's declaration, values are compared
    with a reference.
@@ -55,13 +57,14 @@ test budget in the gate, and the CI job `Repository gate`. Record:
 
 Wave 3 is delivered (2026-11-25): `CHANGELOG.md`, the release procedure in `AGENTS.md` § "Release",
 the tag workflow `Release` and the scripts that check a tag, build the archives and verify a
-published release. The workflow has not run on the forge yet; release 0.0.1 is its first run.
+published release. The workflow ran on the forge for release 0.0.1.
 Record: `.engineering/waves/0.1.0-wave-3.md`.
 
 ## Releases
 
-- **0.0.1**: the first release, cut when waves 2 and 3 are on `main` (the owner ordered a release
-  on 2026-11-25). It holds the specification, the four formats, the release procedure and a
+- **0.0.1**: released on 2026-11-25, the first release, ordered by the owner
+  (https://github.com/beyond10x/ratchet/releases/tag/0.0.1). It holds the specification, the
+  four formats, the release procedure and a
   `ratchet` binary that parses the 16 commands; no command is built, so it checks nothing for a
   project. Linux archives with checksums.
 - **0.1.0**: `validate`, `assess`, `reference adopt` (first adoption and tightening of an exact
@@ -84,6 +87,9 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   `story:preset-binding-resolution`. A catalog story starts between two waves, from the `main`
   of that moment. First consumer: a project that compares a candidate implementation of a
   service with a reference implementation; its first gap is the functional family.
+  `story:preset-catalog-functional` is delivered (2026-11-25): `presets/` holds the functional
+  family, and `sh spec/presets.test.sh` checks every file of the catalog in `task check:spec`.
+  Record: `.engineering/waves/catalog-functional.md`.
 - `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
   consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
   stories. They wait for the waves to 0.1.0.

@@ -34,6 +34,15 @@ types:
       - name: paths
         type: List<String>
 
+  # § 5 "Local config": the two kinds of file a reader of a catalog source reads. A file of a
+  # kind is named `<name>@<version>.<kind>.yaml`, with the name and the version the file
+  # states: `conformance-cases@1.preset.yaml`, `ux-static@1.assessor.yaml`. A source may hold
+  # other files, such as the pages of this repository's `presets/`; a reader of a source reads
+  # none of them. `spec/presets.test.sh` reads this list.
+  - name: ratchet.config.CatalogFileKind
+    kind: enum
+    variants: [preset, assessor]
+
   - name: ratchet.config.CatalogSource
     kind: struct
     naming:
@@ -41,8 +50,10 @@ types:
         One source of presets and assessor declarations (§ 5). With `git` it is
         `{ git, rev, path }`: the directory `path` of that repository at the commit `rev`, such
         as this repository's `presets/`. Without `git` it is `{ path }`: a directory relative
-        to the root, such as `quality/assessors`. An assessor declaration is the file
-        `<name>@<version>.assessor.yaml` in a source (docs/evidence-format.md § 9). A source
+        to the root, such as `quality/assessors`. A preset is the file
+        `<name>@<version>.preset.yaml` in a source and an assessor declaration the file
+        `<name>@<version>.assessor.yaml` (`ratchet.config.CatalogFileKind`;
+        docs/evidence-format.md § 9). A source
         says where to look and cannot change what is found: a binding's digest decides (§ 4).
     fields:
       - name: git
