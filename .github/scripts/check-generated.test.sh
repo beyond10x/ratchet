@@ -8,10 +8,14 @@
 # `task check:generated` in the copy:
 #
 #   - unchanged: exit 0;
-#   - per crate, one byte of its first file replaced: non-zero;
+#   - per crate and per file of it, one byte of the file replaced: non-zero;
 #   - per crate, its last file removed: non-zero;
 #   - per crate, one file added: non-zero;
-#   - per crate, all three undone: exit 0.
+#   - per crate, a symbolic link added that points to a file outside the crate: non-zero;
+#   - per crate, its first file replaced by a symbolic link to a copy of it: non-zero;
+#   - per crate, a symbolic link added that points to a directory: non-zero;
+#   - per crate, the executable bit of its first file changed, as git records it: non-zero;
+#   - per crate, all of them undone: exit 0.
 #
 # Exit 0: the last line is `check-generated: <n> of <n> changes refused in <m> generated crate(s)`.
 # Exit 1: each case that went the other way is named with the output of the task.
@@ -69,24 +73,54 @@ while IFS='|' read -r dir generator; do
   last=$(sed -n '$s|^\./||p' "$work/files")
   [ -n "$first" ] || { echo "check-generated: $dir holds no file" >&2; exit 1; }
 
-  cp "$copy/$dir/$first" "$work/saved"
-  if [ "$(dd if="$work/saved" bs=1 count=1 2> /dev/null)" = X ]; then byte=Y; else byte=X; fi
-  printf '%s' "$byte" | dd of="$copy/$dir/$first" bs=1 count=1 conv=notrunc 2> /dev/null
-  differing=$(cmp -l "$work/saved" "$copy/$dir/$first" | grep -c . || true)
-  [ "$differing" = 1 ] || { echo "check-generated: the edit of $dir/$first changed $differing bytes, not 1" >&2; exit 1; }
-  changed "$dir: one byte of $first replaced"
-  cp "$work/saved" "$copy/$dir/$first"
+  while IFS= read -r file; do
+    file=${file#./}
+    cp "$copy/$dir/$file" "$work/saved"
+    if [ -s "$work/saved" ]; then
+      if [ "$(dd if="$work/saved" bs=1 count=1 2> /dev/null)" = X ]; then byte=Y; else byte=X; fi
+      printf '%s' "$byte" | dd of="$copy/$dir/$file" bs=1 count=1 conv=notrunc 2> /dev/null
+      differing=$(cmp -l "$work/saved" "$copy/$dir/$file" | grep -c . || true)
+      [ "$differing" = 1 ] || { echo "check-generated: the edit of $dir/$file changed $differing bytes, not 1" >&2; exit 1; }
+      changed "$dir: one byte of $file replaced"
+    else
+      printf X > "$copy/$dir/$file"
+      changed "$dir: one byte added to the empty $file"
+    fi
+    cp "$work/saved" "$copy/$dir/$file"
+  done < "$work/files"
 
-  cp "$copy/$dir/$last" "$work/saved"
-  rm "$copy/$dir/$last"
+  mv "$copy/$dir/$last" "$work/moved"
   changed "$dir: $last removed"
-  cp "$work/saved" "$copy/$dir/$last"
+  mv "$work/moved" "$copy/$dir/$last"
 
   echo "not generated" > "$copy/$dir/not-generated.txt"
   changed "$dir: not-generated.txt added"
   rm "$copy/$dir/not-generated.txt"
 
-  expect pass "$dir: the three changes undone" || true
+  # What git records of an entry besides its bytes: that it is a symbolic link, and the
+  # executable bit.
+  mkdir -p "$work/outside"
+  echo "not generated" > "$work/outside/file.txt"
+  ln -s "$work/outside/file.txt" "$copy/$dir/linked.txt"
+  changed "$dir: linked.txt added, a symbolic link to a file outside the crate"
+  rm "$copy/$dir/linked.txt"
+
+  mv "$copy/$dir/$first" "$work/moved"
+  ln -s "$work/moved" "$copy/$dir/$first"
+  changed "$dir: $first replaced by a symbolic link to a copy of it"
+  rm "$copy/$dir/$first"
+  mv "$work/moved" "$copy/$dir/$first"
+
+  ln -s "$work/outside" "$copy/$dir/linked"
+  changed "$dir: linked added, a symbolic link to a directory"
+  rm "$copy/$dir/linked"
+
+  if [ -x "$copy/$dir/$first" ]; then bit=u-x back=u+x; else bit=u+x back=u-x; fi
+  chmod "$bit" "$copy/$dir/$first"
+  changed "$dir: the executable bit of $first changed (chmod $bit)"
+  chmod "$back" "$copy/$dir/$first"
+
+  expect pass "$dir: the changes undone" || true
 done < "$work/lines"
 
 if [ "$fail" != 0 ]; then

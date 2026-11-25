@@ -2,13 +2,16 @@
 //!
 //! Each module tests one command file of `src/commands/` and has its own file here, so the story
 //! that builds a command edits that command's test file and no other. `commands` holds the
-//! commands that share one answer.
+//! commands that share one answer; `version` and `closed_pipe` test what `src/main.rs` answers
+//! itself.
 
 mod assess;
+mod closed_pipe;
 mod commands;
 mod evaluate;
 mod reference_adopt;
 mod validate;
+mod version;
 
 use std::process::{Command, Stdio};
 

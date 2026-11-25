@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:workspace-cli-contract
 kind: story
-status: active
+status: implemented
 title: Workspace, generated command surface and the gate for code
 summary: Cargo workspace, ess-generated CLI crate with a drift check, the binary answering unavailable for 16 commands, gate tasks and the CI job.
 relations:
@@ -36,11 +36,16 @@ scope:
 - confidence: cited
   path: crates/ratchet-cli-contract
 - confidence: cited
+  path: docs/design.md
+- confidence: cited
   path: rust-toolchain.toml
-revision: 21
+- confidence: cited
+  path: spec/README.md
+revision: 24
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T18:13:29Z", actor: "agent:ratchet", revision: 20, decided_on: {"recorded":{"review_outcome":18}}}
 - {from: "proposed", to: "active", at: "2026-11-24T18:13:29Z", actor: "agent:ratchet", revision: 21, decided_on: {"recorded":{"review_outcome":18}}}
+- {from: "active", to: "implemented", at: "2026-11-25T00:41:44Z", actor: "agent:ratchet", revision: 24, decided_on: {"recorded":{"test_result":1,"review_outcome":27}}}
 ---
 ## Context
 
@@ -112,12 +117,16 @@ steps `check:rust`, `check:generated`, `check:scripts` and `test`, and:
   every `.github/scripts/*.test.sh`), `check:generated` (runs `check-generated.sh`), `check:rust`
   (fmt and clippy with `-D warnings` on the hand-written crates; a generated crate is never
   edited, so it is neither formatted nor linted), `test`. `check` runs the four after
-  `check:spec`. The cases of `check:ci-paths` stay as they are: they hold both sides of the
-  path list already
+  `check:spec`. `check:ci-paths` gains the cases of the job below: which task the job runs for
+  each class, and one case per document under `docs/` that a script of `check:spec` reads
 - `.github/workflows/pages.yml`: the job that runs the gate for a change classified `code`. It
   goes in this file because the classifier step and the repository's one path list are here; the
-  job reads that step's result and repeats no path: its steps run for the class `code`, and for
-  the other classes the job exits 0 without building. No new workflow file
+  job reads that step's result and repeats no path: it runs `task check` for the class `code`,
+  `task check:spec` for the class `docs-site` (a change of `docs/design.md` or
+  `docs/evidence-format.md` can break that task), and for `planning` it exits 0 without
+  building. No new workflow file
+- `docs/design.md` § 5 "Proposed CLI": one paragraph on `ratchet --version`.
+  `spec/README.md`: the sentences that said nothing generated is committed
 - `AGENTS.md`: the ownership table, the gate section, how to regenerate, and how the root
   workspace holds a generated package that carries its own `[workspace]` table, so the next
   generated crate is held the same way
@@ -143,6 +152,16 @@ steps `check:rust`, `check:generated`, `check:scripts` and `test`, and:
 - The CI job needs the `ess` and `aep` binaries at pinned versions; `spec/ess-inputs.yaml` already
   requires `ess 0.98`. `check:spec` needs `jq`.
 - A required check in the ruleset is the owner's to add; the story reports the job's name.
-- No specification file, `docs/design.md` or example changes here.
+- No specification file and no example changes here.
+- Written back after adversary attack 1 (2026-11-25), which the first text of this story did not
+  foresee: `ratchet --version` prints `ratchet <workspace version>`; the binary answers it before
+  the generated parser, because `ess generate cli` 0.98.0 emits no version flag, and the release
+  verification reads the version from the binary. A reader that closed standard output ends the
+  binary with the command's own exit status and no panic. The four built commands are a table
+  of `(callable, fn)` with a unit test of its keys.
+- Known and not closed here: with `.config/nextest.toml` as it is, a test that ignores the
+  first signal at 60 s is killed 10 s later (nextest's default grace period); it counts as
+  failed at 60 s either way. Which steps of the CI job each class gets through `if:` is read by
+  no local test; the first pull request of the class `docs-site` is its first run.
 - No `crates/ratchet-model/` and no `crates/ratchet-core/` here: `story:cli-skeleton-validate`
   adds both, with the dependencies they need.
