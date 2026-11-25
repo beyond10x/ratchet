@@ -7,7 +7,7 @@ suite, and it is no load test. Three presets judge the timing from the report of
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`operation-time@1`](operation-time@1.preset.yaml) | The time of each operation from the request to the answer: p50, p95 and p99 | An imported timing report, [`timing-report@1`](timing-report@1.assessor.yaml) |
-| [`event-time@1`](event-time@1.preset.yaml) | The time from a request to the event it causes, per operation | The same report |
+| [`event-time@1`](event-time@1.preset.yaml) | The time from a request to the event it causes, per operation: p95 | The same report |
 | [`workload-throughput@1`](workload-throughput@1.preset.yaml) | The requests answered per second | The same report |
 
 Every measurement of the family is sampled and has no default tolerance: the tolerance, the
@@ -60,15 +60,22 @@ What the program of `timing-report@1` returns for a run:
   an event the moment the event was observed. It refuses a report that names another workload
   than `workload`.
 - `duration` holds one result per operation, boundary and aggregation, at the scope
-  `operation`. The item is the operation as the workload names it, such as `GET /orders`, in
-  the same spelling in every run.
+  `operation`: the 50th, the 95th and the 99th percentile for
+  `request_start_to_response_complete`, the 95th percentile for
+  `request_start_to_event_observed`, and no other. The item is the operation as the workload
+  names it, such as `GET /orders`, in the same spelling in every run.
   - The boundary `request_start_to_response_complete` is the time from the moment the client of
-    the workload starts to send the request to the moment it has read the whole answer.
+    the workload writes the first byte of the request to the moment it has read the whole
+    answer. Setting up the connection is outside it.
   - The boundary `request_start_to_event_observed` starts at the same moment and ends when the
-    observer of the workload sees the event that the request causes.
-- A percentile is over the requests of one operation in all runs of the report. Only a request
-  that was answered as the workload expects is a sample: an error is often faster than an
-  answer. `samples` holds the number of samples behind a value.
+    observer of the workload sees the event that the request causes: of several events, the
+    first event of the kind the workload names for the request.
+- A percentile is over the requests of one operation in all runs of the report, by the nearest
+  rank: the smallest value with at least p percent of the samples at or below it. A median is
+  the 50th percentile by the same rule, so of an even number of values the lower of the two in
+  the middle. Only a request that was answered as the workload expects is a sample: an error
+  is often faster than an answer. `samples` holds the number of samples behind a value, here
+  requests, so for a percentile no record carries the number of runs.
 - `throughput` is, for one run, the number of requests answered as the workload expects,
   divided by the seconds from the first request sent to the last answer read.
 - Coverage, in the unit `request`: a request that was sent and answered is `executed`, and
@@ -85,7 +92,9 @@ No percentile of the time of an operation rises above its accepted value by more
 tolerance. The preset covers the candidate `operation-time@1` of
 [`research/candidate-presets.md`](../research/candidate-presets.md) § 3.8 and takes its name.
 It compares with a stored accepted value under the runner of the binding and declares no
-paired run: a paired run needs a program that builds two revisions, and a report holds one.
+paired run: a paired run needs a program that builds two revisions, and a report holds one,
+and [`docs/evidence-format.md`](../docs/evidence-format.md) § 9 lists a paired run as
+not in version 1.
 
 Its inputs beside the shared ones:
 
@@ -148,12 +157,11 @@ Its inputs beside the shared ones:
 | Input | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `min_samples` | integer | yes | The fewest requests of an operation with an observed event that qualify. It has no default |
-| `percentile` | integer | no, default `95` | The percentile of the delay that is judged |
 | `tolerance_percent` | decimal | yes | The band, in percent of the accepted value. It has no default |
 
 | Measurement | Direction | Unit | Tolerance | Evidence |
 | --- | --- | --- | --- | --- |
-| `event-time@1/events/delay` | Lower | `ms` | The input `tolerance_percent`; required, no default | `timing-report@1`, output `duration`, boundary `request_start_to_event_observed`, the percentile of the input `percentile` per operation |
+| `event-time@1/events/delay` | Lower | `ms` | The input `tolerance_percent`; required, no default | `timing-report@1`, output `duration`, boundary `request_start_to_event_observed`, the 95th percentile per operation |
 
 | Requirement | Measurement | Comparison | Judged by a release |
 | --- | --- | --- | --- |
@@ -161,8 +169,8 @@ Its inputs beside the shared ones:
 
 A request whose event is not observed before the workload ends is no sample of this boundary.
 That the event arrives at all is a functional criterion, which the conformance suite of the
-project judges. A project that judges two percentiles binds the preset twice, under two names. A
-binding with another `percentile` measures another value: its accepted values are adopted anew.
+project judges. The percentile is fixed: the delay is judged at the 95th, the one percentile of
+this boundary that a report of `timing-report@1` holds.
 
 ```yaml
 presets:
@@ -202,8 +210,10 @@ Its input beside the shared ones:
 | --- | --- | --- | --- |
 | `throughput-does-not-fall` | `requests-per-second` | Not below the accepted value by more than the tolerance | Not yet: sampled |
 
-The value of a run is one number, and the measurement is the median of the `runs` runs. With
-`runs: 1` it is the value of that run.
+The value of a run of the workload is one number. The program returns the median of the runs
+its report holds, names that aggregation and writes their number as `samples`
+([`docs/evidence-format.md`](../docs/evidence-format.md) § 3); of one run the median is the
+value of that run. It is not passed `runs` ("Not expressible yet", point 6).
 
 ```yaml
 presets:
@@ -259,10 +269,14 @@ key to a format; each point names the place in the specification
    `unsupported` and has no bound for `failed`. The presets leave a failed request out of the
    samples, and a project judges the failures with
    [`conformance-cases@1`](functional.md).
-6. **The input that holds the workload.** Ratchet passes an assessor its declared inputs and
+6. **The inputs that hold the observation.** Ratchet passes an assessor its declared inputs and
    nothing of the `observation` of the plan
-   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation"). So a plan
-   names the workload twice, as `observation.workload` and as the input `workload`.
+   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation"; § 9 says
+   that the contract does not say how an assessor learns the `workload`, the `runs` and the
+   `min_samples` of a plan). So a
+   plan names the workload twice, as `observation.workload` and as the input `workload`.
    `ratchet.assessor.Assessor` has `target_input` for the target and no member that names the
    input of the workload, and nothing checks that the two are the same in a plan that a
-   project writes by hand.
+   project writes by hand. The program is passed neither `runs` nor `min_samples`: the tool
+   of the project makes the runs, and the program aggregates over the runs its report holds
+   and writes the number of samples behind each value.

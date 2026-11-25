@@ -19,8 +19,8 @@ row").
 
 ## `start-time@1`
 
-Neither duration rises above its accepted value by more than its tolerance. A run of this plan
-is one start: the process of the service is started anew, and the first request of the
+Neither duration rises above its accepted value by more than its tolerance. The unit of this plan
+is a start: the process of the service is started anew, and the first request of the
 workload is sent when the service says that it is ready.
 
 | Input | Type | Required | What it is |
@@ -55,18 +55,21 @@ not qualify.
 
 What the program of `start-report@1` returns for a run:
 
-- It reads `report`: for each start, the moment the process of the service was started, the
-  moment the service first said that it is ready, and the moment the answer to the first
-  request of the workload was complete. It refuses a report that names another workload than
-  `workload`.
-- The boundary `process_start_to_ready` is the time from the start of the process to the first
-  readiness answer that says ready. What ready means is the service's: the answer of its
-  readiness endpoint, which [`health-readiness@1`](operability.md) judges.
-- The boundary `ready_to_first_answer` starts at that answer and ends when the client of the
-  workload has read the whole answer to the first request.
-- `duration` is one value per start and boundary, and a measurement is the median of the
-  `runs` starts. With `runs: 1` it is the value of that start. `samples` holds the number of
-  starts behind a value.
+- It reads `report`, all starts of one report at once: for each start, the moment the tool of
+  the project called the start of the process, the moment the service first said that it is
+  ready, and the moment the answer to the first request of the workload was complete. It
+  refuses a report that names another workload than `workload`.
+- The boundary `process_start_to_ready` is the time from the moment the tool calls the start
+  of the process to the first readiness answer that says ready. What ready means is the
+  service's: the answer of its readiness endpoint, which
+  [`health-readiness@1`](operability.md) judges.
+- The boundary `ready_to_first_answer` starts when the readiness check first succeeds, and the
+  tool sends the first request at once. It ends when the client of the workload has read the
+  whole answer to that request.
+- `duration` is one value per start and boundary. The program returns the median of the starts
+  its report holds, by the nearest rank ([latency.md](latency.md)), names that aggregation and
+  writes their number as `samples`; of one start the median is the value of that start. It is
+  not passed `runs` ("Not expressible yet", point 5).
 - Coverage, in the unit `start`: a start that got ready and gave its first answer is
   `executed`, and a start that did not is `not_run`. The plan declares `not_run: {max: 0}`,
   so a service that does not start is insufficient evidence for its start time. That it
@@ -75,7 +78,9 @@ What the program of `start-report@1` returns for a run:
 
 What a start finds on the machine is part of the conditions the project keeps the same: a
 start with filled caches of the operating system is faster than the first start after a
-build. The preset declares the runner alone.
+build. The preset declares the runner alone. How often the readiness poll asks is the tool's:
+a service that gets ready between two questions is seen at the second. A project keeps the
+interval the same between the starts it compares.
 
 ```yaml
 presets:
@@ -121,5 +126,5 @@ key to a format; each point names the place in the specification
 4. **A member that is there for some values of an input** (point 4 there): the two
    measurements always declare the median of the starts, also for `runs: 1`, where
    `ratchet.specification.Measurement` says that `aggregation` is absent.
-5. **The input that holds the workload** (point 6 there): `ratchet.assessor.Assessor` has no
-   member that names it.
+5. **The inputs that hold the observation** (point 6 there): `ratchet.assessor.Assessor` has no
+   member that names the input of the workload, and the program is not passed `runs`.

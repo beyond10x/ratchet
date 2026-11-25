@@ -82,7 +82,10 @@ runs eleven steps, and `task check` calls it:
     field that it declares; a plan over `runs_of` names `record-series@1`, which no file
     declares, and has no target selection and no conditions; a requirement compares its
     measurement as the table "Comparisons" of design § 3 allows for the value type of the
-    output, the pass rate of an assertion as a number; and every measurement has one row with
+    output, the pass rate of an assertion as a number; the plan of a sampled measurement
+    declares a condition, unless it is a plan over `runs_of`, and a requirement that compares a
+    sampled measurement with an accepted value has a tolerance and an adoption; and every
+    measurement has one row with
     four filled cells on a page of the catalog. It then writes one defect per rule into copies
     of a fixed set of files of `presets/`, in the ignored `target/presets/`, and fails when a
     defect is accepted or is refused without the message of its rule. The set is `README.md`

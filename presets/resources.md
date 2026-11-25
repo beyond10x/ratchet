@@ -67,19 +67,21 @@ another runner than `runner` does not qualify.
 What the program of `resource-report@1` returns for a run:
 
 - It reads `report`: the readings that the tool of the project took of the service while each
-  run of the workload ran, and the number of requests the service answered. It refuses a
-  report that names another workload than `workload`.
-- A reading covers the process the service runs as and the processes that process starts, as
-  one sum.
+  run of the workload ran, and the number of requests the service answered as the workload
+  expects, the count the throughput of the latency family divides ([latency.md](latency.md)).
+  It refuses a report that names another workload than `workload`.
+- A reading covers the process the service runs as and all its descendants, as one sum.
 - `peak_resident_memory` is the highest reading of the resident memory of a run.
 - `steady_resident_memory` is the median of the readings of the resident memory in the second
-  half of a run: what the service settles at once it has warmed up.
+  half of a run, by time: what the service settles at once it has warmed up.
 - `cpu_seconds_per_1000_requests` is the CPU time, user and system, that the service used from
-  the first request of a run to its last answer, divided by the number of requests it
-  answered and multiplied by 1000.
+  the first request of a run to its last answer, with the time of a process that ended during
+  the run, divided by that number of requests and multiplied by 1000.
 - `open_file_descriptors` and `threads` are the highest reading of each in a run.
-- Each output is one value per run, and a measurement is the median of the `runs` runs. With
-  `runs: 1` it is the value of that run. `samples` holds the number of runs behind a value.
+- Each output is one value per run of the workload. The program returns the median of the runs
+  its report holds, by the nearest rank ([latency.md](latency.md)), names that aggregation and
+  writes their number as `samples`; of one run the median is the value of that run. It is not
+  passed `runs` ("Not expressible yet", point 5).
 - Coverage, in the unit `run`: a run of the workload with readings from its first request to
   its last answer is `executed`, and a run that was cut short or lacks readings is `not_run`.
   The plan declares `not_run: {max: 0}`.
@@ -135,5 +137,5 @@ key to a format; each point names the place in the specification
 4. **A member that is there for some values of an input** (point 4 there): the five
    measurements always declare the median of the runs, also for `runs: 1`, where
    `ratchet.specification.Measurement` says that `aggregation` is absent.
-5. **The input that holds the workload** (point 6 there): `ratchet.assessor.Assessor` has no
-   member that names it.
+5. **The inputs that hold the observation** (point 6 there): `ratchet.assessor.Assessor` has no
+   member that names the input of the workload, and the program is not passed `runs`.

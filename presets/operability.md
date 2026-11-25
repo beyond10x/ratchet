@@ -60,8 +60,10 @@ names.
 
 What the program of `metrics-scrape@1` returns for a run:
 
-- It reads `scrape` and `documented`. A name is the name of a metric without its labels, and
-  a metric with several label values is one name.
+- It reads `scrape` and `documented`. A name is the name as it stands on a sample line of the
+  scrape, without its labels and without its value, and a name with several label values is
+  one name: a histogram gives its `_bucket`, `_sum` and `_count` names. A project that
+  documents metric families lists the sample names of each.
 - `documented_names` holds one item per name that the scrape exposes and the list holds, with
   the name under `name`, such as `orders_created_total`.
 - `undocumented_names` holds one item per name that the scrape exposes and the list does not
@@ -126,8 +128,10 @@ What the program of `probe-report@1` returns for a run:
   `passed` or `failed` as its assertion; one that the tool left out on purpose is `skipped`;
   one that it could not bring the service into the state for is `not_run`.
 
-A service without one of the two endpoints has no expectation about it, and the requirement
-on that endpoint then holds for no item.
+A service without one of the two endpoints has no expectation about it. The requirement on
+that endpoint then reads no item, and no item fails it: `holds` asks of the items a run has.
+The coverage bound `executed` counts the expectations of both endpoints together, so it fails
+such a run only where the report as a whole holds fewer than `min_expectations`.
 
 ```yaml
 presets:

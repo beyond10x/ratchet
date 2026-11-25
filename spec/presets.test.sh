@@ -85,6 +85,13 @@
 #             condition. A number that is compared with a reference states `better`. A
 #             condition states the unit of the output, or none where the output has none. An
 #             assertion that its measurement aggregates with `pass_rate` is a number here
+#   sampled   what docs/design.md § 3 and § 5 say `ratchet validate` reports. The plan of a
+#             measurement of the kind `sampled` declares at least one condition under
+#             `observation.conditions`, unless it reads the runs of another plan (`runs_of`),
+#             which declares none. A requirement that compares such a measurement with a
+#             reference of the kind `accepted_value` has a `reference.tolerance` with a
+#             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
+#             without a declaration, so also on a plan of `record-series@1`
 #   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
@@ -113,6 +120,10 @@
 #     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
 #     the measurements of the source plan, and the source plan may be in another file
 #   - the plan that `runs_of` names: it may be in another file
+#   - the number of runs of an adoption from the trusted revision (`reference.adoption.runs`):
+#     docs/design.md § 5 "Ratchet policy" says that it has no default and names no report of
+#     `ratchet validate` for an adoption without it, and `ratchet.specification.RatchetPolicy`
+#     holds `runs` as an optional member without an invariant
 #   - the class a condition is declared for (`all`, `ci`, ...): the key of an open map
 #   - the value of a `Json` other than a passed input and a default: no type is declared
 #   - the values of a `filter`: no declaration lists the values of an item field
@@ -635,6 +646,14 @@ check_catalog() {
     return nkeys[F, mp] == 1 ? mp SEP keyof[F, mp, 1] : ""
   }
 
+  # The number of conditions a plan declares, over the classes of `observation.conditions`.
+  function conditions_of(F, plan,    cp, j, c) {
+    cp = plan SEP "observation" SEP "conditions"
+    for (j = 1; j <= nkeys[F, cp]; j++) c += nkeys[F, cp SEP keyof[F, cp, j]]
+    return c + 0
+  }
+  function last(path) { sub(/^.*\037/, "", path); return path }
+
   # ---- a page: what Markdown does not show ---------------------------------------------------
 
   # The run of backticks or of tildes that a line starts with after at most three spaces: its
@@ -1027,6 +1046,12 @@ check_catalog() {
         id = stated[F] "/" s[2] "/" s[4]
         ms[++nm] = id; ms_file[nm] = F; ms_line[nm] = n_line[i]; ms_preset[nm] = stated[F]
         is_measurement[id] = 1
+        # Sampled evidence qualifies under declared conditions (docs/design.md § 3,
+        # "Measurement kind and observation conditions"). A window over the runs of another
+        # plan declares none: only runs that qualified under the source plan enter it.
+        plan = "assessments" SEP s[2]
+        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
+          fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
         op = output_of(F, path)
         # Nothing is joined without a declaration (`record-series@1`, an assessor that an
         # input gives, an assessor that is named as absent) and where an input gives the output.
@@ -1108,6 +1133,16 @@ check_catalog() {
         # "Comparisons").
         mp = compared(F, path)
         if (mp == "") continue
+        # A sampled measurement that is compared with an accepted value: the reference has a
+        # band and says where its value is adopted from (docs/design.md § 3 "Comparisons" and
+        # § 5 "Ratchet policy"). Read without a declaration, so also on a window over runs.
+        if (text(F, mp SEP "kind") == "sampled" && text(F, path SEP "reference" SEP "kind") == "accepted_value") {
+          tp = path SEP "reference" SEP "tolerance"
+          if (!has(F, tp SEP "percent") && !has(F, tp SEP "absolute"))
+            fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no tolerance, a `reference.tolerance` with `percent` or `absolute`: Ratchet ships no default band")
+          if (!has(F, path SEP "reference" SEP "adoption"))
+            fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no `reference.adoption`, which says from which runs the value is adopted")
+        }
         op = output_of(F, mp)
         if (op == "") continue
         vt = text(D, op SEP "value_type")
@@ -1484,8 +1519,8 @@ meaning_bytes() {
 window_plan='  size-over-runs:\n    subject: ${inputs.subject}\n    assessor: record-series@1\n    target: {kind: revision, environments: "${inputs.environments}"}\n    observation:\n      kind: time_window\n      window: {last: 20}\n      population: {runs_of: known-failures, from: trusted_revision}\n      min_samples: 10\n    measurements:\n      median:\n        kind: sampled\n        output: size\n        scope: run\n        aggregation: {kind: median}\n        unit: cases\n        better: lower\n\nrequirements:'
 add_window() {
   swap "$known" 'requirements:' "$window_plan"
-  printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference: {kind: accepted_value, tolerance: {absolute: 1}}\n' >> "$c/$known"
-  add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 1 case | `record-series@1`, the measurement `size` of the plan `known-failures` |'
+  printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference:\n      kind: accepted_value\n      tolerance: {percent: 10}\n      adoption: {from: trusted_revision, runs: 4, aggregation: {kind: median}}\n' >> "$c/$known"
+  add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 10 percent | `record-series@1`, the measurement `size` of the plan `known-failures` |'
 }
 
 # window_copy <case>: a copy with that plan.
@@ -1496,11 +1531,13 @@ window_copy() {
 
 # add_rate: the preset conformance-cases@1 of the copy reads the pass rate of an assertion
 # that conformance-report@1 declares; with its requirement and its row. It writes to the end of
-# the declaration, which is the map `outputs` until a case writes there.
+# the declaration, which is the map `outputs` until a case writes there. The measurement is
+# sampled, so the plan gets a condition and the reference a tolerance and an adoption.
 add_rate() {
   printf '  all_pass: {value_type: assertion, kind: exact, scopes: []}\n' >> "$c/$conf_d"
+  swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {runner: ci-standard}}'
   swap "$conf" '        better: lower' '        better: lower\n      pass-rate:\n        kind: sampled\n        output: all_pass\n        scope: run\n        aggregation: {kind: pass_rate}\n        better: higher' 3
-  printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference: {kind: accepted_value, tolerance: {absolute: 0.05}}\n' >> "$c/$conf"
+  printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 0.05}\n      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}\n' >> "$c/$conf"
   add_row '| `conformance-cases@1/conformance/pass-rate` | Higher | None | 0.05 | `conformance-report@1`, output `all_pass` |'
 }
 
@@ -1725,11 +1762,14 @@ accepts "an input named report.file, a text input as an item of a list, a target
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
-# first, with its requirement and its row.
+# first, with its requirement and its row. The rate is sampled: its plan declares a condition
+# and its reference a tolerance and an adoption, the window declares no conditions, and a
+# requirement that compares the rate with a limit alone needs no reference.
 copy valid-plans
 add_rate
 add_window
-accepts "a pass rate of an assertion, and a window over the runs of another plan"
+printf '  pass-rate-above-half:\n    meaning: At least half of the runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.5}\n' >> "$c/$conf"
+accepts "a pass rate of an assertion with a reference and with a limit alone, and a window over the runs of another plan"
 
 # -- file ------------------------------------------------------------------------------------
 
@@ -2458,6 +2498,42 @@ refused '`assessments.size-over-runs.inputs.list` passes the input `list`, and `
 copy series-declared
 printf 'format: ratchet-assessor/1\nname: record-series\nversion: "1"\ncommand: record-series\ntargets: [revision]\nconditions: []\ncoverage_unit: entry\ncoverage: [executed]\noutputs:\n  size: {value_type: number, kind: exact, scopes: [], unit: cases}\n' > "$c/record-series@1.assessor.yaml"
 refused 'record-series@1.assessor.yaml:1: the file declares `record-series@1`, the assessor of Ratchet itself' "the directory holds a declaration of record-series@1"
+
+# -- a sampled measurement -----------------------------------------------------------------------
+#
+# The set holds no sampled measurement. Each copy takes the pass rate of `add_rate` or the
+# window of `add_window`, which the copy `valid-plans` holds unchanged, and takes one thing out.
+
+rate_copy sampled-without-conditions
+drop "$conf" '      conditions: {all: {runner: ci-standard}}'
+refused '`assessments.conformance.measurements.pass-rate` is sampled, and the plan `conformance` declares no condition' "a plan with a sampled measurement declares no conditions"
+
+again sampled-without-tolerance
+drop "$conf" '      tolerance: {absolute: 0.05}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no tolerance' "a requirement compares a sampled measurement with an accepted value and has no tolerance"
+
+again sampled-without-adoption
+drop "$conf" '      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no `reference.adoption`' "a requirement compares a sampled measurement with an accepted value and has no adoption"
+
+rate_copy sampled-with-a-class-without-condition
+swap "$conf" '      conditions: {all: {runner: ci-standard}}' '      conditions: {all: {}}'
+refused '`assessments.conformance.measurements.pass-rate` is sampled, and the plan `conformance` declares no condition' "a plan with a sampled measurement declares a class of conditions that holds none"
+
+again sampled-with-an-empty-tolerance
+swap "$conf" '      tolerance: {absolute: 0.05}' '      tolerance: {}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no tolerance' "a requirement on a sampled measurement has a tolerance without a percent and without an absolute band"
+
+# A window over the runs of another plan declares no conditions, and its requirement is under
+# the two rules of the reference all the same: its plan has no declaration to be read.
+again sampled-window-without-tolerance
+add_window
+drop "$known" '      tolerance: {percent: 10}'
+refused '`requirements.median-size-does-not-rise` compares the sampled measurement `median` with an accepted value and has no tolerance' "a requirement on a window over runs has an accepted value and no tolerance"
+
+again sampled-window-without-adoption
+drop "$known" '      adoption: {from: trusted_revision, runs: 4, aggregation: {kind: median}}'
+refused '`requirements.median-size-does-not-rise` compares the sampled measurement `median` with an accepted value and has no `reference.adoption`' "a requirement on a window over runs has an accepted value and no adoption"
 
 # -- a requirement against the value type of its output -----------------------------------------
 #

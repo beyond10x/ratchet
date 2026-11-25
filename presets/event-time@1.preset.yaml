@@ -12,7 +12,6 @@ preset:
     runs: {type: integer, required: true}
     min_samples: {type: integer, required: true}
     adoption_runs: {type: integer, required: true}
-    percentile: {type: integer, required: false, default: 95}
     tolerance_percent: {type: decimal, required: true}
 
 assessments:
@@ -41,7 +40,7 @@ assessments:
         output: duration
         boundary: request_start_to_event_observed
         scope: operation
-        aggregation: {kind: percentile, parameter: "${inputs.percentile}"}
+        aggregation: {kind: percentile, parameter: 95}
         unit: ms
         better: lower
 
