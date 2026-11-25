@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-25T16:01:15Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:preset-catalog-factory",
+  "kind": "story",
+  "revision": 13,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-preset-catalog-factory-attack-1",
+    "reference": "presets/artifact.md:83",
+    "review": "review-result:adversary-preset-catalog-factory-attack-1",
+    "outcome": "fixed"
+  }
+}

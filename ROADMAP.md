@@ -94,6 +94,10 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   observed while a workload runs (latency and throughput, resources, start and readiness,
   operability), five assessor declarations and four pages. Of them 0.1.0 judges
   `metric-names@1` alone. Record: `.engineering/waves/catalog-runtime.md`.
+  `story:preset-catalog-factory` is delivered (2026-11-25): twelve presets of three families
+  read from a build and from the tree (build, artifact, code), nine assessor declarations
+  and three pages; `presets/` holds the eight families. Of the twelve 0.1.0 judges the
+  seven of the artifact and the code family. Record: `.engineering/waves/catalog-factory.md`.
 - `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
   consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
   stories. They wait for the waves to 0.1.0.

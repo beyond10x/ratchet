@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-catalog-factory
 kind: story
-status: active
+status: implemented
 title: 'The preset catalog: build, artifact and code'
 summary: Preset files, assessor declarations and pages for the three families read from a build and from the tree.
 relations:
@@ -24,10 +24,11 @@ scope:
   path: spec/presets.test.sh
 - confidence: inferred
   path: website/docusaurus.config.ts
-revision: 12
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:32Z", actor: "agent:ratchet", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-25T16:01:17Z", actor: "agent:ratchet", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":24}}}
 ---
 ## Context
 
@@ -61,7 +62,8 @@ those files are absent and the last line holds the counts of the five families b
   `test-step-time@1` and `test-time@1` where they cover `research/candidate-presets.md` § 3.1
   and § 3.2.
 - **Artifact**: container image size (bytes) and layer count, binary size (bytes), direct and
-  transitive dependency counts, and the set of dependencies with a known advisory
+  transitive dependency counts, and the set of published advisories that apply to a
+  dependency, one item per pair of an advisory and a package
   (`no_new_items` against the accepted set); lower is better.
 - **Code**: generated and hand-written lines (counts with a direction the binding passes,
   because neither is better for every project), obligations a generator left (a set, no new

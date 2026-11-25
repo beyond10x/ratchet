@@ -19,7 +19,7 @@ scope:
   path: spec/domains/assessor.yaml
 - confidence: inferred
   path: spec/domains/evidence.yaml
-revision: 6
+revision: 7
 ---
 ## Context
 
@@ -55,6 +55,11 @@ carries no number of runs.
 
 ## Notes
 
+- Also met by the first consumer of the formats, `beyond10x/inference` (its report of
+  2026-11-25, from a read of `b8945e5`): an assessor is not passed the `command` of its plan,
+  so the consumer's first assessor program takes two arguments of its own, the file a run
+  left behind and the source of the run. The form this story decides covers `command` and
+  `scenarios` with the three members its acceptance names.
 - The story decides the form (members beside `target_input`, or Ratchet passes the observation
   of the plan as reserved arguments), declares it in `spec/` first and writes it into
   `docs/evidence-format.md` § 9 and § 10 in the same change.
