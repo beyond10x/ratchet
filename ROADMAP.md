@@ -93,3 +93,6 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
 - `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
   consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
   stories. They wait for the waves to 0.1.0.
+- `epic:format-gaps-second-format-consumer`: 3 findings from the draft quality definition of
+  a second repository (`beyond10x/swell`, a script engine that also compares itself with
+  other engines), as three draft stories. They wait for the waves to 0.1.0.
