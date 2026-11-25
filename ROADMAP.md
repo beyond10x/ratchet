@@ -84,6 +84,6 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   `story:preset-binding-resolution`. A catalog story starts between two waves, from the `main`
   of that moment. First consumer: a project that compares a candidate implementation of a
   service with a reference implementation; its first gap is the functional family.
-- `epic:format-gaps-first-format-consumer`: 16 findings from the first quality definition
-  written against the formats (`beyond10x/inference`), as ten draft stories. They wait for the
-  waves to 0.1.0.
+- `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
+  consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
+  stories. They wait for the waves to 0.1.0.
