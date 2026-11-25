@@ -13,9 +13,17 @@
 #             kind is a value of `ratchet.config.CatalogFileKind` and whose name and version
 #             are those the file states, neither with an `@` in it. The directory holds a
 #             `README.md` and at least one preset, and a preset holds at least one requirement
-#   bytes     a file is UTF-8 and holds no NUL byte and no control character: a line ends
-#             with a line feed, and a page may hold tabs
-#   place     a key of a preset or of a declaration is a declared field of the struct or entity
+#   bytes     a file is UTF-8 and holds no NUL byte and no control character: every line,
+#             the last one too, ends with a line feed, and a page may hold tabs. It holds
+#             none of these characters either, in a preset, a declaration, a page and
+#             README.md: a control character of the range U+0080 to U+009F (U+0085, the
+#             next line, is one); U+2028 and U+2029, the line and the paragraph separator
+#             (with U+0085 a line break to a YAML 1.1 reader, which would read keys that
+#             this script does not see); U+FEFF, the byte order mark, anywhere; U+FFFE and
+#             U+FFFF, which are no characters; and the characters that hide or reorder
+#             text: U+200B, U+200E, U+200F, U+202A to U+202E, U+2060 and U+2066 to U+2069.
+#             U+200C and U+200D stay: some writing systems are spelled with them
+#   place    a key of a preset or of a declaration is a declared field of the struct or entity
 #             there, a key of a declared map, or lies under a field of the type `Json`. The
 #             root of a declaration is a `ratchet.assessor.Assessor`. The root of a preset
 #             holds `format` (`ratchet/1`), `preset` (the fields of
@@ -31,21 +39,42 @@
 #   required  a mapping of a struct has every field that is not `Optional<...>`. A requirement
 #             may leave `serves` out (spec/README.md)
 #   inputs    no input of a preset is local, and a default is a value of the type of its
-#             input. A scalar that holds `${` or `{inputs.` is `${inputs.<name>}` alone,
-#             `<name>` is a declared input of the preset, and the type of the input fits the
-#             place (`ratchet.specification.InputReference`)
+#             input. A scalar of a preset that holds `${` or `{inputs.` is
+#             `${inputs.<name>}` alone, `<name>` is a declared input of the preset, and the
+#             type of the input fits the place (`ratchet.specification.InputReference`).
+#             `<name>` is the key of the input as this script reads a key, so
+#             `${inputs.a.b}` refers to the input `a.b`: the specification gives the name of
+#             an input no type but text. In a declaration `${` is text, and only a scalar
+#             that is `${inputs.<name>}` alone is refused there: a declaration has no
+#             inputs to refer to
 #   names     a requirement names an assessment of its preset and a measurement of that
-#             assessment, and the statements it serves are statements of the preset
+#             assessment, and the statements it serves are statements of the preset. These
+#             three names are written out: a reference there is refused, because no row
+#             `<name>@<version>/<assessment>/<measurement>` could be checked against it
 #   assessor  the assessor of an assessment has its declaration in the directory. The kind of
-#             the target is one of its `targets`. An input the assessment passes is an input
+#             the target is one of its `targets`; a kind that an input gives is checked
+#             against the default of that input. An input the assessment passes is an input
 #             of the declaration that is not local, and its value has the declared type: a
 #             literal by its YAML kind, a reference by the type of the input of the preset
-#             (an `integer` also where a `decimal` is declared). Every required input that
-#             is not local is passed. A measurement names an output of the declaration, the
-#             kind of that output, its unit or none where it has none, the scope `run` or one
-#             the output declares, a boundary the output declares, the identity key the output
+#             (an `integer` also where a `decimal` is declared), and so each item of a list.
+#             Every required input that is not local is passed. A measurement names an
+#             output of the declaration, the kind of that output (`kind_mismatch`), its unit
+#             or none where it has none, the scope `run` or one the output declares, a
+#             boundary the output declares (`run_time` and `queue_wait`, which are Ratchet's,
+#             also where the output declares no boundaries), the identity key the output
 #             declares where it states one, and in a `filter` only fields the output declares
-#             for its items
+#             for its items. `pass_rate` aggregates an assertion and nothing else, and the
+#             measurement of such a rate may be `sampled`. A condition of the observation
+#             is `host_load_per_cpu`, `tools`, `runner` or one the declaration lists, and
+#             a field of a population filter is one of its `population_fields`
+#             (`population_field_mismatch`)
+#   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
+#             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
+#             the directory declares it, and a plan that names it needs no declaration. As
+#             the invariants of `ratchet.specification.AssessmentPlan` say, a plan with
+#             `observation.population.runs_of` names it and has no `target.selection` and no
+#             `observation.conditions`, and a plan that names it has `runs_of`. It passes no
+#             input: that assessor takes none
 #   compare   a requirement compares its measurement as the table of docs/design.md § 3
 #             "Comparisons" allows for the value type of the output. `lt`, `lte`, `gt`, `gte`
 #             and `eq` take a number or a set and have a `value`. `no_new_items` and
@@ -54,31 +83,54 @@
 #             no condition. The reference of a number and of a set is `accepted_value`, that
 #             of a digest `generated`, and an assertion has none. A set with a reference has a
 #             condition. A number that is compared with a reference states `better`. A
-#             condition states the unit of the output, or none where the output has none
+#             condition states the unit of the output, or none where the output has none. An
+#             assertion that its measurement aggregates with `pass_rate` is a number here
 #   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
 #             is found by its header line `| Measurement | Direction | Unit | Tolerance |
-#             Evidence |`, and a page holds at least one with a row. A line inside a code
-#             fence and the text of an HTML comment `<!-- ... -->` are not read, and a cell
-#             that holds only spaces, tabs and no-break spaces is empty
+#             Evidence |`, written as here, and a page holds at least one with a row. A
+#             line inside a code fence and the text of an HTML comment `<!-- ... -->` are
+#             not read, and a cell that holds only spaces, tabs and no-break spaces is
+#             empty. A fence closes as CommonMark says: at a run of the character that
+#             opened it, at least as long, indented by at most three spaces, with nothing
+#             but spaces and tabs after it. `\|` in a cell is a bar of the text and no
+#             border of a cell, and `<!--` inside a code span that closes on its line opens
+#             no comment
 # Not checked, each with its reason:
-#   - the invariants of the types: they are written in the expression language of ESS, and
-#     `ess generate synthesize` writes them as Rust
-#   - a value that an input gives, where the rule reads the value (the kind of a target, the
-#     kind of a measurement, an operator, the kind of a reference): the binding passes it
+#   - the invariants of the types, beside the four of an assessment plan under `series`: they
+#     are written in the expression language of ESS, and `ess generate synthesize` writes
+#     them as Rust
+#   - a value that an input gives, where a rule reads the value: the binding passes it. These
+#     are the assessor of an assessment, and with it every rule that reads its declaration;
+#     the output of a measurement, and with it the rules on that measurement and on the
+#     requirements that compare it; the kind, the unit, the scope, the boundary and the
+#     identity key of a measurement, also where one item of the key is a reference; the kind
+#     of an aggregation over an assertion; an operator; the unit of a condition; and the kind
+#     of a reference. Only the kind of a target is read from the default of its input
+#   - a measurement of a plan of `record-series@1` against the measurement of the source plan
+#     it reads (the output, the kind, the unit, the scope, the boundary, the identity key,
+#     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
+#     the measurements of the source plan, and the source plan may be in another file
+#   - the plan that `runs_of` names: it may be in another file
+#   - the class a condition is declared for (`all`, `ci`, ...): the key of an open map
 #   - the value of a `Json` other than a passed input and a default: no type is declared
 #   - the values of a `filter`: no declaration lists the values of an item field
 #   - the text of the four cells of a row against the preset: the cells are prose
 #   - whether an input of a preset is referred to: an input may be there for a later version
+#   - a code fence, a code span and a comment as a Markdown reader takes them inside a list
+#     item, a block quote or an indented block, and a code span over two lines: a page of
+#     the catalog writes its tables outside them
 #
 # This is no YAML reader. It reads the forms the catalog is written in and fails on a line of
 # another form: a mapping by indentation (`key:` and `key: value`), a flow mapping
 # `{key: value, ...}` and a flow list `[...]` on one line, plain scalars, and quoted scalars
-# without an escape. A list is a flow list. Refused, because a YAML reader takes them another
-# way than this script would: a comment (a preset and a declaration hold none, presets/README.md),
-# a tab, a quote inside a plain scalar, and a key that YAML reads as a number, a boolean or
-# null (`15`, `0o17`, `1.5`, `true`, `null`).
+# without an escape. A list is a flow list. A key holds letters, digits, `_`, `.`, `@` and `-`
+# and is not quoted. Refused, because a YAML reader takes them another way than this script
+# would: a comment (a preset and a declaration hold none, presets/README.md), a tab, a quote
+# inside a plain scalar, a folded or literal scalar (`>`, `|`), a text over two lines, a
+# document marker (`---`), and a key that YAML reads as a number, a boolean or null (`15`,
+# `0o17`, `1.5`, `true`, `null`).
 #
 # Usage:
 #   sh spec/presets.test.sh                      `presets/`, then one broken copy per rule
@@ -87,8 +139,9 @@
 #                                                named directory of domain files; no copy
 # Work files go to the ignored target/presets. It needs POSIX sh and awk, and of the other
 # utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `ln`, `mkdir`, `mv`, `rm`, `sed`, `tail`,
-# `tr` and `wc`. `tr` and `wc` find a NUL byte, which an awk may not read; awk finds what is no
-# UTF-8 and a control character, reading bytes under `LC_ALL=C`.
+# `tr` and `wc`. `tr` and `wc` find a NUL byte, which an awk may not read, and count the line
+# feeds; awk finds what is no UTF-8 and a character that is refused, reading bytes under
+# `LC_ALL=C`, and `tail` and `wc` name the file whose last line has no line feed.
 #
 # Exit 0: the last line is
 #   `presets: <f> of <f> file(s) valid, <r> of <r> measurement(s) with a row, <c> of <c> broken copies refused`
@@ -175,12 +228,18 @@ spec_ok() {
 # input>: the failures of the directory and the line with the two counts.
 check_catalog() {
   dir=$1
-  # The NUL bytes of all files at once; a file is looked at alone when there is one.
-  nuls=$(cat "$dir"/*.yaml "$dir"/*.md 2> /dev/null | tr -d '\001-\377' | wc -c)
+  given_tables=$2
+  # The line feeds and the NUL bytes of all files at once: what is left of the files without
+  # every other byte, as lines and as bytes. A file is looked at alone when there is a NUL
+  # byte, and awk looks at the last byte of each file when it reads more lines than there
+  # are line feeds.
+  set -- $(cat "$dir"/*.yaml "$dir"/*.md 2> /dev/null | tr -d '\001-\011\013-\377' | wc -lc)
+  feeds=$1
+  nuls=$(($2 - $1))
   others=0
   readme=0
   # An operand of the form `name=value` is an assignment to awk, so every path is absolute.
-  set -- reading=tables "$2"
+  set -- reading=tables "$given_tables"
   for f in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
     [ -e "$f" ] || [ -L "$f" ] || continue
     entry=${f##*/}
@@ -215,7 +274,7 @@ check_catalog() {
     esac
   done
 
-  awk -v nothers="$others" -v readme="$readme" '
+  awk -v nothers="$others" -v readme="$readme" -v feeds="$feeds" '
   function unopt(t) { return (t ~ /^Optional</) ? substr(t, 10, length(t) - 10) : t }
   function base(t) { while (kind[t] == "newtype") t = of[t]; return t }
   function is_struct(t) { return kind[t] == "struct" || kind[t] == "entity" }
@@ -243,6 +302,24 @@ check_catalog() {
     s = ""
     for (i = 1; i <= vcount[type]; i++) s = s (i > 1 ? ", " : "") "`" vorder[type, i] "`"
     return s
+  }
+  # 1 when the text is given by an input: the binding passes the value, and no rule that
+  # reads the value is applied. A scalar of a preset that holds `${` is a reference or is
+  # refused as none.
+  function given(x) { return index(x, "${") > 0 }
+  # 1 when the node at `path` is given by an input, or one item of the list there is.
+  function list_given(file, path,    j) {
+    if (given(text(file, path))) return 1
+    for (j = 1; has(file, path SEP "[" j "]"); j++) if (given(text(file, path SEP "[" j "]"))) return 1
+    return 0
+  }
+  # The name of the input a reference names: what stands between `${inputs.` and `}`.
+  function input_name(x) { return substr(x, 10, length(x) - 10) }
+  # A path as one word of a shell command, between quotes (the byte 047).
+  function shell_word(s,    out, i, c, len) {
+    out = ""; len = length(s)
+    for (i = 1; i <= len; i++) { c = substr(s, i, 1); out = out (c == "\047" ? "\047\\\047\047" : c) }
+    return "\047" out "\047"
   }
 
   # ---- the bytes of a line ----------------------------------------------------------------
@@ -452,14 +529,25 @@ check_catalog() {
     }
   }
 
-  # A scalar that holds `${` or `{inputs.`: a reference to an input of the preset.
+  # 1 when `path` is a name by which a requirement names another entry of its preset: its
+  # assessment, its measurement, or a statement it serves.
+  function inner_name(path,    n, s) {
+    n = split(path, s, SEP)
+    if (s[1] != "requirements") return 0
+    if (n == 3) return s[3] == "assessment" || s[3] == "measurement" || s[3] == "serves"
+    return n == 4 && s[3] == "serves"
+  }
+
+  # A scalar of a preset that holds `${` or `{inputs.`, or a scalar of a declaration that is
+  # `${inputs.<name>}` alone: a reference to an input of the preset.
   function reference(i, F, fk, path, t,    x, name, ip, it, il, u, e, b, ok, here) {
     x = n_text[i]
     here = "`" shown(path) "` "
-    if (x !~ /^[$][{]inputs[.][A-Za-z0-9_-]+[}]$/) { fail(F, n_line[i], here "holds `${` or `{inputs.` and is not `${inputs.<name>}` alone: a reference to an input is the whole of a value and has this one spelling"); return }
-    name = substr(x, 10, length(x) - 10)
+    if (x !~ REF) { fail(F, n_line[i], here "holds `${` or `{inputs.` and is not `${inputs.<name>}` alone: a reference to an input is the whole of a value and has this one spelling"); return }
+    name = input_name(x)
     if (fk != "preset") { fail(F, n_line[i], here "refers to the input `" name "`, and only a preset declares inputs to refer to"); return }
     if (path == "preset" || index(path, "preset" SEP) == 1) { fail(F, n_line[i], here "is a reference inside the `preset` block, which holds none"); return }
+    if (inner_name(path)) { fail(F, n_line[i], here "is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out: no row `<name>@<version>/<assessment>/<measurement>` can be checked against a name that the binding gives"); return }
     ip = "preset" SEP "inputs" SEP name
     if (!has(F, ip)) { fail(F, n_line[i], here "refers to the input `" name "`, which the preset does not declare"); return }
     it = text(F, ip SEP "type")
@@ -488,18 +576,27 @@ check_catalog() {
   function typed(it, il) { return (il ? "a list of " : "") "`" it "`" }
 
   # "" when the node at `path` is a literal of the input type `it`, a list of it with `il`;
-  # or what it is not.
-  function unfit(F, path, it, il,    id, k, x, j, m) {
+  # or what it is not. With `refs`, where an assessment passes the value, an item that is a
+  # reference has the type of the input it names; without, in a default, `${` is text.
+  function unfit(F, path, it, il, refs,    id, k, x, j, m, ip, rt) {
     id = at[F, path]; k = n_kind[id]; x = n_text[id]
     if (il) {
       if (k != "list") return "is no list"
       for (j = 1; has(F, path SEP "[" j "]"); j++) {
-        m = unfit(F, path SEP "[" j "]", it, 0)
+        m = unfit(F, path SEP "[" j "]", it, 0, refs)
         if (m != "") return "holds an item that " m
       }
       return ""
     }
     if (k == "list" || k == "map") return "is a " (k == "map" ? "mapping" : "list") " and no scalar"
+    if (refs && x ~ REF) {
+      ip = "preset" SEP "inputs" SEP input_name(x)
+      # An input the preset does not declare is named where the reference stands.
+      if (!has(F, ip)) return ""
+      if (text(F, ip SEP "list") == "true") return "is the input `" input_name(x) "` of the preset, a list"
+      rt = text(F, ip SEP "type")
+      return (rt == it || (rt == "integer" && it == "decimal")) ? "" : "is the input `" input_name(x) "` of the preset, `" rt "`"
+    }
     if (it == "integer") return (k == "int" && x ~ /^-?[0-9]+$/) ? "" : "is no integer"
     if (it == "decimal") return ((k == "int" || k == "float") && x ~ /^-?[0-9]+([.][0-9]+)?$/) ? "" : "is no decimal without exponent and sign `+`"
     if (it == "boolean") return (k == "bool" && (x == "true" || x == "false")) ? "" : "is not `true` or `false`"
@@ -531,8 +628,41 @@ check_catalog() {
 
   # ---- a page: what Markdown does not show ---------------------------------------------------
 
-  # The line without the text of its HTML comments; a comment may end on a later line.
-  function uncomment(s,    i, out) {
+  # The run of backticks or of tildes that a line starts with after at most three spaces: its
+  # length, or 0 where the line starts with fewer than three. Sets RUN_CHAR, the character,
+  # and RUN_REST, what follows the run.
+  function fence_run(s,    c, n) {
+    RUN_CHAR = ""; RUN_REST = ""
+    if (s !~ /^ ? ? ?(```|~~~)/) return 0
+    sub(/^ +/, "", s)
+    c = substr(s, 1, 1)
+    n = 0
+    while (substr(s, n + 1, 1) == c) n++
+    RUN_CHAR = c; RUN_REST = substr(s, n + 1)
+    return n
+  }
+
+  # Where the code span ends that the backticks at the place `j` of `s` open: the place after
+  # its closing run, a run of the same length; or the place after the opening run where no
+  # such run follows on the line, and the backticks are text.
+  function span_end(s, j,    m, p, r, len) {
+    len = length(s)
+    m = 0
+    while (substr(s, j + m, 1) == "`") m++
+    p = j + m
+    while (p <= len) {
+      if (substr(s, p, 1) != "`") { p++; continue }
+      r = 0
+      while (substr(s, p + r, 1) == "`") r++
+      if (r == m) return p + r
+      p += r
+    }
+    return j + m
+  }
+
+  # The line without the text of its HTML comments; a comment may end on a later line. A
+  # `<!--` inside a code span that starts before it and closes on the line opens no comment.
+  function uncomment(s,    i, j, k, out) {
     out = ""
     while (1) {
       if (in_comment) {
@@ -542,8 +672,41 @@ check_catalog() {
       }
       i = index(s, "<!--")
       if (i == 0) return out s
+      j = index(s, "`")
+      if (j > 0 && j < i) {
+        k = span_end(s, j)
+        out = out substr(s, 1, k - 1); s = substr(s, k)
+        continue
+      }
       out = out substr(s, 1, i - 1); s = substr(s, i + 4); in_comment = 1
     }
+  }
+
+  # A row with its escaped bars put aside: `\|`, a bar of the text and no border of a cell,
+  # becomes the byte 1, and `\\`, a backslash of the text, the byte 2. No line that is read
+  # holds these bytes: a control character is refused before.
+  function masked(s,    out, i, c, d, len) {
+    out = ""; len = length(s)
+    for (i = 1; i <= len; i++) {
+      c = substr(s, i, 1)
+      if (c == "\\") {
+        d = substr(s, i + 1, 1)
+        if (d == "|") { out = out "\001"; i++; continue }
+        if (d == "\\") { out = out "\002"; i++; continue }
+      }
+      out = out c
+    }
+    return out
+  }
+  # A cell of a masked row as it is written.
+  function unmasked(s,    out, i, c, len) {
+    if (s !~ /[\001\002]/) return s
+    out = ""; len = length(s)
+    for (i = 1; i <= len; i++) {
+      c = substr(s, i, 1)
+      out = out (c == "\001" ? "\\|" : c == "\002" ? "\\\\" : c)
+    }
+    return out
   }
 
   # 1 when a cell shows nothing: spaces, tabs and no-break spaces.
@@ -552,6 +715,11 @@ check_catalog() {
   BEGIN {
     SEP = "\037"
     HEADER = "| Measurement | Direction | Unit | Tolerance | Evidence |"
+    # A reference to an input: the name is a key as this script reads one.
+    REF = "^[$][{]inputs[.][A-Za-z0-9_.@-]+[}]$"
+    # The assessor of Ratchet itself that reads the runs of another plan
+    # (spec/domains/assessor.yaml); no file declares it.
+    SERIES = "record-series@1"
     # spec/README.md, "How a `ratchet/1` file differs from the declared entities".
     may_be_absent["ratchet.specification.QualityRequirement", "serves"] = 1
   }
@@ -599,12 +767,27 @@ check_catalog() {
         fail(FILE, 1, "the file is no `<name>@<version>.<kind>.yaml` with a kind of ratchet.config.CatalogFileKind: " variants("ratchet.config.CatalogFileKind"))
       } else { fkind[FILE] = k; ident[FILE] = substr(stem, 1, length(stem) - length(k) - 1) }
     }
-    if (reading == "page") { pg[++np] = FILE; in_table = 0; fence = ""; in_comment = 0 }
+    if (reading == "page") { pg[++np] = FILE; in_table = 0; fence = ""; fence_len = 0; in_comment = 0 }
+    read_file[++nread] = FILE
   }
-  # Only a line with a byte that is no printable ASCII and no tab is looked at further.
+  # The lines of the files of the directory, for the line feed of the last line of each.
+  { nlines++; last_line[FILE] = FNR }
+  # Only a line with a byte that is no printable ASCII and no tab is looked at further. The
+  # line is UTF-8 from the second test on, so the first byte of each sequence below starts a
+  # character: 302, 342 and 357 are no second or third byte of one.
   /[^\011\040-\176]/ {
     if (!utf8($0)) { fail(FILE, FNR, "the line is not UTF-8"); next }
     if ($0 ~ /[\001-\010\013-\037\177]/) { fail(FILE, FNR, "the line holds a control character, such as a carriage return; a line ends with a line feed, and only a page holds tabs"); next }
+    # U+0080 to U+009F.
+    if ($0 ~ /\302[\200-\237]/) { fail(FILE, FNR, "the line holds a C1 control character, U+0080 to U+009F, such as the next line U+0085, which a YAML 1.1 reader takes as the end of a line"); next }
+    # U+2028 and U+2029.
+    if ($0 ~ /\342\200[\250\251]/) { fail(FILE, FNR, "the line holds the line separator U+2028 or the paragraph separator U+2029, which a YAML 1.1 reader takes as the end of a line"); next }
+    # U+FEFF.
+    if ($0 ~ /\357\273\277/) { fail(FILE, FNR, "the line holds the byte order mark U+FEFF; a file of the catalog holds none, also not as its first character"); next }
+    # U+FFFE and U+FFFF.
+    if ($0 ~ /\357\277[\276\277]/) { fail(FILE, FNR, "the line holds U+FFFE or U+FFFF, which is no character"); next }
+    # U+200B, U+200E, U+200F and U+202A to U+202E; U+2060 and U+2066 to U+2069.
+    if ($0 ~ /\342\200[\213\216\217\252-\256]|\342\201[\240\246-\251]/) { fail(FILE, FNR, "the line holds a character that hides or reorders text: U+200B, U+200E, U+200F, U+202A to U+202E, U+2060 or U+2066 to U+2069"); next }
   }
   reading == "readme" { next }
 
@@ -652,12 +835,16 @@ check_catalog() {
   # ---- a page of the directory: the rows of its tables --------------------------------------
   reading == "page" {
     line = $0
-    mark = line; sub(/^ +/, "", mark); mark = substr(mark, 1, 3)
+    # A code fence (CommonMark): it opens at a run of three or more backticks or tildes that
+    # is indented by at most three spaces, and after a run of backticks the line holds no
+    # further backtick. It closes at a run of the same character that is at least as long,
+    # indented by at most three spaces, with nothing but spaces and tabs after it.
+    marks = fence_run(line)
     if (fence != "") {
-      if (mark == fence && line ~ /^ *[`~]+ *$/) fence = ""
+      if (marks >= fence_len && RUN_CHAR == fence && RUN_REST ~ /^[ \t]*$/) fence = ""
       next
     }
-    if (!in_comment && (mark == "```" || mark == "~~~")) { fence = mark; in_table = 0; next }
+    if (!in_comment && marks >= 3 && (RUN_CHAR == "~" || index(RUN_REST, "`") == 0)) { fence = RUN_CHAR; fence_len = marks; in_table = 0; next }
     if (in_comment || index(line, "<!--") > 0) line = uncomment(line)
     if (line == HEADER) { in_table = 1; ruled = 0; tables[FILE]++; next }
     if (!in_table) next
@@ -668,10 +855,14 @@ check_catalog() {
       next
     }
     rows_in[FILE]++
+    # `\|` is a bar of the text of a cell, as a Markdown reader with tables takes it.
+    escaped = (index(line, "\\") > 0)
+    if (escaped) line = masked(line)
     if (line !~ /\| *$/) { fail(FILE, FNR, "a row does not end with `|`"); next }
     sub(/^\| */, "", line); sub(/ *\| *$/, "", line)
     n = split(line, cell, /\|/)
-    if (n != 5) { fail(FILE, FNR, "a row has " n " cells; a row has 5, and no cell holds `|`"); next }
+    if (n != 5) { fail(FILE, FNR, "a row has " n " cells; a row has 5, and a `|` inside a cell is written `\\|`"); next }
+    if (escaped) for (i = 1; i <= 5; i++) cell[i] = unmasked(cell[i])
     cell[1] = trim(cell[1])
     if (cell[1] !~ /^`[^`]+`$/) { fail(FILE, FNR, "the first cell of a row is `" cell[1] "`; it is the name of a measurement between backticks, `<name>@<version>/<assessment>/<measurement>`"); next }
     id = substr(cell[1], 2, length(cell[1]) - 2)
@@ -706,7 +897,10 @@ check_catalog() {
       stated[F] = id
       if (index(name, "@") > 0 || index(version, "@") > 0) fail(F, 1, "the name `" name "` or the version `" version "` holds `@`; `<name>@<version>` is cut at its one `@`")
       if (id != ident[F]) fail(F, 1, "the file is named `" ident[F] "." fk ".yaml` and states the name and the version `" id "`; it is the file `<name>@<version>." fk ".yaml`")
-      if (fk == "assessor") declaration[ident[F]] = F
+      if (fk == "assessor") {
+        if (ident[F] == SERIES || id == SERIES) fail(F, 1, "the file declares `" SERIES "`, the assessor of Ratchet itself that reads the runs of another plan: the name is reserved, and a directory of the catalog holds no declaration of it")
+        else declaration[ident[F]] = F
+      }
     }
     if (presets == 0) { print "presets: the directory holds no preset, a file `<name>@<version>.preset.yaml`"; failed++ }
 
@@ -730,7 +924,8 @@ check_catalog() {
       if (t == "") { if (why != "") fail(F, n_line[i], "`" shown(path) "` " why); continue }
       k = n_kind[i]
       if (k == "pending") { fail(F, n_line[i], "`" shown(path) "` has no value on its line and nothing under it"); continue }
-      if (k != "map" && k != "list" && (index(n_text[i], "${") > 0 || index(n_text[i], "{inputs.") > 0)) { reference(i, F, fk, path, t); continue }
+      # In a declaration `${` is text, and only what is spelled as a reference is refused.
+      if (k != "map" && k != "list" && (index(n_text[i], "${") > 0 || index(n_text[i], "{inputs.") > 0) && (fk == "preset" || n_text[i] ~ REF)) { reference(i, F, fk, path, t); continue }
       m = misfit(t, k, n_text[i])
       if (m != "") { fail(F, n_line[i], "`" shown(path) "` " m); continue }
       u = unopt(t)
@@ -746,7 +941,7 @@ check_catalog() {
         ip = substr(path, 1, length(path) - 8)
         it = text(F, ip SEP "type"); il = (text(F, ip SEP "list") == "true")
         if (("ratchet.specification.InputType", it) in variant) {
-          m = unfit(F, path, it, il)
+          m = unfit(F, path, it, il, 0)
           if (m != "") fail(F, n_line[i], named(path) m ", and its input has the type " typed(it, il))
         }
       }
@@ -757,6 +952,17 @@ check_catalog() {
 
       if (n == 2 && s[1] == "assessments") {
         a = text(F, path SEP "assessor")
+        # A window over the runs of another plan: the four invariants of
+        # ratchet.specification.AssessmentPlan, which name the assessor of Ratchet itself.
+        if (has(F, path SEP "observation" SEP "population" SEP "runs_of")) {
+          if (has(F, path SEP "assessor") && a != SERIES && !given(a))
+            fail(F, n_line[i], named(path) "reads the runs of another plan (`observation.population.runs_of`) and names the assessor `" a "`; such a plan names `" SERIES "`")
+          if (has(F, path SEP "target" SEP "selection"))
+            fail(F, n_line[i], named(path) "reads the runs of another plan (`observation.population.runs_of`) and has a `target.selection`; such a plan has none")
+          if (has(F, path SEP "observation" SEP "conditions"))
+            fail(F, n_line[i], named(path) "reads the runs of another plan (`observation.population.runs_of`) and declares `observation.conditions`; such a plan declares none, because only runs that qualified under the source plan enter its population")
+        } else if (a == SERIES)
+          fail(F, n_line[i], named(path) "names the assessor `" SERIES "` and has no `observation.population.runs_of`: that assessor reads the runs of another plan")
         if (!has(F, path SEP "assessor") || !(a in declaration)) continue
         D = declaration[a]
         for (j = 1; j <= nkeys[D, "inputs"]; j++) {
@@ -766,17 +972,30 @@ check_catalog() {
         }
       }
 
-      if (n == 3 && s[1] == "assessments" && s[3] == "assessor" && !(n_text[i] in declaration))
+      # No declaration is looked for where the assessor is the one of Ratchet itself, and
+      # where an input gives it.
+      if (n == 3 && s[1] == "assessments" && s[3] == "assessor" && n_text[i] != SERIES && !given(n_text[i]) && !(n_text[i] in declaration))
         fail(F, n_line[i], named(path) "names the assessor `" n_text[i] "`, and the directory holds no `" n_text[i] ".assessor.yaml`")
 
       if (n == 4 && s[1] == "assessments" && s[3] == "target" && s[4] == "kind") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
-        if ((a in declaration) && index(n_text[i], "${") == 0 && !holds(declaration[a], "targets", n_text[i]))
-          fail(F, n_line[i], named(path) "is `" n_text[i] "`, and `" a "` declares the targets `" items(declaration[a], "targets") "`")
+        if (a in declaration) {
+          # A kind that an input gives is the default of that input until a binding passes
+          # another; without a default the binding passes it.
+          tk = n_text[i]; by = ""
+          if (given(tk)) {
+            ip = "preset" SEP "inputs" SEP input_name(tk)
+            if (tk ~ REF && has(F, ip SEP "default")) { by = ", the default of the input `" input_name(tk) "`"; tk = text(F, ip SEP "default") }
+            else tk = ""
+          }
+          if (tk != "" && !holds(declaration[a], "targets", tk))
+            fail(F, n_line[i], named(path) "is `" tk "`" by ", and `" a "` declares the targets `" items(declaration[a], "targets") "`")
+        }
       }
 
       if (n == 4 && s[1] == "assessments" && s[3] == "inputs") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
+        if (a == SERIES) { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, and `" SERIES "` takes no input"); continue }
         if (!(a in declaration)) continue
         D = declaration[a]; dp = "inputs" SEP s[4]
         if (!has(D, dp)) { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` does not declare"); continue }
@@ -784,13 +1003,13 @@ check_catalog() {
         dt = text(D, dp SEP "type"); dl = (text(D, dp SEP "list") == "true")
         x = n_text[i]
         if (n_kind[i] != "map" && n_kind[i] != "list" && (index(x, "${") > 0 || index(x, "{inputs.") > 0)) {
-          ip = "preset" SEP "inputs" SEP substr(x, 10, length(x) - 10)
-          if (x !~ /^[$][{]inputs[.][A-Za-z0-9_-]+[}]$/ || !has(F, ip)) continue
+          ip = "preset" SEP "inputs" SEP input_name(x)
+          if (x !~ REF || !has(F, ip)) continue
           it = text(F, ip SEP "type"); il = (text(F, ip SEP "list") == "true")
           if (il != dl || !(it == dt || (it == "integer" && dt == "decimal")))
-            fail(F, n_line[i], named(path) "passes the input `" substr(x, 10, length(x) - 10) "` of the preset, " typed(it, il) ", and `" a "` declares the input `" s[4] "` as " typed(dt, dl))
+            fail(F, n_line[i], named(path) "passes the input `" input_name(x) "` of the preset, " typed(it, il) ", and `" a "` declares the input `" s[4] "` as " typed(dt, dl))
         } else {
-          m = unfit(F, path, dt, dl)
+          m = unfit(F, path, dt, dl, 1)
           if (m != "") fail(F, n_line[i], named(path) m ", and `" a "` declares the input `" s[4] "` as " typed(dt, dl))
         }
       }
@@ -800,27 +1019,41 @@ check_catalog() {
         ms[++nm] = id; ms_file[nm] = F; ms_line[nm] = n_line[i]; ms_preset[nm] = stated[F]
         is_measurement[id] = 1
         op = output_of(F, path)
-        if (D == "" || !has(F, path SEP "output")) continue
+        # Nothing is joined without a declaration (`record-series@1`, an assessor that an
+        # input gives, an assessor that is named as absent) and where an input gives the output.
+        if (D == "" || !has(F, path SEP "output") || given(O)) continue
         if (op == "") { fail(F, n_line[i], named(path) "names the output `" O "`, which `" A "` does not declare"); continue }
         what = "the output `" O "` of `" A "`"
-        mk = text(F, path SEP "kind")
-        if (has(F, path SEP "kind") && index(mk, "${") == 0 && mk != text(D, op SEP "kind"))
-          fail(F, n_line[i], named(path) "has the kind `" mk "`, and " what " declares `" text(D, op SEP "kind") "`")
+        vt = text(D, op SEP "value_type")
+        ak = text(F, path SEP "aggregation" SEP "kind")
+        if (ak == "pass_rate" && vt != "assertion")
+          fail(F, n_line[i], named(path) "aggregates with `pass_rate`, which takes an assertion, and " what " has the value type `" vt "`")
+        # The pass rate of an assertion is a number over runs or samples: it may be `sampled`
+        # where the assertion is declared `exact`.
+        rate = (vt == "assertion" && (ak == "pass_rate" || given(ak)))
+        mk = text(F, path SEP "kind"); dk = text(D, op SEP "kind")
+        if (has(F, path SEP "kind") && !given(mk) && mk != dk && !(rate && mk == "sampled"))
+          fail(F, n_line[i], named(path) "has the kind `" mk "`, and " what " declares `" dk "` (`kind_mismatch`)")
         has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
         has_mu = has(F, path SEP "unit"); mu = text(F, path SEP "unit")
-        if (has_du && !has_mu) fail(F, n_line[i], named(path) "has no `unit`, and " what " declares `" du "` (`unit_missing`)")
-        else if (has_du && mu != du) fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " declares `" du "` (`unit_mismatch`)")
-        else if (!has_du && has_mu) fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " declares none (`unit_not_declared`)")
+        if (!(has_mu && given(mu))) {
+          if (has_du && !has_mu) fail(F, n_line[i], named(path) "has no `unit`, and " what " declares `" du "` (`unit_missing`)")
+          else if (has_du && mu != du) fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " declares `" du "` (`unit_mismatch`)")
+          else if (!has_du && has_mu) fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " declares none (`unit_not_declared`)")
+        }
         sc = text(F, path SEP "scope")
-        if (has(F, path SEP "scope") && sc != "run" && !holds(D, op SEP "scopes", sc))
+        if (has(F, path SEP "scope") && sc != "run" && !given(sc) && !holds(D, op SEP "scopes", sc))
           fail(F, n_line[i], named(path) "has the scope `" sc "`, which " what " does not declare")
+        # `run_time` and `queue_wait` are boundaries of Ratchet itself (docs/design.md § 3,
+        # value lists): an output that declares no boundaries has them, as every output has
+        # the scope `run`. An output that declares boundaries has those it lists.
         bd = text(F, path SEP "boundary")
-        if (has(F, path SEP "boundary") && !holds(D, op SEP "boundaries", bd))
+        if (has(F, path SEP "boundary") && !given(bd) && !holds(D, op SEP "boundaries", bd) && !((bd == "run_time" || bd == "queue_wait") && !has(D, op SEP "boundaries")))
           fail(F, n_line[i], named(path) "has the boundary `" bd "`, which " what " does not declare")
-        if (has(F, path SEP "identity")) {
-          mk = items(F, path SEP "identity"); dk = items(D, op SEP "identity_key")
+        if (has(F, path SEP "identity") && !list_given(F, path SEP "identity")) {
+          mi = items(F, path SEP "identity"); di = items(D, op SEP "identity_key")
           if (!has(D, op SEP "identity_key")) fail(F, n_line[i], named(path) "states an identity key, and " what " declares none")
-          else if (mk != dk) fail(F, n_line[i], named(path) "states the identity key `" mk "`, and " what " declares `" dk "`")
+          else if (mi != di) fail(F, n_line[i], named(path) "states the identity key `" mi "`, and " what " declares `" di "`")
         }
       }
 
@@ -831,19 +1064,35 @@ check_catalog() {
           fail(F, n_line[i], named(path) "filters by the field `" s[6] "`, which the output `" O "` of `" A "` does not declare for its items")
       }
 
+      # A condition of the observation, under its class: one of the three that have a field
+      # in ratchet.specification.ObservationConditions, or one the declaration lists.
+      if (n == 6 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions") {
+        a = text(F, "assessments" SEP s[2] SEP "assessor")
+        if ((a in declaration) && !(("ratchet.specification.ObservationConditions", s[6]) in ftype) && !holds(declaration[a], "conditions", s[6]))
+          fail(F, n_line[i], named(path) "is the condition `" s[6] "`, which is none of Ratchet itself, and `" a "` declares the conditions `" items(declaration[a], "conditions") "`")
+      }
+
+      # A field of a population filter is one the declaration lists.
+      if (n == 7 && s[1] == "assessments" && s[3] == "observation" && s[4] == "population" && s[5] == "filter") {
+        a = text(F, "assessments" SEP s[2] SEP "assessor")
+        if ((a in declaration) && !holds(declaration[a], "population_fields", s[7]))
+          fail(F, n_line[i], named(path) "filters the population by the field `" s[7] "`, and `" a "` declares the population fields `" items(declaration[a], "population_fields") "` (`population_field_mismatch`)")
+      }
+
       if (n == 2 && s[1] == "requirements") {
-        if (has(F, path SEP "assessment")) {
-          ra = text(F, path SEP "assessment")
+        # A name that is a reference is refused where it stands (`inner_name`).
+        ra = text(F, path SEP "assessment")
+        if (has(F, path SEP "assessment") && !given(ra)) {
           if (!has(F, "assessments" SEP ra)) fail(F, n_line[i], named(path) "names the assessment `" ra "`, which the preset does not hold")
           else if (has(F, path SEP "measurement")) {
             rm = text(F, path SEP "measurement")
-            if (!has(F, "assessments" SEP ra SEP "measurements" SEP rm)) fail(F, n_line[i], named(path) "names the measurement `" rm "`, which the assessment `" ra "` does not hold")
+            if (!given(rm) && !has(F, "assessments" SEP ra SEP "measurements" SEP rm)) fail(F, n_line[i], named(path) "names the measurement `" rm "`, which the assessment `" ra "` does not hold")
           } else if (nkeys[F, "assessments" SEP ra SEP "measurements"] != 1)
             fail(F, n_line[i], named(path) "names no measurement, and the assessment `" ra "` holds " (nkeys[F, "assessments" SEP ra SEP "measurements"] + 0))
         }
         for (j = 1; has(F, path SEP "serves" SEP "[" j "]"); j++) {
           st = text(F, path SEP "serves" SEP "[" j "]")
-          if (!has(F, "statements" SEP st)) fail(F, n_line[i], named(path) "serves the statement `" st "`, which the preset does not hold")
+          if (!given(st) && !has(F, "statements" SEP st)) fail(F, n_line[i], named(path) "serves the statement `" st "`, which the preset does not hold")
         }
 
         # The comparison against the value type of the output (docs/design.md § 3
@@ -855,12 +1104,18 @@ check_catalog() {
         vt = text(D, op SEP "value_type")
         what = "the output `" O "` of `" A "`"
         is = what " has the value type `" vt "`"
+        # An assertion that the measurement aggregates with `pass_rate` is compared as a
+        # number (docs/design.md § 3, "A series of runs as a population"). Where an input
+        # gives the kind of the aggregation, it is not known which of the two it is.
+        ak = text(F, mp SEP "aggregation" SEP "kind")
+        if (vt == "assertion" && given(ak)) continue
+        if (vt == "assertion" && ak == "pass_rate") { vt = "number"; is = what " is an assertion that the measurement aggregates with `pass_rate`, a number" }
         hc = has(F, path SEP "condition"); hr = has(F, path SEP "reference")
         opr = text(F, path SEP "condition" SEP "operator")
         rk = text(F, path SEP "reference" SEP "kind")
         hv = has(F, path SEP "condition" SEP "value")
         if (hc && vt == "digest") fail(F, n_line[i], named(path) "has a condition, and " is ", which takes none")
-        else if (hc && opr != "" && index(opr, "${") == 0) {
+        else if (hc && opr != "" && !given(opr)) {
           limit = (opr ~ /^(lt|lte|gt|gte|eq)$/)
           if (opr == "holds") {
             if (vt != "assertion") fail(F, n_line[i], named(path) "has the operator `holds`, which takes an assertion, and " is)
@@ -875,14 +1130,20 @@ check_catalog() {
         if (hc) {
           has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
           has_cu = has(F, path SEP "condition" SEP "unit"); cu = text(F, path SEP "condition" SEP "unit")
-          if (has_du && !has_cu) fail(F, n_line[i], named(path) "has a condition without a `unit`, and " what " declares `" du "` (`unit_missing`)")
-          else if (has_du && cu != du) fail(F, n_line[i], named(path) "has a condition in the unit `" cu "`, and " what " declares `" du "` (`unit_mismatch`)")
-          else if (!has_du && has_cu) fail(F, n_line[i], named(path) "has a condition in the unit `" cu "`, and " what " declares none (`unit_not_declared`)")
+          if (!(has_cu && given(cu))) {
+            if (has_du && !has_cu) fail(F, n_line[i], named(path) "has a condition without a `unit`, and " what " declares `" du "` (`unit_missing`)")
+            else if (has_du && cu != du) fail(F, n_line[i], named(path) "has a condition in the unit `" cu "`, and " what " declares `" du "` (`unit_mismatch`)")
+            else if (!has_du && has_cu) fail(F, n_line[i], named(path) "has a condition in the unit `" cu "`, and " what " declares none (`unit_not_declared`)")
+          }
         }
-        if (hr && rk != "" && index(rk, "${") == 0) {
-          if (vt == "assertion") fail(F, n_line[i], named(path) "has a reference, and " is ", which takes none")
-          else if (vt == "digest" && rk != "generated") fail(F, n_line[i], named(path) "has the reference `" rk "`, and " is ", which takes `generated`")
-          else if ((vt == "number" || vt == "identity_set") && rk != "accepted_value") fail(F, n_line[i], named(path) "has the reference `" rk "`, and " is ", which takes `accepted_value`")
+        if (hr) {
+          # The kind of the reference is read where no input gives it.
+          if (rk != "" && !given(rk)) {
+            if (vt == "assertion") fail(F, n_line[i], named(path) "has a reference, and " is ", which takes none")
+            else if (vt == "digest" && rk != "generated") fail(F, n_line[i], named(path) "has the reference `" rk "`, and " is ", which takes `generated`")
+            else if ((vt == "number" || vt == "identity_set") && rk != "accepted_value") fail(F, n_line[i], named(path) "has the reference `" rk "`, and " is ", which takes `accepted_value`")
+          }
+          # These two read that there is a reference, and not its kind.
           if (vt == "identity_set" && !hc) fail(F, n_line[i], named(path) "compares a set with a reference and has no condition: `no_new_items` or `no_lost_items` says which way is worse")
           if (vt == "number" && !has(F, mp SEP "better")) fail(F, n_line[at[F, mp]], "`" shown(mp) "` states no `better`, and `" shown(path) "` compares it with a reference")
         }
@@ -904,6 +1165,20 @@ check_catalog() {
     for (i = 1; i <= np; i++) {
       if (tables[pg[i]] == 0) fail(pg[i], 1, "the page holds no table with the header `" HEADER "`; every `*.md` beside README.md is the page of a family")
       else if (rows_in[pg[i]] == 0) fail(pg[i], 1, "the tables of the page hold no row")
+    }
+
+    # A line ends with a line feed, the last one too. awk reads a last line without one as a
+    # line, so it has then read more lines than the files have line feeds. `feeds` counts
+    # those of every `*.yaml` and `*.md`, and these are the files awk read where no entry is
+    # refused. Only then the last byte of each file is looked at.
+    if (nothers == 0 && nlines != feeds + 0) {
+      for (i = 1; i <= nread; i++) {
+        look = "tail -c 1 " shell_word(read_file[i]) " | wc -l"
+        ends = ""
+        look | getline ends
+        close(look)
+        if (ends + 0 == 0) fail(read_file[i], last_line[read_file[i]], "the last line does not end with a line feed; a line ends with a line feed")
+      }
     }
 
     total = ny + np + nothers
@@ -1082,6 +1357,33 @@ limit='      value: ${inputs.different_limit}'
 number_output='  failed: {value_type: number, kind: exact, scopes: [], unit: cases}'
 the_row='index($0, "| `conformance-cases@1/conformance/skipped` |") == 1'
 table='| Measurement | Direction | Unit | Tolerance | Evidence |\n| --- | --- | --- | --- | --- |\n'
+known='known-failures@1.preset.yaml'
+
+# add_row <row>: a further table at the end of the page of the copy, with the row.
+add_row() {
+  printf '\n'"$table"'%s\n' "$1" >> "$c/$page"
+}
+
+# window_copy <case>: a copy whose preset known-failures@1 holds a second plan, a window over
+# the runs of the first, as docs/design.md § 3 writes `pool-queue-wait`; with its requirement
+# and its row.
+window_plan='  size-over-runs:\n    subject: ${inputs.subject}\n    assessor: record-series@1\n    target: {kind: revision, environments: "${inputs.environments}"}\n    observation:\n      kind: time_window\n      window: {last: 20}\n      population: {runs_of: known-failures, from: trusted_revision}\n      min_samples: 10\n    measurements:\n      median:\n        kind: sampled\n        output: size\n        scope: run\n        aggregation: {kind: median}\n        unit: cases\n        better: lower\n\nrequirements:'
+window_copy() {
+  copy "$1"
+  swap "$known" 'requirements:' "$window_plan"
+  printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference: {kind: accepted_value, tolerance: {absolute: 1}}\n' >> "$c/$known"
+  add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 1 case | `record-series@1`, the measurement `size` of the plan `known-failures` |'
+}
+
+# rate_copy <case>: a copy whose preset conformance-cases@1 reads the pass rate of an
+# assertion that conformance-report@1 declares; with its requirement and its row.
+rate_copy() {
+  copy "$1"
+  printf '  all_pass: {value_type: assertion, kind: exact, scopes: []}\n' >> "$c/$conf_d"
+  swap "$conf" '        better: lower' '        better: lower\n      pass-rate:\n        kind: sampled\n        output: all_pass\n        scope: run\n        aggregation: {kind: pass_rate}\n        better: higher' 3
+  printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference: {kind: accepted_value, tolerance: {absolute: 0.05}}\n' >> "$c/$conf"
+  add_row '| `conformance-cases@1/conformance/pass-rate` | Higher | None | 0.05 | `conformance-report@1`, output `all_pass` |'
+}
 
 # -- the harness of the copies ------------------------------------------------------------------
 #
@@ -1117,6 +1419,35 @@ if sh "$self" --catalog "$c" --spec "$spec" > "$c.options" 2>&1 && [ "$(cat "$c.
   cat "$c.options"
   stop "the unchanged copy of presets/ fails with --catalog and --spec, or prints another line than: $summary"
 fi
+
+# `--spec` names the specification that is read: against a directory of domain files that
+# declares no type, the unchanged copy is refused for the list this script needs first.
+mkdir "$work/harness-spec"
+printf 'types: []\n' > "$work/harness-spec/empty.yaml"
+if sh "$self" --catalog "$c" --spec "$work/harness-spec" > "$work/harness-spec.out" 2>&1; then
+  cat "$work/harness-spec.out"
+  stop "--spec is not read: the copy is accepted against a specification that declares no type"
+fi
+grep -F -q 'presets: the specification declares no ratchet.config.CatalogFileKind' "$work/harness-spec.out" || {
+  cat "$work/harness-spec.out"
+  stop "against a specification that declares no type the copy is refused for another reason than the absent list"
+}
+
+# The run without options fails where presets/ itself is refused: this script in a tree of its
+# own, target/presets/harness-tree, whose presets/ holds a file of no kind.
+mkdir -p "$work/harness-tree/spec"
+cp "$self" "$work/harness-tree/spec/presets.test.sh"
+cp -R "$root/spec/domains" "$work/harness-tree/spec/domains"
+cp -R "$catalog" "$work/harness-tree/presets"
+printf 'A note.\n' > "$work/harness-tree/presets/notes.txt"
+if sh "$work/harness-tree/spec/presets.test.sh" > "$work/harness-tree.out" 2>&1; then
+  cat "$work/harness-tree.out"
+  stop "the run in a tree whose presets/ holds notes.txt exits 0"
+fi
+grep -F -q 'notes.txt: the entry is no preset, no declaration and no page' "$work/harness-tree.out" || {
+  cat "$work/harness-tree.out"
+  stop "the run in a tree whose presets/ holds notes.txt does not name the entry"
+}
 
 # A refusal counts only with the message of the rule of its case.
 copy harness-message
@@ -1161,6 +1492,81 @@ copy valid-integer-input-for-decimal
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  limit: {type: decimal, required: true}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      limit: ${inputs.different_limit}'
 accepts "an assessment that passes an integer input where a decimal is declared"
+
+# U+200C and U+200D, with which some writing systems are spelled, and the characters beside
+# the refused ranges: U+00A0, U+2027, U+202F, U+205F and U+FFFD.
+copy valid-characters-beside-the-refused
+swap "$conf" "$meaning" '    meaning: Every case \342\200\214 \342\200\215 \302\240 \342\200\247 \342\200\257 \342\201\237 \357\277\275 still passes.'
+accepts "a text with U+200C, U+200D and the characters beside the refused ranges"
+
+# A value that an input gives is not joined with the declaration: one copy per place, each with
+# a value that the declaration does not hold.
+copy valid-reference-assessor
+swap "$conf" '    assessor: conformance-report@1' '    assessor: ${inputs.subject}'
+accepts "an assessment whose assessor an input gives"
+
+copy valid-reference-output
+swap "$conf" '        output: passed' '        output: ${inputs.subject}'
+accepts "a measurement whose output an input gives"
+
+copy valid-reference-scope
+swap "$conf" '        scope: run' '        scope: ${inputs.subject}' 2
+accepts "a measurement whose scope an input gives"
+
+copy valid-reference-boundary
+swap "$conf" '        output: failed' '        output: failed\n        boundary: ${inputs.subject}'
+accepts "a measurement whose boundary an input gives"
+
+copy valid-reference-unit
+swap "$conf" '        unit: cases' '        unit: ${inputs.subject}'
+accepts "a measurement whose unit an input gives"
+
+copy valid-reference-condition-unit
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: "${inputs.subject}"}' 3
+accepts "a condition whose unit an input gives"
+
+copy valid-reference-identity-key
+swap "$differ" '        identity: [case_id]' '        identity: ${inputs.environments}'
+swap "$differ" '        identity: [case_id]' '        identity: ["${inputs.subject}"]'
+accepts "an identity key that an input gives, and one with an item that an input gives"
+
+# The name of an input is text (`ratchet.specification.Preset.inputs`), so it may hold a `.`.
+copy valid-input-name-with-a-dot
+swap "$conf" '    report: {type: path, required: true}' '    report.file: {type: path, required: true}'
+swap "$conf" "$passes" '      report: ${inputs.report.file}'
+accepts "an input named report.file and a reference to it"
+
+copy valid-inputs-as-items-of-a-list
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
+swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.subject}", other]'
+accepts "an assessment that passes a list of text with a text input as one item"
+
+# The kind of a target by an input: with a default that the declaration takes, and without one.
+copy valid-target-kind-by-input
+swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: false, default: revision}'
+swap "$conf" '      kind: revision' '      kind: ${inputs.target_kind}'
+swap "$differ" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: true}'
+swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
+accepts "a target kind by an input with the default revision, and one by an input without a default"
+
+copy valid-boundary-of-ratchet
+swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
+accepts "a measurement with the boundary queue_wait on an output that declares no boundaries"
+
+copy valid-dollar-brace-in-a-declaration
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  label: {type: string, required: false, default: "${run}"}'
+accepts 'a default of a declaration that holds `${`, which is text there'
+
+# A condition and a field of a population filter that the declaration lists, beside a
+# condition of Ratchet itself.
+copy valid-condition-and-population-field
+swap "$conf_d" 'conditions: []' 'conditions: [cache]'
+printf 'population_fields: [service]\n' >> "$c/$conf_d"
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache: warm, runner: ci-standard}}'
+accepts "a plan with the declared condition cache, the condition runner and a population filter by the declared field service"
+
+rate_copy valid-pass-rate-of-an-assertion
+accepts "a sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit and with a reference"
 
 # -- file ------------------------------------------------------------------------------------
 
@@ -1236,6 +1642,67 @@ done
 copy file-control-character-in-readme
 printf 'A line.\033\n' >> "$c/README.md"
 refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a control character" "README.md holds the byte 27"
+
+# Characters that are UTF-8 and are refused in every file, each on the line of `meaning`: the
+# ends of each range, and each character that stands alone.
+for case_bytes in \
+  'file-c1-first|\302\200|U+0080, the first C1 control character|holds a C1 control character' \
+  'file-c1-last|\302\237|U+009F, the last C1 control character|holds a C1 control character' \
+  'file-paragraph-separator|\342\200\251|the paragraph separator U+2029|holds the line separator U+2028 or the paragraph separator U+2029' \
+  'file-byte-order-mark-in-a-line|\357\273\277|the byte order mark U+FEFF inside a line|holds the byte order mark U+FEFF' \
+  'file-noncharacter-fffe|\357\277\276|U+FFFE|holds U+FFFE or U+FFFF' \
+  'file-noncharacter-ffff|\357\277\277|U+FFFF|holds U+FFFE or U+FFFF' \
+  'file-zero-width-space|\342\200\213|the zero width space U+200B|holds a character that hides or reorders text' \
+  'file-left-to-right-mark|\342\200\216|the left-to-right mark U+200E|holds a character that hides or reorders text' \
+  'file-right-to-left-mark|\342\200\217|the right-to-left mark U+200F|holds a character that hides or reorders text' \
+  'file-embedding-first|\342\200\252|U+202A, the first of the embeddings and overrides|holds a character that hides or reorders text' \
+  'file-override-last|\342\200\256|U+202E, the last of the embeddings and overrides|holds a character that hides or reorders text' \
+  'file-word-joiner|\342\201\240|the word joiner U+2060|holds a character that hides or reorders text' \
+  'file-isolate-first|\342\201\246|U+2066, the first of the isolates|holds a character that hides or reorders text' \
+  'file-isolate-last|\342\201\251|U+2069, the last of the isolates|holds a character that hides or reorders text'
+do
+  copy "${case_bytes%%|*}"
+  case_bytes=${case_bytes#*|}
+  swap "$conf" "$meaning" "    meaning: Every case ${case_bytes%%|*} still passes."
+  case_bytes=${case_bytes#*|}
+  refused "conformance-cases@1.preset.yaml:56: the line ${case_bytes#*|}" "a preset holds ${case_bytes%%|*}"
+done
+
+copy file-byte-order-mark-at-the-start-of-a-page
+edit "$page" 'NR == 1 { print "\357\273\277" $0; next } { print }'
+refused 'functional.md:1: the line holds the byte order mark U+FEFF' "the page starts with the byte order mark"
+
+copy file-next-line-in-readme
+printf 'A line.\302\205And a line more for a YAML 1.1 reader.\n' >> "$c/README.md"
+refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a C1 control character" "README.md holds the next line U+0085"
+
+# hidden_gate <the bytes of a character, as awk writes them>: the preset known-failures@1 of
+# the copy gets its assessments after its requirements, and its last two lines are a condition
+# whose text holds the character twice, around `gates:`. A reader that takes the character as
+# the end of a line reads a root key `gates` with a gate `merge` there; this script reads one
+# line of text.
+hidden_gate() {
+  edit "$known" '
+    /^assessments:$/ { moved = 1 }
+    /^requirements:$/ { moved = 0 }
+    moved && ($0 == "    observation:" || $0 == "      kind: snapshot") { next }
+    moved { if ($0 != "") held = held $0 "\n"; next }
+    { print }
+    END { printf "\n%s    observation:\n      kind: snapshot\n      conditions:\n        all:\n          cache: warm'"$1"'gates:'"$1"'\n          merge: {stage: pre-merge, qualifying_environments: [ci], requires: [size-does-not-rise]}\n", held }'
+}
+
+copy file-line-separator-hides-a-gate
+hidden_gate '\342\200\250'
+refused 'known-failures@1.preset.yaml:50: the line holds the line separator U+2028 or the paragraph separator U+2029' "a condition of a preset holds the line separator U+2028 before and after gates:"
+
+copy file-next-line-hides-a-gate
+hidden_gate '\302\205'
+refused 'known-failures@1.preset.yaml:50: the line holds a C1 control character' "a condition of a preset holds the next line U+0085 before and after gates:"
+
+copy file-last-line-without-line-feed
+printf '%s' "$(cat "$c/$conf")" > "$c.new"
+mv "$c.new" "$c/$conf"
+refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -1332,6 +1799,18 @@ refused 'follows the flow collection of `preset.inputs`' "keys follow a flow map
 copy form-escape
 swap "$conf" "$meaning" '    meaning: "Every case \\n still passes."'
 refused 'the quoted scalar of `requirements.no-case-lost.meaning` holds an escape' "a double-quoted scalar holds an escape"
+
+copy form-single-quote-doubled
+swap "$conf" "$meaning" "    meaning: 'Every case of the \"accepted\" set, it''s said, still passes.'"
+refused 'conformance-cases@1.preset.yaml:56: not read: a quote inside a plain scalar' "a single-quoted scalar holds both kinds of quote, its own one doubled"
+
+copy form-folded-scalar
+swap "$conf" "$meaning" '    meaning: >-\n      Every case of the accepted set of passing cases still passes.'
+refused 'the value `>-` of `requirements.no-case-lost.meaning` is in a form this script does not read' "a text is written as a folded scalar"
+
+copy form-key-quoted
+swap "$conf" '  no-case-lost:' '  "no-case-lost":'
+refused 'not read: `"no-case-lost":` is no `key:` and no `key: value`' "a requirement has a quoted key"
 
 copy form-quote-not-closed
 swap "$conf" "$meaning" '    meaning: "Every case still passes.'
@@ -1652,6 +2131,19 @@ copy name-statement
 swap "$conf" "$meaning" "$meaning"'\n    serves: [nothing]'
 refused '`requirements.no-case-lost` serves the statement `nothing`, which the preset does not hold' "a requirement serves a statement the preset does not hold"
 
+# The three names are written out: a reference is refused where it stands.
+copy name-assessment-by-reference
+swap "$conf" '    assessment: conformance' '    assessment: ${inputs.subject}'
+refused '`requirements.no-case-lost.assessment` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement names its assessment by an input"
+
+copy name-measurement-by-reference
+swap "$conf" '    measurement: passing-cases' '    measurement: ${inputs.subject}'
+refused '`requirements.no-case-lost.measurement` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement names its measurement by an input"
+
+copy name-statement-by-reference
+swap "$conf" "$meaning" "$meaning"'\n    serves: ["${inputs.subject}"]'
+refused '`requirements.no-case-lost.serves[1]` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement serves a statement that an input names"
+
 # -- a preset against the declaration of its assessor -------------------------------------------
 
 copy assessor-absent
@@ -1715,8 +2207,13 @@ swap "$conf" '        scope: run' '        scope: case' 2
 refused 'has the scope `case`, which the output `passed` of `conformance-report@1` does not declare' "a measurement has the scope case"
 
 copy assessor-boundary
+swap "$conf" '        output: failed' '        output: failed\n        boundary: request_start_to_response_complete'
+refused 'has the boundary `request_start_to_response_complete`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has a boundary that is none of Ratchet itself, on an output that declares no boundaries"
+
+copy assessor-boundary-not-listed
+swap "$conf_d" "$number_output" '  failed: {value_type: number, kind: exact, scopes: [], unit: cases, boundaries: [request_start_to_response_complete]}'
 swap "$conf" '        output: failed' '        output: failed\n        boundary: run_time'
-refused 'has the boundary `run_time`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has a boundary its output does not declare"
+refused 'has the boundary `run_time`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has the boundary run_time on an output that declares its boundaries without it"
 
 copy assessor-identity-key
 swap "$conf" '        identity: [case_id]' '        identity: [case_id, suite]'
@@ -1729,6 +2226,66 @@ refused 'states an identity key, and the output `failed` of `conformance-report@
 copy assessor-filter-field
 swap "$differ" '        filter: {class: [different]}' '        filter: {result: [different]}'
 refused 'filters by the field `result`, which the output `cases` of `comparison-report@1` does not declare for its items' "a measurement filters by the field result"
+
+copy assessor-target-kind-by-default
+swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: false, default: deployment}'
+swap "$conf" '      kind: revision' '      kind: ${inputs.target_kind}'
+refused '`assessments.conformance.target.kind` is `deployment`, the default of the input `target_kind`, and `conformance-report@1` declares the targets `[revision]`' "the kind of a target is an input whose default the declaration does not take"
+
+copy assessor-input-type-in-a-list
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
+swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.subject}", "${inputs.different_limit}"]'
+refused '`assessments.comparison.inputs.exclude` holds an item that is the input `different_limit` of the preset, `integer`, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with an integer input as one item"
+
+copy assessor-input-list-in-a-list
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
+swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
+refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
+
+copy assessor-pass-rate-of-a-number
+swap "$conf" '        output: failed' '        output: failed\n        aggregation: {kind: pass_rate}'
+refused '`assessments.conformance.measurements.failed` aggregates with `pass_rate`, which takes an assertion, and the output `failed` of `conformance-report@1` has the value type `number`' "a measurement aggregates a number with pass_rate"
+
+rate_copy assessor-kind-of-an-assertion-without-rate
+swap "$conf" '        aggregation: {kind: pass_rate}' '        aggregation: {kind: median}'
+refused '`assessments.conformance.measurements.pass-rate` has the kind `sampled`, and the output `all_pass` of `conformance-report@1` declares `exact` (`kind_mismatch`)' "a sampled measurement of an exact assertion aggregates with median and not with pass_rate"
+
+copy assessor-condition
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {moon_phase: full}}'
+refused '`assessments.conformance.observation.conditions.all.moon_phase` is the condition `moon_phase`, which is none of Ratchet itself, and `conformance-report@1` declares the conditions `[]`' "a plan states a condition that its assessor does not declare"
+
+copy assessor-population-field
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10'
+refused '`assessments.conformance.observation.population.filter.service` filters the population by the field `service`, and `conformance-report@1` declares the population fields `[]` (`population_field_mismatch`)' "a plan filters its population by a field that its assessor does not declare"
+
+# -- a window over the runs of another plan ------------------------------------------------------
+
+window_copy valid-window-over-runs
+accepts "a second plan that names record-series@1 and reads the runs of the first, with its requirement and its row"
+
+window_copy series-without-runs-of
+swap "$known" '      population: {runs_of: known-failures, from: trusted_revision}' '      population: {filter: {service: orders-api}}'
+refused '`assessments.size-over-runs` names the assessor `record-series@1` and has no `observation.population.runs_of`' "a plan names record-series@1 and reads no runs of another plan"
+
+window_copy series-other-assessor
+swap "$known" '    assessor: record-series@1' '    assessor: case-list@1'
+refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and names the assessor `case-list@1`' "a plan over the runs of another plan names case-list@1"
+
+window_copy series-with-selection
+swap "$known" '    target: {kind: revision, environments: "${inputs.environments}"}' '    target: {kind: revision, environments: "${inputs.environments}", selection: candidate}'
+refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and has a `target.selection`' "a plan over the runs of another plan has a target selection"
+
+window_copy series-with-conditions
+swap "$known" '      min_samples: 10' '      min_samples: 10\n      conditions: {ci: {runner: ci-standard}}'
+refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and declares `observation.conditions`' "a plan over the runs of another plan declares conditions"
+
+window_copy series-with-input
+swap "$known" '    assessor: record-series@1' '    assessor: record-series@1\n    inputs:\n      list: ${inputs.list}'
+refused '`assessments.size-over-runs.inputs.list` passes the input `list`, and `record-series@1` takes no input' "a plan of record-series@1 passes an input"
+
+copy series-declared
+printf 'format: ratchet-assessor/1\nname: record-series\nversion: "1"\ncommand: record-series\ntargets: [revision]\nconditions: []\ncoverage_unit: entry\ncoverage: [executed]\noutputs:\n  size: {value_type: number, kind: exact, scopes: [], unit: cases}\n' > "$c/record-series@1.assessor.yaml"
+refused 'record-series@1.assessor.yaml:1: the file declares `record-series@1`, the assessor of Ratchet itself' "the directory holds a declaration of record-series@1"
 
 # -- a requirement against the value type of its output -----------------------------------------
 
@@ -1792,6 +2349,18 @@ copy compare-number-without-better
 drop "$conf" '        better: lower'
 refused '`assessments.conformance.measurements.failed` states no `better`, and `requirements.failed-does-not-rise` compares it with a reference' "a number that is compared with a reference states no better"
 
+# The two rules that read that there is a reference, and not its kind, hold where an input
+# gives the kind.
+copy compare-set-without-condition-by-reference-input
+drop "$conf" "$set_rule"
+swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}'
+refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has no operator and a reference whose kind an input gives"
+
+copy compare-number-without-better-by-reference-input
+drop "$conf" '        better: lower'
+swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}' 3
+refused '`assessments.conformance.measurements.failed` states no `better`, and `requirements.failed-does-not-rise` compares it with a reference' "a number without better is compared with a reference whose kind an input gives"
+
 # -- rows ----------------------------------------------------------------------------------------
 
 copy row-absent
@@ -1839,6 +2408,15 @@ copy row-cell-html-comment
 cell 3 ' <!-- --> '
 refused 'the cell `Unit` of the row `conformance-cases@1/conformance/skipped` is empty' "the unit of a row is an HTML comment"
 
+# `\|` is a bar of the text of a cell and no border of a cell.
+copy row-with-escaped-bar
+cell 4 ' 0 \\| none '
+accepts 'a cell of a row holds `\|`'
+
+copy row-ends-with-escaped-bar
+edit "$page" "$the_row"' { print substr($0, 1, length($0) - 1) "\\|"; next } { print }'
+refused 'functional.md:44: a row does not end with `|`' 'the last bar of a row is written `\|`'
+
 copy row-in-code-fence
 edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n```text\n'"$table"'%s\n```\n", row }'
 refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a code fence"
@@ -1854,6 +2432,37 @@ refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on
 copy row-after-html-comment
 edit "$page" "$the_row"' { print "<!-- " $0 " -->" $0; next } { print }'
 accepts "a row follows an HTML comment that ends on its line"
+
+# A fence closes at a run of its character that is at least as long, indented by at most
+# three spaces, with nothing but spaces and tabs after it (CommonMark).
+copy row-in-a-longer-fence
+edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n````markdown\n```\n'"$table"'%s\n````\n", row }'
+refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a fence of four backticks, after a line of three"
+
+copy row-in-a-longer-tilde-fence
+edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n~~~~markdown\n~~~\n'"$table"'%s\n~~~~\n", row }'
+refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a fence of four tildes, after a line of three"
+
+copy row-after-indented-fence-line
+edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n```markdown\n    ```\n'"$table"'%s\n```\n", row }'
+refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a fence, after a line of three backticks that is indented by four spaces"
+
+copy row-after-fence-line-with-text
+edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n```markdown\n``` and text\n'"$table"'%s\n```\n", row }'
+refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a fence, after a line of three backticks with text after them"
+
+copy row-after-a-longer-fence
+edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n````markdown\n```\n| a line of the example |\n   `````  \n\n'"$table"'%s\n", row }'
+accepts "a row follows a fence of four backticks that holds a line of three and closes at a line of five, indented by three spaces, with spaces after it"
+
+# `<!--` inside a code span that closes on its line is text of the page.
+copy row-after-comment-mark-in-code
+edit "$page" 'NR == 3 { print "The mark `<!--` in a code span opens no comment, and `` ` <!-- `` in a longer span opens none."; print "" } { print }'
+accepts "the page holds the mark of a comment in two code spans before its tables"
+
+copy row-after-comment-mark-behind-a-lone-backtick
+edit "$page" 'NR == 3 { print "A lone ` closes no code span, and <!-- after it opens a comment."; print "" } { print }'
+refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the page holds a backtick that opens no code span and the mark of a comment after it, before its tables"
 
 copy row-on-another-page
 edit "$page" "$the_row"' { next } { print }'

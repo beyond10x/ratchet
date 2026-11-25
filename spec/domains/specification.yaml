@@ -762,7 +762,13 @@ types:
         and for a list where the input declares `list`. An input of the type `string` or `path`
         stands for text and for a value of a closed list, `integer` for an integer and a
         decimal, `decimal` for a decimal, `boolean` for a boolean. No key is a reference, and
-        the `preset` block holds none. Inside a flow mapping or a flow list the reference is
+        the `preset` block holds none. A name by which one entry of a preset names another
+        entry of the same preset is written out and is no reference: the `assessment` and the
+        `measurement` of a requirement and the statements it `serves`. A measurement of a
+        preset is named `<name>@<version>/<assessment>/<measurement>`, and that name is fixed
+        before a binding gives a value. `<name>` is the key of the input in `Preset.inputs`,
+        which is text and may hold a `.`: `${inputs.a.b}` refers to the input `a.b`. Inside a
+        flow mapping or a flow list the reference is
         quoted, `"${inputs.<name>}"`: a plain scalar there holds no brace. A quoted reference
         and a plain one mean the same. The spelling is the only one: a scalar of a preset that
         holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as

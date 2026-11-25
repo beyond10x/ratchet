@@ -20,8 +20,20 @@ Pages:
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name
-starts with `.`. A file is UTF-8 and holds no NUL byte and no control character; its lines end
-with a line feed, and a page may hold tabs.
+starts with `.`. A file is UTF-8 and holds no NUL byte and no control character; every line, the
+last one too, ends with a line feed, and a page may hold tabs. No file of the directory, YAML
+or Markdown, holds one of these characters either:
+
+- a control character of the range U+0080 to U+009F; the next line, U+0085, is one;
+- the line separator U+2028 and the paragraph separator U+2029;
+- the byte order mark U+FEFF, also not as the first character of a file;
+- U+FFFE and U+FFFF, which are no characters;
+- a character that hides or reorders text: U+200B, U+200E, U+200F, U+202A to U+202E, U+2060
+  and U+2066 to U+2069.
+
+A YAML 1.1 reader takes U+0085, U+2028 and U+2029 as the end of a line and would read a key
+where another reader sees text. U+200C and U+200D are allowed: some writing systems are spelled
+with them.
 
 ## What a preset is
 
@@ -36,12 +48,35 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 - An entry refers to an input as `${inputs.<name>}`. The reference is the whole of a value. Inside
   `{...}` or `[...]` it is quoted, `"${inputs.<name>}"`. The spelling is the only one: a value
   that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as
-  `${ inputs.report }` and `${{inputs.report}}`, is an error and no text.
+  `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. `<name>` is the key of
+  the input, and a key may hold a `.`: `${inputs.a.b}` refers to the input `a.b`. In an assessor
+  declaration `${` is text.
+- A requirement names its assessment, its measurement and the statements it serves by their
+  names, written out. A reference there is an error: the row
+  `<name>@<version>/<assessment>/<measurement>` of a measurement cannot be checked against a
+  name that the binding gives.
 - A preset holds at least one requirement. A file with assessments alone gives a project
   nothing to bind.
 - An entry states no `project`. The binding gives it one.
 - A preset declares no subject, no gate, no exception and no binding of its own. The subject of
   a plan is an input, and which requirement blocks at which stage is the project's decision.
+
+## How a file is written
+
+A preset and a declaration are written in the part of YAML that `spec/presets.test.sh` reads.
+A file in another form is refused, also where a YAML reader would accept it:
+
+- A mapping is written by indentation, as `key:` and `key: value`, or on one line as
+  `{key: value, ...}`.
+- A list is a flow list on one line, `[a, b]`, also where [`docs/design.md`](../docs/design.md)
+  shows a block list (`- a`).
+- A key holds letters, digits, `_`, `.`, `@` and `-` and is not quoted. A key that YAML reads
+  as a number, a boolean or null, such as `15` and `true`, is refused.
+- A text is plain or stands between quotes of one kind. A text that holds a quote stands
+  between quotes of the other kind. A text that holds both kinds of quote cannot be written in
+  a catalog file, and neither can a backslash escape (`"\n"`), a folded or a literal scalar
+  (`>`, `|`) and a text over two lines.
+- A file holds no tab, no comment, no tag (`!!str`), no anchor and no document marker (`---`).
 
 ## Rules of the catalog
 
@@ -64,13 +99,35 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 - **A row per measurement.** Every measurement of a preset has one row on the page of its
   family, under the header `| Measurement | Direction | Unit | Tolerance | Evidence |`, named
   `<name>@<version>/<assessment>/<measurement>`, and none of the four cells after the name is
-  empty. The rows of one preset stand on one page. A row inside a code fence or an HTML comment
-  is no row, and a cell that holds only spaces, tabs, no-break spaces or an HTML comment is
-  empty.
+  empty. The rows of one preset stand on one page. A table has one form. Its header line is
+  written as above, with one space on each side of a word and no space before the first `|`; a
+  header line that is padded or indented is not found. A row starts and ends with `|`; a table
+  without the outer bars is not found. The first cell is the name between backticks and nothing
+  else; a name that is a link is refused. A `|` inside a cell is written `\|`. A row inside a
+  code fence or an HTML comment is no row, and a cell that holds only spaces, tabs, no-break
+  spaces or an HTML comment is empty. A fence closes as CommonMark says: at a run of the
+  character that opened it, at least as long, indented by at most three spaces, with nothing
+  but spaces and tabs after it. `<!--` inside a code span that closes on its line opens no
+  comment.
 - **A measurement as its assessor declares it.** A measurement has the kind of the output it
   names, the unit of that output or none where the output has none, and a boundary and an
-  identity key that the output declares. An assessment passes every input its assessor
-  requires, with the declared type, and names a target kind the assessor takes.
+  identity key that the output declares. `run_time` and `queue_wait` are boundaries of Ratchet
+  itself and stand also on an output that declares no boundaries. `pass_rate` aggregates an
+  assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
+  as a number. An assessment passes every input its assessor requires, with the declared type,
+  also for each item of a list, and names a target kind the assessor takes. A condition of an
+  observation is `host_load_per_cpu`, `tools`, `runner` or one the assessor declares, and a
+  field of a population filter is one of its `population_fields`. A value that an input gives
+  is not checked against the declaration, because the binding passes it; only the kind of a
+  target is checked against the default of its input.
+- **A window over the runs of another plan.** `record-series@1` is the assessor of Ratchet
+  itself that reads the runs of another plan ([`docs/design.md`](../docs/design.md) § 3, "A
+  series of runs as a population"). The name is reserved: a plan names it without a
+  declaration, and a file `record-series@1.assessor.yaml` in the directory is refused. A plan
+  that names it has `observation.population.runs_of`, no `target.selection`, no
+  `observation.conditions` and no `inputs`, and a plan with `runs_of` names it. Its
+  measurements read the measurements of the source plan, which may be in another file, so the
+  script joins them with no declaration; each still has its row on the page.
 - **A comparison its value type allows.** A requirement compares its measurement as the table
   "Comparisons" of [`docs/design.md`](../docs/design.md) § 3 allows for the value type of the
   output: the operator, the `value`, the kind of the reference, `better` and the unit.
@@ -83,8 +140,10 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 
 `sh spec/presets.test.sh`, a step of `task check:spec`, checks every file of this directory
 against the specification, against the declaration of its assessor and against the pages. Its
-header says what it checks and what it does not: among the latter the invariants of the types,
-a value that an input gives where a rule reads the value, and the prose of a row. No script
+header says what it checks and what it does not: among the latter the invariants of the types
+beside the four of a plan over `runs_of`, a value that an input gives where a rule reads the
+value, a measurement of a plan of `record-series@1` against the source plan, and the prose of a
+row. No script
 checks the rules "Tolerance", "A value against a reference implementation", "Names",
 "Evidence" and "Generic examples".
 

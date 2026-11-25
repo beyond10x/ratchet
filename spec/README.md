@@ -69,14 +69,20 @@ runs eleven steps, and `task check` calls it:
    the six scripts above accept a copy. Its last line is
    `gate-inputs: <n> of <n> broken inputs refused`;
 10. `sh spec/presets.test.sh`, which reads every file of the preset catalog `presets/`: a file
-    is UTF-8 without a NUL byte and a control character; a preset and an assessor declaration
+    is UTF-8 without a NUL byte, a control character and a character that ends a line for a
+    YAML 1.1 reader or hides or reorders text (the list is in `presets/README.md`), and its
+    last line ends with a line feed; a preset and an assessor declaration
     hold only declared keys and values of the declared types, and no text that is empty; a
     preset holds no gate, no exception, no local input and no reference to an input it does not
-    declare; an assessment passes the inputs its assessor requires, with the declared types,
-    and names a target kind the assessor takes; a measurement names an output, its kind, a
-    unit, a scope, a boundary, an identity key and filter fields that the declaration of its
-    assessor declares; a requirement compares its measurement as the table "Comparisons" of
-    design § 3 allows for the value type of the output; and every measurement has one row with
+    declare, and a requirement writes out the names of its assessment, its measurement and its
+    statements; an assessment passes the inputs its assessor requires, with the declared types,
+    also for each item of a list, and names a target kind the assessor takes; a measurement
+    names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
+    that the declaration of its assessor declares, and a plan a condition and a population
+    field that it declares; a plan over `runs_of` names `record-series@1`, which no file
+    declares, and has no target selection and no conditions; a requirement compares its
+    measurement as the table "Comparisons" of design § 3 allows for the value type of the
+    output, the pass rate of an assertion as a number; and every measurement has one row with
     four filled cells on a page of the catalog. It then breaks one copy of `presets/` per rule,
     in the ignored `target/presets/`, and fails when a copy is accepted or is refused without
     the message of its rule. Its last line is
@@ -95,12 +101,17 @@ table or an example that is added or removed needs the new number in the script.
 on a directory without a preset, on a preset without a requirement, on an entry that is no file
 of the catalog, on a page without a table of rows, and when the edit of one of its broken
 copies changes nothing. Before the copies it runs the cases of its own harness: an edit that
-changes nothing stops the run, the unchanged catalog is accepted, a refusal counts only with
-the message of the rule of its case, and an accepted copy gives exit 1. Its header lists what
-it does not check, each with the reason: the invariants of the types, a value that an input
-gives where a rule reads the value, the value of a `Json` other than a passed input and a
-default, the values of a `filter`, the prose of the four cells, and whether an input is
-referred to.
+changes nothing stops the run, the unchanged catalog is accepted, `--spec` names the
+specification that is read, the run in a tree whose `presets/` is refused exits 1, a refusal
+counts only with the message of the rule of its case, and an accepted copy gives exit 1. Its
+header lists what it does not check, each with the reason: the invariants of the types beside
+the four of a plan over `runs_of`, a value that an input gives where a rule reads the value
+(only the kind of a target is read from the default of its input), a measurement of a plan of
+`record-series@1` against the measurement of the source plan, the plan that `runs_of` names,
+the class a condition is declared for, the value of a `Json` other than a passed input and a
+default, the values of a `filter`, the prose of the four cells, whether an input is referred
+to, and a fence, a code span and a comment inside a list item, a block quote or an indented
+block of a page.
 
 The parser and process adapter come from `ess generate cli` and are committed as
 `crates/ratchet-cli-contract/`: `task check:generated` compares the crate with a fresh
@@ -253,14 +264,16 @@ from `examples/`, or from the design where no example file uses the form.
 | **A date is the text of its scalar.** A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created` and `expires` are the text of the scalar, quoted or plain. | § 12 | `expires: 2026-11-30` (`examples/analyzer-findings.ratchet.yaml:113`) |
 | **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`, named `<name>@<version>.preset.yaml` in a catalog source (`ratchet.config.CatalogFileKind`). Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | § 4, "Presets"; § 5, "Local config" | `presets/conformance-cases@1.preset.yaml`; `presets.ux.use: web-ux@1` (design § 4; no example binds a preset) |
 | **A preset holds three of the seven maps.** Beside `format` and `preset` its root holds `statements`, `assessments` and `requirements` (`ratchet.specification.PresetMember`), each a map of the entity that the relation of that name of `QualitySpecification` targets. An entry states no `project`. `subjects`, `gates`, `exceptions` and `presets` are refused. | § 4, "Presets" | `assessments.conformance` (`presets/conformance-cases@1.preset.yaml`) |
-| **A reference to an input is the whole of a value.** `${inputs.<name>}` stands where a scalar or a list stands, with no text beside it, and the type of the input fits the place (`ratchet.specification.InputReference`). Inside a flow collection it is quoted. No key is a reference. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. | § 4, "Presets" | `environments: ${inputs.environments}` (`presets/conformance-cases@1.preset.yaml`) |
+| **A reference to an input is the whole of a value.** `${inputs.<name>}` stands where a scalar or a list stands, with no text beside it, and the type of the input fits the place (`ratchet.specification.InputReference`). Inside a flow collection it is quoted. No key is a reference, and neither is a name by which a requirement names another entry of its preset: `assessment`, `measurement` and the items of `serves` are written out. `<name>` is the key of the input, which is text and may hold a `.`. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. | § 4, "Presets" | `environments: ${inputs.environments}` (`presets/conformance-cases@1.preset.yaml`) |
 
 No gate step reads `examples/*.ratchet.yaml`, and the files are in the form above, not in that
 of the entities. `sh spec/presets.test.sh` reads the `ratchet/1` files of `presets/` and the
 `ratchet-assessor/1` declarations beside them in the same form. It is no YAML reader: it reads
 mappings by indentation and one-line flow collections, and fails on a line of another form, on
-a comment, on a quote inside a plain scalar and on a key that YAML reads as a number, a boolean
-or null.
+a comment, on a quote inside a plain scalar, on a quoted key and on a key that YAML reads as a
+number, a boolean or null. A list is a flow list, also where the design shows a block list, and
+a text with both kinds of quote, a backslash escape or a folded scalar cannot be written
+(`presets/README.md`, "How a file is written").
 
 ## Where this specification still departs from docs/design.md
 

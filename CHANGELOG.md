@@ -17,6 +17,7 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 ### Changed
 
 - CI runs `task check` for every change under `presets/`, a page included, and for a file renamed out of `presets/` or `crates/`
+- The site says what release 0.0.1 ships in place of "nothing is implemented": a `ratchet` binary that parses the 16 commands and prints its version; no command is built yet, so it checks nothing for a project
 
 ## [0.0.1] - 2026-11-25
 
