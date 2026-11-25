@@ -43,10 +43,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: website/package-lock.json
-      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52
-        with:
-          version: 3.54.0
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install task
+        env:
+          GO_TASK_VERSION: "3.54.0"
+          GO_TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
+        run: |
+          set -euo pipefail
+          asset=task_linux_amd64.tar.gz
+          mkdir -p "$RUNNER_TEMP/task"
+          cd "$RUNNER_TEMP/task"
+          curl --fail --silent --show-error --location --output "$asset" \
+            "https://github.com/go-task/task/releases/download/v$GO_TASK_VERSION/$asset"
+          echo "$GO_TASK_SHA256  $asset" | sha256sum --check --strict
+          tar -xzf "$asset" task
+          echo "$RUNNER_TEMP/task" >> "$GITHUB_PATH"
+          ./task --version | grep -Fx "$GO_TASK_VERSION"
       - name: Install cargo-nextest
         env:
           NEXTEST_VERSION: "0.9.143"

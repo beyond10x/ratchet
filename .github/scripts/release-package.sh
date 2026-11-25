@@ -7,14 +7,17 @@
 #       the names of the files a release carries: one archive per target, then SHA256SUMS
 #   release-package.sh archive <version> <target> <binary> <directory>
 #       write <directory>/ratchet-<version>-<target>.tar.gz. It holds one directory,
-#       ratchet-<version>-<target>, with the binary as `ratchet`, LICENSE and README.md.
-#       Refused when `<binary> --version` does not print the version
+#       ratchet-<version>-<target>, with the binary as `ratchet`, LICENSE and README.md, each
+#       with owner 0, the directory and the binary with mode 755, the two files with 644.
+#       Refused unless `<binary> --version` prints `ratchet <version>`, that line and no
+#       other, and exits 0
 #   release-package.sh sums <version> <directory>
 #       write <directory>/SHA256SUMS over the archive of every target and verify it.
 #       Refused when an archive is not there
 #   release-package.sh notes <version> [<CHANGELOG.md>]
 #       print the section `## [<version>] - <YYYY-MM-DD>` of the changelog without its
-#       heading and without the empty lines around it. Refused when it holds no line
+#       heading and without the empty lines around it. Refused when it holds no change: no
+#       `- ` line under a `### ` heading
 #
 # LICENSE, README.md and the default changelog are those of the repository this script is in.
 # .github/workflows/release.yml calls `archive` once per target, then `sums` and `notes`.
@@ -71,18 +74,25 @@ case $command in
       *) refuse "$target is no target of a release: $targets" ;;
     esac
     [ -f "$binary" ] && [ -x "$binary" ] || refuse "$binary is no executable file"
-    printed=$("$binary" --version 2> /dev/null | awk 'NR == 1 { print $NF }') || printed=
-    [ "$printed" = "$version" ] || refuse "the binary prints ${printed:-nothing}, not $version"
+    case $binary in
+      */*) ;;
+      *) binary=./$binary ;;
+    esac
+    status=0
+    printed=$("$binary" --version 2> /dev/null) || status=$?
+    [ "$status" = 0 ] || refuse "\`ratchet --version\` exits $status"
+    [ "$printed" = "ratchet $version" ] \
+      || refuse "the binary prints \"$(printf '%s\n' "$printed" | sed -n 1p)\", not \"ratchet $version\""
     name=ratchet-$version-$target
     rm -rf "${directory:?}/$name"
     mkdir -p "$directory/$name"
     cp "$binary" "$directory/$name/ratchet"
     cp "$root/LICENSE" "$root/README.md" "$directory/$name/"
-    chmod 755 "$directory/$name/ratchet"
+    chmod 755 "$directory/$name" "$directory/$name/ratchet"
     chmod 644 "$directory/$name/LICENSE" "$directory/$name/README.md"
     tar -C "$directory" --owner=0 --group=0 --numeric-owner -czf "$directory/$name.tar.gz" "$name"
     rm -rf "${directory:?}/$name"
-    echo "release-package: $name.tar.gz holds ratchet ($printed), LICENSE and README.md"
+    echo "release-package: $name.tar.gz holds ratchet ($version), LICENSE and README.md"
     ;;
 
   sums)
@@ -105,8 +115,11 @@ case $command in
     version=$1 changelog=${2:-$root/CHANGELOG.md}
     version_of "$version"
     [ -r "$changelog" ] || refuse "cannot read $changelog"
+    status=0
     notes=$(awk -v start="## [$version] - " '
       inside && /^## / { exit }
+      inside && /^### / { headed = 1 }
+      inside && /^- / && headed { changes++ }
       inside { lines[++count] = $0; next }
       index($0, start) == 1 && substr($0, length(start) + 1) ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ { inside = 1 }
       END {
@@ -115,8 +128,11 @@ case $command in
         last = count
         while (last >= first && lines[last] ~ /^[ \t]*$/) last--
         for (i = first; i <= last; i++) print lines[i]
-      }' "$changelog")
+        exit changes ? 0 : 3
+      }' "$changelog") || status=$?
     [ -n "$notes" ] || refuse "${changelog##*/} has no notes for $version"
+    [ "$status" = 0 ] \
+      || refuse "the section of $version in ${changelog##*/} holds no change line under a heading"
     printf '%s\n' "$notes"
     ;;
 

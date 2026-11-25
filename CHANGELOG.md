@@ -14,6 +14,7 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 - `docs/evidence-format.md` describes what an assessor writes (`ratchet-evidence/1`) and how it declares itself (`ratchet-assessor/1`)
 - A `ratchet` binary that parses the 16 commands and prints their help; no command is built yet, so it reads no file and evaluates nothing
 - Each of the 16 commands answers exit status 1 with `cli_handler_unavailable` on standard error until a release builds it
+- `ratchet --version` prints `ratchet <version>`, the version of the workspace, and exits 0
 - The parser, the help text and a bash completion are generated from `spec/` into `crates/ratchet-cli-contract`, and the gate fails when they differ from the specification
 - `task check` is the gate of the repository: the specification, format and lints, the generated crate, the script tests, the tests and the site
 - The tests have a budget: a test is ended at 60 s and the run at 120 s, each as a failure

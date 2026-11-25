@@ -75,7 +75,7 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths`. Its second job, `gate` (`Repository gate`), reads the class from the first and repeats no path: for the class `code` it installs the rustc of `rust-toolchain.toml`, Node, `task`, `cargo-nextest`, `ess` and `aep` and runs `task check`; for the class `docs-site` it installs `task` and `ess` and runs `task check:spec`, because that task reads `docs/evidence-format.md` and `docs/design.md`; for the class `planning` it ends green without a checkout. `task`, `cargo-nextest`, `ess` and `aep` are downloaded by URL at a pinned version and refused unless their SHA-256 is the one in the step; Node is the major the job `build` names. A step of the job that another class needs gets that class in its `if:`, and `task check:ci-paths` holds which task each class runs. Every file under `crates/` is `code`, a generated `README.md` included |
 | `.github/workflows/b10x-docs-site.yml` | publishes that artifact to GitHub Pages through `beyond10x/website`'s `project-site.yml`, pinned by commit, for bot-authored pushes to `main` |
 | `.github/workflows/shared-gates.yml` | the organization's shared source gates (`beyond10x/gates`, pinned by commit) |
-| `.github/workflows/release.yml` | `Release`, on a tag `<major>.<minor>.<patch>`, with `contents: read`: `release-check.sh` and `task check`, then the archives of both Linux targets, `SHA256SUMS` and `notes.md` as the artifact `ratchet-<version>-release`. It creates no release (§ "Release"). Its job `Gate` installs the tools of the job `gate` of `pages.yml` at the same versions; a new version of one is a change of both files, and `release.test.sh` fails when they differ |
+| `.github/workflows/release.yml` | `Release`, on a tag `<major>.<minor>.<patch>`, with `contents: read`: `release-check.sh` and `task check`, then the archives of both Linux targets, `SHA256SUMS` and `notes.md` as the artifact `ratchet-<version>-release`. It creates no release and reads no token (§ "Release"). Its job `Gate` installs the tools of the job `gate` of `pages.yml` by the same steps, less their `if:`; a new version or digest of one is a change of both files, and `release.test.sh` fails when a step differs |
 | `Taskfile.yml` | `task check`: the repository gate; `task generate`: rewrite the generated crates; `task site`: build the site. It includes `acceptance/Taskfile.yml` as `acceptance` when that file exists |
 
 ## Domain language
@@ -212,10 +212,12 @@ a release are publications, so they wait for the owner's order (workspace `AGENT
 
 ### Changelog lines
 
-- `CHANGELOG.md` is in the Keep a Changelog 1.1.0 form. `## [Unreleased]` is the first section,
-  each released one is `## [<version>] - <YYYY-MM-DD>`, newest first. Below a section stand only
-  the headings `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed` and
-  `### Security`, and below a heading one bullet per change, on one line.
+- `CHANGELOG.md` is in the Keep a Changelog 1.1.0 form. Before the first section stand only
+  the title and its text. `## [Unreleased]` is the first section, each released one is
+  `## [<version>] - <YYYY-MM-DD>` with a date of the calendar, each version once, newest first.
+  Below a section stand only the headings `### Added`, `### Changed`, `### Deprecated`,
+  `### Removed`, `### Fixed` and `### Security`, and below a heading one bullet per change, on
+  one line. A heading has at least one bullet, and so has a released section.
 - The story that closes a wave writes the lines of its wave under `## [Unreleased]`. A change
   outside a wave writes its own line, in the same change.
 - A line says what a user of the repository gets, and what is not built where a name could
@@ -235,7 +237,8 @@ release overtook is cut again from `main`. The git commands of the bot are `b10x
    `## [<version>] - <YYYY-MM-DD>` directly below `## [Unreleased]`, so that the lines of the
    release stand under the new heading and `## [Unreleased]` stays, empty.
    `sh .github/scripts/release-check.sh <version>` passes and `slot task check` is green on
-   that commit.
+   that commit. The script fails when no change line stands under the new heading, which is
+   what a heading put below the lines gives.
 2. A bot pull request from the branch to `main`, merged by the bot with a merge commit when
    its required checks are green, as a wave is.
 3. An annotated tag `<version>` on that merge commit on `main`, made and pushed by the bot:
@@ -244,10 +247,12 @@ release overtook is cut again from `main`. The git commands of the bot are `b10x
    `release-check.sh` and `task check`; `Package` builds `ratchet` for
    `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` and writes
    `ratchet-<version>-<target>.tar.gz` with `release-package.sh archive`, which refuses a
-   binary whose `--version` is not the tag; `Bundle the release assets` writes `SHA256SUMS` and
-   `notes.md` and uploads the artifact `ratchet-<version>-release`. Find the run with
-   `gh run list --repo beyond10x/ratchet --workflow release.yml`, wait for it in the
-   background, then download its artifact and verify it, both read-only:
+   binary that does not print `ratchet <version>` for `--version` and exit 0;
+   `Bundle the release assets` writes `SHA256SUMS` and `notes.md` and uploads the artifact
+   `ratchet-<version>-release`. Find the run with
+   `gh run list --repo beyond10x/ratchet --workflow release.yml` and wait for it in the
+   background. A red run: "A tag whose run fails", below. A green run: download its artifact
+   and verify it, both read-only:
 
    ```console
    gh run download <run> --repo beyond10x/ratchet -n ratchet-<version>-release \
@@ -268,25 +273,50 @@ release overtook is cut again from `main`. The git commands of the bot are `b10x
 
 6. `sh .github/scripts/release-verify.sh <version>` exits 0. Only then is the release reported
    as released. It reads the published release with `gh`, read-only, and checks in this order:
-   the release is `<version>` and no draft; its author is `b10x-bot[bot]`; the two archives
-   and `SHA256SUMS` are attached and downloaded; `sha256sum -c SHA256SUMS` passes on them; each
-   archive holds `ratchet`, `LICENSE` and `README.md` and nothing else; the `ratchet` of the
-   `x86_64` archive prints `<version>` for `--version`. Before the release exists it exits 1.
+   the release is `<version>`, no draft and no prerelease; its author is `b10x-bot[bot]`; the
+   two archives and `SHA256SUMS` are attached, no other asset is, and they are downloaded;
+   `sha256sum -c SHA256SUMS` passes on them; each archive holds `ratchet`, `LICENSE` and
+   `README.md` as regular files and nothing else; the `ratchet` of the `x86_64` archive prints
+   `ratchet <version>` for `--version` and exits 0. Before the release exists it exits 1.
+
+### A tag whose run fails
+
+The run of step 4 is the only build of a tag. Read a red run before anything else, read-only:
+`gh run view <run> --repo beyond10x/ratchet --log-failed`.
+
+- The runner is at fault (no runner, a network error, a cancelled run): the bot starts the run
+  again, once: `b10x-gates gh --repository beyond10x/ratchet -- run rerun <run>`.
+- The tree is at fault (`release-check.sh`, `task check`, the build or a script fails on the
+  tagged commit): the tag stays, it is never moved or deleted, and no release is created for
+  it. The correction lands by pull request and writes its line under `## [Unreleased]`. The
+  next patch version is then cut by the same steps, and its section holds one more line under
+  `### Changed`: "`<earlier version>` was tagged and not released; this release holds its
+  changes too". The section of the earlier version stays where it is.
+- A version with a section and a tag and without a release is in order for the scripts: they
+  read no list of tags or releases. `release-check.sh` and the form check pass for the next
+  version, and `release-verify.sh <earlier version>` exits 1, as for every version that has no
+  release.
 
 ### The scripts
 
-- `release-check.sh <tag>`: the tag is the workspace version and the changelog has its dated
-  section.
+- `release-check.sh <tag>`: the tag is the workspace version, and the changelog has its dated
+  section with a date of the calendar and at least one change line under a heading.
 - `release-package.sh`: `targets` and `assets <version>` name what a release is built for and
   carries; `archive`, `sums` and `notes` write the archive, `SHA256SUMS` and the notes. A new
   target is one word in `targets` there and one entry in the matrix of the workflow.
 - `release-verify.sh <version>`: the checks of step 6. With `--description <file> --assets
   <directory>` it reads a description in the form `gh release view <version> --json
-  assets,author,isDraft,tagName` and the assets from disk, and calls no `gh`.
-- `release.test.sh` runs the three on fixtures with a stub binary and a stand-in for `gh`, and
-  reads the workflow: it fails when the workflow no longer calls them, builds another list of
-  targets, gains a write permission, or installs a tool of the gate at another version than
-  `pages.yml`. It reaches no network, builds nothing and makes no tag.
+  assets,author,isDraft,isPrerelease,tagName` and the assets from disk, and calls no `gh`.
+- `release.test.sh` runs the three on fixtures with a stub binary and a stand-in for `gh`
+  that answers only the calls `release-verify.sh` is meant to make. It reads the workflow as a
+  structure: the trigger, the permissions, `needs` and the runner of each job, the commands,
+  the names and paths of the artifacts, and the steps that install the tools of the gate,
+  which equal those of `pages.yml`. Its cases stand in groups, and a group reads nothing
+  another group wrote but the archives. Its last part are mutants: a copy of the workflow or
+  of a script with one change, each refused by a case of the group named with it. A mutant
+  whose line was rewritten fails until its expression is written anew, and a new refusal of
+  a script gets a case and a mutant. It reaches no network, builds nothing and makes no tag,
+  and needs GNU `date`.
 
 ## Never
 
