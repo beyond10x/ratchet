@@ -725,6 +725,8 @@ The command surface is declared as an `ess-cli/2` binding, and the parser is gen
 - **Exit status.** `ratchet evaluate` exits 0 only on a pass. A failed gate and a gate with insufficient evidence exit with the same non-zero status, and the code in the report tells them apart: `gate_failed`, `insufficient_evidence`.
 - **Typed reports.** The gate report has the same typed rows for a pass and for a non-pass. Observed and allowed values are rows with a value type, a unit, and decimals as text.
 
+`ratchet --version` prints `ratchet <version>` and exits 0 (taken 2026-11-25). The binary answers it before the generated parser: the binding format reserves the flag, and the generator emits none yet, so `ratchet --help` does not list it. With another argument beside it the parser answers as for any unknown flag.
+
 ## 6. Results and visualization
 
 Store observations, decisions, and reference changes as separate records. This makes it possible to re-evaluate old evidence against a new requirement and still see which policy governed the original decision.

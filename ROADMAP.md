@@ -47,8 +47,17 @@ question, so they are built first, and the release procedure follows them.
 Wave 1 is delivered (2026-11-24): the specification 0.1.0 is built from, with seven checks of it in
 `task check:spec`. Record: `.engineering/waves/0.1.0-wave-1.md`.
 
+Wave 2 is delivered (2026-11-25): the workspace, the generated command surface with its drift
+check, a `ratchet` binary whose 16 commands answer "unavailable" and that prints its version, the
+test budget in the gate, and the CI job `Repository gate`. Record:
+`.engineering/waves/0.1.0-wave-2.md`.
+
 ## Releases
 
+- **0.0.1**: the first release, cut when waves 2 and 3 are on `main` (the owner ordered a release
+  on 2026-11-25). It holds the specification, the four formats, the release procedure and a
+  `ratchet` binary that parses the 16 commands; no command is built, so it checks nothing for a
+  project. Linux archives with checksums.
 - **0.1.0**: `validate`, `assess`, `reference adopt` (first adoption and tightening of an exact
   measurement), `evaluate --gate` for exact numbers and identity sets, with an absolute or percent
   tolerance; formats `ratchet/1`, `ratchet-evidence/1`, `ratchet-assessor/1`, `ratchet-reference/1`;
