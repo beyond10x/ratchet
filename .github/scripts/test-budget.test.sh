@@ -13,8 +13,9 @@
 #    exits as told. The task has to call `cargo nextest run` without naming another
 #    configuration file, print the ten slowest of the twelve, slowest first, after the line
 #    `test: the ten slowest tests`, and exit non-zero when the stand-in does. Each run is made
-#    twice: with GITHUB_ACTIONS unset and with GITHUB_ACTIONS=true, the environment of the forge,
-#    in which task prints one more line after a failed command.
+#    three times, in the environments `step` names: that of a workstation, CI=true, in which
+#    task writes its own lines in colour, and CI=true with GITHUB_ACTIONS=true, the environment
+#    of the forge, in which task also prints one more line after a failed command.
 #
 # Each broken copy under the ignored target/test-budget-test/<case> holds the two files with one
 # of these missing, and has to be refused.
@@ -131,25 +132,38 @@ limits() {
 # ten slowest tests and exits zero exactly when cargo nextest run exits <exit> = 0.
 #
 # <where> is the environment `task` runs in. It is set here whatever the caller's is, so this
-# script makes the same runs on a workstation and on the forge:
-#   host   GITHUB_ACTIONS is unset. After a failed command task prints one line,
-#          `task: Failed to run task "test": exit status 100`.
-#   forge  GITHUB_ACTIONS=true, as a runner of the forge sets it. task then prints the line
-#          `::error title=Task 'test' failed::exit status 100` before that one.
+# script makes the same runs on a workstation and on the forge. Each run starts without the
+# variables that change what task prints: GITHUB_ACTIONS, CI, FORCE_COLOR, NO_COLOR, CLICOLOR,
+# CLICOLOR_FORCE and every TASK_* (TASK_COLOR, TASK_VERBOSE, TASK_SILENT, TASK_OUTPUT, ...).
+#   host    None of them is set. After a failed command task prints one line,
+#           `task: Failed to run task "test": exit status 100`.
+#   colour  CI=true, as a runner of any forge sets it. task then writes its own lines in colour,
+#           also into a file: that line starts with an escape sequence, ESC[31m.
+#   forge   CI=true and GITHUB_ACTIONS=true, as a runner of the forge sets them. task then also
+#           prints the line `::error title=Task 'test' failed::exit status 100` before that one.
 step() {
   : > "$work/calls"
   status=0
   (
     cd "$1" || exit 125
-    unset GITHUB_ACTIONS
-    if [ "$3" = forge ]; then
-      GITHUB_ACTIONS=true
-      export GITHUB_ACTIONS
-    fi
+    for name in $(env | sed -n 's/^\(TASK_[A-Za-z0-9_]*\)=.*/\1/p'); do
+      unset "$name"
+    done
+    unset GITHUB_ACTIONS CI FORCE_COLOR NO_COLOR CLICOLOR CLICOLOR_FORCE
+    case $3 in
+      host) ;;
+      colour) CI=true; export CI ;;
+      forge) CI=true; GITHUB_ACTIONS=true; export CI GITHUB_ACTIONS ;;
+      *) exit 125 ;;
+    esac
     PATH="$work/bin:$PATH" BUDGET_CALLS="$work/calls" BUDGET_OUTPUT="$work/nextest-output" \
       BUDGET_EXIT="$2" task test
   ) > "$work/task-output" 2>&1 < /dev/null || status=$?
-  case $3 in forge) where='GITHUB_ACTIONS=true' ;; *) where='GITHUB_ACTIONS unset' ;; esac
+  case $3 in
+    host) where='CI and GITHUB_ACTIONS unset' ;;
+    colour) where='CI=true, GITHUB_ACTIONS unset' ;;
+    *) where='CI=true, GITHUB_ACTIONS=true' ;;
+  esac
   held=0
   if ! grep '^nextest run' "$work/calls" | grep -q -v -e '--no-run'; then
     echo "Taskfile.yml: the task test does not call cargo nextest run"; held=1
@@ -164,7 +178,10 @@ step() {
     echo "Taskfile.yml: the task test exits 0 when cargo nextest run exits $2 ($where)"; held=1
   fi
   # The list ends at the first line task writes itself: `task: ...` or, on the forge, `::error ...`.
+  # A line is read without its colour: task is not told to leave it out, so each run reads what
+  # task prints in that environment.
   awk -v header="$header" '
+    { gsub(/\033\[[0-9;:]*m/, "") }
     listing && (/^task: / || /^::/) { exit }
     listing { print $1, $2, $3 }
     $0 == header { listing = 1 }
@@ -179,7 +196,7 @@ step() {
 budget() {
   kept=0
   limits "$1/.config/nextest.toml" || kept=1
-  for environment in host forge; do
+  for environment in host colour forge; do
     step "$1" 0 "$environment" || kept=1
     step "$1" 100 "$environment" || kept=1
   done
