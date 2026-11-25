@@ -241,8 +241,10 @@ What the program of `advisory-report@1` returns for a run:
   under `package`.
   - The id is one of the ids the scanner reports for the advisory, its own and every alias:
     the one that comes first when they are sorted by their bytes, such as `ADV-2026-0042`. The
-    order in which a scanner lists them decides nothing. Another id of the same advisory is no
-    item, and two entries of a report that share an id are one advisory with the ids of both.
+    order in which a scanner lists them decides nothing. An alias is another id of the same
+    flaw. Another id of the same advisory is no item, and two entries of a report that share
+    an id of one flaw are one advisory with the ids of both. An id that covers several flaws,
+    such as the id of a bulletin, is no alias: it merges nothing and is no id of an item.
     When a database later gives an advisory an id that sorts before the others, the item has
     a new identity and is a new item once.
   - The version of the package is no part of the identity. A package that the graph holds in

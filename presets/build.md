@@ -261,11 +261,11 @@ What `slowest_test_duration` holds:
   sets the time limit of its runner above `limit_s`.
 
 The preset measures one number for the step and not one per test: the median over the runs of
-the slowest execution of a run. With `runs: 1` that is the time of the slowest execution, and
-`slowest-test-within-limit` then says that no test takes longer than the limit. With more runs
-it does not say that: of the values 50 s, 55 s and 300 s of three runs the median is 55 s,
-which is within a limit of 60 s. A project that holds every execution to the limit binds the
-preset with `runs: 1`.
+the slowest execution of a run. With a report of one run that is the time of the slowest
+execution, and `slowest-test-within-limit` then says that no test takes longer than the limit.
+With more runs it does not say that: of the values 50 s, 55 s and 300 s of three runs the
+median is 55 s, which is within a limit of 60 s. A project that holds every execution to the
+limit binds the preset with a report of one run and `runs: 1`.
 
 A limit per test can be written: [`docs/design.md`](../docs/design.md) § 3 has one as a
 measurement at the scope `test`. The preset holds none, because both of its requirements read
@@ -276,7 +276,8 @@ would be insufficient evidence. `slowest-test-does-not-rise` therefore sees the 
 alone: a test below it that doubles its time is not seen.
 
 The plan declares the runner and the cache profile `warm`, as the plan of `test-step-time@1`
-does, so one report of the runs of the test step serves the presets that read it.
+does, so one report of the runs of the test step serves the presets that read it. Presets
+that read one report are bound with the same `runs`, as the three bindings of this page are.
 
 ```yaml
 presets:
@@ -289,7 +290,7 @@ presets:
       test_command: task test
       environments: [ci]
       runner: ci-standard
-      runs: 1
+      runs: 3
       adoption_runs: 10
       tolerance_percent: 20
 ```
@@ -332,13 +333,13 @@ What `flake_rate` holds:
   skipped tests yet; the candidate `test-skips@1` of
   [`research/candidate-presets.md`](../research/candidate-presets.md) § 3.4 is one.
 
-With `runs: 1` a test has two answers only where its runner executes it again after a failure.
-A project whose runner does not repeat a test binds the preset with `runs` above 1, and the
-rate it then sees grows with the number of runs: `runs` and `adoption_runs` stay the same
-between an adoption and the runs that are compared with it. The plan declares `min_samples`
-with the value of `runs`, so a report with fewer runs than the binding names is insufficient
-evidence, with the cause `too_few_samples`. A report with more runs is not refused by that:
-the tool of the project makes `runs` runs.
+With a report of one run a test has two answers only where its runner executes it again after
+a failure. A project whose runner does not repeat a test binds the preset with `runs` above 1,
+and the rate it then sees grows with the number of runs: `runs` and `adoption_runs` stay the
+same between an adoption and the runs that are compared with it. The plan declares
+`min_samples` with the value of `runs`: evidence with fewer samples than `min_samples` does
+not qualify. A report with more runs is not caught by that, and its rate is compared with an
+accepted value from fewer runs. The tool of the project makes `runs` runs.
 
 Each run executes its tests, as the profile `warm` says above: a run that replays stored
 results gives every test the answer it had before, and the rate would be 0.
@@ -360,7 +361,7 @@ presets:
       test_command: task test
       environments: [ci]
       runner: ci-standard
-      runs: 5
+      runs: 3
       adoption_runs: 10
       tolerance: 0.01
 ```
@@ -401,8 +402,9 @@ key to a format; each point names the place in the specification
    ([latency.md](latency.md), point 6): a plan names the command twice, as
    `observation.command` and as the input `build_command` or `test_command`, and
    `ratchet.assessor.Assessor` has no member that names the input of the command. The program
-   is not passed `runs`: the tool of the project makes the builds and the runs, and the program
-   aggregates over those its report holds.
+   is passed neither `runs` nor `min_samples`: the tool of the project makes the builds and
+   the runs, and the program aggregates over those its report holds. So it cannot refuse a
+   report with fewer runs than the binding names itself, and writes their number as `samples`.
 6. **A value over the runs that no aggregation of the format gives.**
    `ratchet.specification.AggregationKind` has `sum`, `median`, `percentile`, `best_of_n` and
    `pass_rate`. The flake rate is one value over all runs of a report and is none of them:

@@ -84,9 +84,10 @@ What the program of `line-count@1` returns for a run:
 - A file is generated when `generated_paths` holds it, or holds a directory it lies under.
   A path there is a path and no pattern, and it is compared by whole parts between `/`:
   `src/gen` holds `src/gen/a.rs` and does not hold `src/generated/a.rs`. A `/` at the end of
-  a path changes nothing: `src/gen/` is `src/gen`. Every other counted file is hand-written.
-  A file is the one or the other as a whole: a file that a generator wrote in part is
-  hand-written unless the list names it.
+  a path changes nothing: `src/gen/` is `src/gen`. A `./` at the start of a path is dropped,
+  and the program refuses a list with a path that still holds a part `.` or `..`. Every other
+  counted file is hand-written. A file is the one or the other as a whole: a file that a
+  generator wrote in part is hand-written unless the list names it.
 - `generated` is the sum of the lines of the generated files, and `handwritten` that of the
   others.
 - Coverage, in the unit `file`: every file of the report is `executed`.
@@ -191,8 +192,8 @@ identity of this preset therefore holds no line number. It has four fields:
 Three cases of the place:
 
 - A finding with several locations stands at its primary one, as the linter marks it. Where
-  the linter marks none, it stands at the location with the lowest line in the file the
-  finding is reported for.
+  the linter marks none, it stands in the path that comes first when the paths of its
+  locations are sorted by their bytes, and there at the lowest line.
 - A finding about a file and no line has the empty `line_text` and no `line` among its item
   fields. Among the findings of its file with the same rule and the empty text it comes
   before every finding on a blank line.
