@@ -7,7 +7,7 @@ title: A coverage count the source does not hold is a lower bound or not known
 summary: EvidenceCoverage without inventing the counts an imported report lacks.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 1
+revision: 2
 ---
 ## Context
 
@@ -20,6 +20,12 @@ Finding 5. An imported report states that at least 472 units ran and gives no co
 skipped or not run units. `ratchet.evidence.EvidenceCoverage` requires six integers
 (`spec/domains/evidence.yaml:220-250`), and `at_least` exists on a result only. The consumer
 must write a count it does not have. Its example: `"executed_at_least": 472`.
+
+Also seen with the second quality unit of the consumer: the declaration side has the same
+gap. "A count it does not report is 0 in its documents"
+(`ratchet.assessor.Assessor.coverage`, `spec/domains/assessor.yaml:182-187`), so an
+assessor that covers a subset of the packages and reports no `skipped` writes a 0 it did
+not observe. The answer of this story covers a count the assessor does not report.
 
 ## Acceptance
 
