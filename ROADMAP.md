@@ -71,3 +71,18 @@ Record: `.engineering/waves/0.1.0-wave-3.md`.
   was not adopted, exceptions, trade-offs; consumer gaps 2, 3, 5), `epic:generated-artifact`,
   `epic:ci-turnaround` (insufficient evidence under host load; consumer gap 4),
   `epic:analyzer-findings`, `epic:ess-ui-behavior`.
+
+## Beside the waves
+
+Two epics run beside the waves to 0.1.0 and change the content of none of their stories.
+
+- `epic:preset-catalog`: a standard catalog of quality criteria as `ratchet/1` presets, ordered
+  by the owner on 2026-11-24. Four stories, one after another: `story:preset-catalog-functional`
+  (`presets/`, the file names, the check in the gate, the functional family),
+  `story:preset-catalog-runtime`, `story:preset-catalog-factory`, and after 0.1.0
+  `story:preset-binding-resolution`. A catalog story starts between two waves, from the `main`
+  of that moment. First consumer: a project that compares a candidate implementation of a
+  service with a reference implementation; its first gap is the functional family.
+- `epic:format-gaps-first-format-consumer`: 16 findings from the first quality definition
+  written against the formats (`beyond10x/inference`), as ten draft stories. They wait for the
+  waves to 0.1.0.

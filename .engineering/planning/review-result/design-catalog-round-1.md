@@ -1,0 +1,36 @@
+---
+format: aep.planning-md/3
+id: review-result:design-catalog-round-1
+kind: review-result
+status: active
+title: design critic on the preset catalog drafts, round 1
+relations:
+- reviews: epic:preset-catalog
+revision: 1
+---
+Recorded by the coordinator from the critic's report on `epic:preset-catalog` and its four draft stories, verbatim except that absolute paths of the workstation are replaced by `<tree>` and `<scratch>`.
+
+needs-revision
+
+Findings (design lane: shape of the set):
+
+D1. story:preset-catalog-runtime (and story:preset-catalog-functional) — two stories own the one check `spec/presets.test.sh`, and one rule of it is owned conditionally. Runtime's scope adds the case "a measurement without a row on its page" "when story:preset-catalog-functional did not add it", and its acceptance says the script test fails on it. The rule covers the pages of all eight families, but factory's acceptance has no such line, and functional states the page layout (README: every other `*.md` is a family page) and "one refused copy per rule of the acceptance" without this rule. So who owns it depends on what functional happens to do, and factory's three pages go unchecked. The abstraction (the check) is split across the stories. Fix: put the page-row rule in functional (scope, acceptance and refused copy), delete the "when functional did not add it" clause from runtime, and let runtime and factory only add files the check then covers. Edge `depends_on` already exists. Cite: .engineering/planning/story/preset-catalog-runtime.md (Acceptance, Scope line 2), story:preset-catalog-functional (Acceptance, Scope `spec/presets.test.sh`); no `.md` for factory carries the rule.
+
+D2. story:preset-catalog-functional — the specification does not declare the body of a preset, and no story in the set owns declaring it. `Preset` (spec/domains/specification.yaml:1106-1131) has the fields name, version and inputs only. Its statements, assessments and requirements appear only in the summary text (line 1111); they are fields of the project entity (spec/domains/specification.yaml:761,771). Functional's acceptance has the check refuse "a key the specification does not declare at that place", yet its scope changes specification.yaml only for "the file name of a preset in a source". Under "specification first" the check has no declared place for a preset's requirements to be judged against. Binding-resolution also needs this shape to list `<binding>.<requirement>`. Fix: add to functional's scope and acceptance that `Preset` declares its body (statements, assessments, requirements by the same types as the project, with `inputs` references), or states that the body has the project's shape minus gate and exception; binding-resolution then reads that. Cite: spec/domains/specification.yaml:1106-1131; .engineering/planning/story/preset-catalog-functional.md (Scope bullet 4).
+
+D3. story:preset-catalog-functional / story:preset-catalog-runtime — the change-classifier decision and the page check are split. AGENTS.md:73 says `*.md` outside `website/`, `vision.md`, `docs/`, `research/` is class `planning` and the job ends green without a checkout. `presets/*.md` pages therefore count as planning unless functional says otherwise. Functional's scope says only "`presets/` in the change classifier ... when the classifier does not already count it as `code`" (hedged, and not stated for the pages). The page-row check from D1 reads those pages, so a change to a page alone would end green without running it. The classifier case and the page check are two halves of one rule and sit in two stories. Fix: once D1 moves the page check into functional, state in the same story that `presets/` (YAML and `*.md`) is class `code` (or `docs-site` running `check:spec`), with a case in `task check:ci-paths` on both sides; make it a definite line, not "when". Cite: AGENTS.md:73, :109; story:preset-catalog-functional Scope bullet 6.
+
+D4. story:preset-binding-resolution — hidden dependency on how many presets the functional family has. Its scope has `examples/` bind "two presets of the catalog". Functional's Notes leave open "whether one preset or several carry the family" and its family list names three criteria. If functional lands one preset, the second must come from runtime or factory, and no edge from binding-resolution says so. Fix: either require in functional's acceptance that the family ships at least two presets (conformance-cases@1 and the differential one), or in binding-resolution name the two presets and add `depends_on` to the story that owns the second. Cite: .engineering/planning/story/preset-binding-resolution.md Scope bullet 2; story:preset-catalog-functional Notes bullet 1.
+
+D5 (trade-off, not a required change). Runtime and factory both depend only on functional and are otherwise independent: that is a star, not a chain, and I find no cycle. They both append to `CHANGELOG.md` under `## [Unreleased]`; that shared file is parallel-safety's lane, an ordering edge (`depends_on`) between them or separate lines would each do. I did not ask for either.
+
+Checked, no finding:
+- Reference-implementation rule: one owner (functional writes it into docs/design.md § 4); runtime cites it. Factory does not cite it, though its build durations and flake rate may be compared the same way; add one sentence there if the drafter wants (acceptance critic's area).
+- File name of a preset: decided only in functional (`<name>@<version>.preset.yaml` proposal); binding-resolution reads it through its recorded edge on functional.
+- Fit with 0.1.0: no accepted story is edited (declared scopes of the accepted stories do not list `presets/`, `spec/presets.test.sh`, or validate.rs after the release edge). Binding-resolution is ordered behind `story:release-0-1-0`. The spec changes in functional (config.yaml `CatalogSource`, specification.yaml) are not in any generated crate (grep of `crates/` for CatalogSource/PresetBinding: no hit), so `check:generated` is not affected. Fit with docs/design.md § 4 and `spec/domains/config.yaml:38` is good: the assessor-file rule is already there and the preset file gets its twin.
+
+Part 3, graph walk: I walked all 49 artifacts and about 130 declared edges in `aep plan artifact graph`, outside the four stories (down through release-0-1-0, acceptance-in-gate, cli-skeleton-validate, changelog-release-procedure, workspace-cli-contract, record-formats-in-spec). No cycle. Edges of this set: runtime, factory and binding-resolution each `depends_on` functional; binding-resolution also on release-0-1-0; all four `decomposes` the epic, which `decomposes` initiative:first-milestone. `aep plan artifact validate`: valid. Acceptance reads traced to a producer in the set: 10 (runtime: script, file names, check count; factory: the same three; binding-resolution: preset files, file name, README); 9 are recorded by an edge, 1 (the page-row rule, D1) has an ambiguous producer. The 10th item D4 is a read of a producer the plan leaves open.
+
+Out of my lane: whether the 0.1.0 claims about what is evaluated are checkable (acceptance); whether the epic's "Done when" (telling the first consumer the path and commit) has a story (scope); the CHANGELOG.md overlap with changelog-release-procedure (parallel-safety).
+
+category: design for D1-D4.
