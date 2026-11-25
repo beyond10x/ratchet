@@ -28,8 +28,10 @@ The order is the one `aep plan artifact waves --kind story` derives.
 3. `story:changelog-release-procedure`: the changelog and the release procedure.
 4. `story:cli-skeleton-validate`: a project can run `ratchet validate`; the model is generated from
    `spec/` and checked for drift. The owner answered on 2026-11-25 that the model crate is the
-   output of `ess generate synthesize` alone, decoders included; the wave is not dispatched
-   until an ESS release emits typed decoders without a server.
+   output of `ess generate synthesize` alone, decoders included, and that the reading rules of
+   the file formats are declared in the specification and applied by the generated decoder.
+   The wave is not dispatched until an ESS release emits typed decoders without a server and
+   applies those rules; nothing of the model or of the reading rules is written by hand.
 5. `story:evidence-reader`, `story:assessor-declaration`, `story:reference-compare`: evidence files
    are read and checked, a plan is checked against its assessor's declaration, values are compared
    with a reference.

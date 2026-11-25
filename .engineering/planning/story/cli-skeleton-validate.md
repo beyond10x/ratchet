@@ -31,7 +31,7 @@ scope:
   path: crates/ratchet/tests/fixtures/validate
 - confidence: cited
   path: crates/ratchet/tests/validate.rs
-revision: 27
+revision: 28
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-24T13:10:21Z", actor: "agent:ratchet", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
@@ -63,7 +63,8 @@ The owner's answer, 2026-11-25: ESS first. `crates/ratchet-model/` is the output
 the decoders. No model code is written by hand, and `ess generate types` is not used. ESS gets
 a story for typed decoders from `generate synthesize` without a server.
 
-The story is not dispatched until an ESS release emits those decoders. What that release has
+The story is not dispatched until an ESS release emits those decoders and applies the reading
+rules of the file form: items 1 to 3 and item 5 of the list below. What that release has
 to give, as sent to the ESS repository on 2026-11-25 with a minimal specification:
 
 1. a typed decoder and encoder for every struct, enum, newtype and entity snapshot, emitted by
@@ -78,9 +79,28 @@ to give, as sent to the ESS repository on 2026-11-25 with a minimal specificatio
 6. a `.ess-output/state.json` that does not change between two runs on one specification, or
    the rule that the file is not committed: its `anchor_id` is new on every run.
 
-Items 1 to 3 are what this story needs before it starts. Until ESS has items 4 and 5, the
-mapping from the file form to the entities is hand-written in `crates/ratchet-core` (`spec`),
-outside the model crate, and hands the generated decoders a value tree.
+Items 1 to 3 and item 5 are what this story needs before it starts. No mapping from the file
+form to the entities is written by hand. The owner picked on 2026-11-25 that the reading rules
+of the file formats become declarations on the types, fields and entities of the ESS
+specification, in a new `ess/N`, and that the generated decoder applies them. A decimal written
+as a number token is one of those rules: the specification declares it, the generated decoder
+reads the text of the token, and this repository writes no quoting step.
+
+ESS holds one draft story per item (2026-11-25):
+
+- items 1 to 3:
+  `story:a-synthesized-rust-crate-carries-typed-decoders-and-encoders-without-a-server-takes-a-package-name-and-leaves-out-its-workspace-table`,
+  the first build item of the minor release after 0.99.2. ESS took: the consumer brings its
+  YAML reader and hands the decoder a value tree, `--package <name>` is optional, and a flag
+  leaves out the `[workspace]` table;
+- item 4:
+  `story:the-rust-target-emits-a-struct-with-a-shorthand-and-its-decoder-accepts-both-spellings`;
+- item 5:
+  `story:a-specification-declares-how-a-document-is-read-into-its-entities-and-the-generated-decoder-applies-it`;
+- item 6:
+  `story:two-runs-on-an-unchanged-specification-write-the-same-output-state-record`.
+
+The number of the release is written here when ESS has it.
 
 A `ratchet/1` file is not the declared entities written out. `spec/README.md` § "How a
 `ratchet/1` file differs from the declared entities" lists the twelve rules a reader applies
@@ -122,9 +142,10 @@ A `ratchet/1` file is not the declared entities written out. `spec/README.md` §
 - `crates/ratchet-model/`: the output of `ess generate synthesize`, never edited. The root
   workspace holds it the way `AGENTS.md` records for `crates/ratchet-cli-contract` since
   `story:workspace-cli-contract`
-- `crates/ratchet-core/`: the hand-written library. This story writes `spec` (find and read
-  `ratchet.toml` and the files of `[spec] paths` into the types of `crates/ratchet-model`, by the
-  twelve rules of `spec/README.md`) and `validate` (the report). `spec` takes the content of each
+- `crates/ratchet-core/`: the hand-written library. This story writes `spec` (find
+  `ratchet.toml` and the files of `[spec] paths` and hand each to the generated decoders of
+  `crates/ratchet-model`, which apply the twelve rules of `spec/README.md`; `spec` holds no
+  reading rule) and `validate` (the report). `spec` takes the content of each
   file from a source the caller gives it, with the working tree as the one source built here, so
   `story:evaluate-command` reads the files of a revision in its own module and does not edit
   `spec`. It creates the empty modules `evidence`, `assessor`, `reference`, `compare`, `store`,
