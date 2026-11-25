@@ -7,7 +7,7 @@ title: The formats say what the first format consumer's quality definition needs
 summary: '16 findings from writing the quality definition of beyond10x/inference against the formats: 8 things a format cannot say, 1 missing set of declarations, 7 silent or disagreeing places.'
 relations:
 - decomposes: initiative:first-milestone
-revision: 3
+revision: 4
 ---
 ## Context
 
@@ -23,7 +23,7 @@ specification is silent, or where two documents disagree. Each is a story of thi
 
 ## Outcome
 
-Each of the 18 places has an answer in `spec/` and in the design documents, with a test that
+Each of the 22 places has an answer in `spec/` and in the design documents, with a test that
 failed before, and the quality definition of `beyond10x/inference` can say in the formats what
 it now leaves out or writes in a weaker form.
 
@@ -40,6 +40,11 @@ it now leaves out or writes in a weaker form.
 - From the correction round of the definition (findings 17 to 19):
   `story:candidate-under-merge-result`, `story:plan-with-exact-and-sampled-measurements`,
   `story:machine-as-a-condition`.
+- From the second quality unit of the consumer, measures per adapter and latency defined
+  without a number (findings 20 to 23): `story:gate-judges-commit-of-a-tag`,
+  `story:plan-never-assessed`, `story:plan-declares-what-its-command-needs`,
+  `story:list-item-statement`. A smaller observation of that unit, a coverage count an
+  assessor does not report, is a note of `story:coverage-count-lower-bound`.
 
 ## Order
 
@@ -50,5 +55,5 @@ that reads the type, or with it when the wave's story is amended.
 
 ## Done when
 
-The thirteen stories are implemented or rejected with a written reason, and the consumer has been
+The seventeen stories are implemented or rejected with a written reason, and the consumer has been
 told which key of its files each answer changes.
