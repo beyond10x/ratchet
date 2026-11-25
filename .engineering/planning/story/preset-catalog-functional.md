@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-catalog-functional
 kind: story
-status: proposed
+status: active
 title: 'The preset catalog: layout, the check in the gate and the functional family'
 summary: presets/ with file names declared in the specification, spec/presets.test.sh in check:spec, and the presets for conformance, differential equality and the known-failure list.
 relations:
@@ -33,9 +33,10 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 15
+revision: 16
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:31Z", actor: "agent:ratchet", revision: 15}
+- {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 16}
 ---
 ## Context
 

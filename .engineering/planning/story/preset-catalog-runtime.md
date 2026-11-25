@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-catalog-runtime
 kind: story
-status: proposed
+status: active
 title: 'The preset catalog: latency, resources, start and operability'
 summary: Preset files, assessor declarations and pages for the four families observed while a fixed workload runs.
 relations:
@@ -13,9 +13,10 @@ scope:
   path: CHANGELOG.md
 - confidence: cited
   path: presets
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:32Z", actor: "agent:ratchet", revision: 7}
+- {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 8}
 ---
 ## Context
 

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-catalog-factory
 kind: story
-status: proposed
+status: active
 title: 'The preset catalog: build, artifact and code'
 summary: Preset files, assessor declarations and pages for the three families read from a build and from the tree.
 relations:
@@ -14,9 +14,10 @@ scope:
   path: CHANGELOG.md
 - confidence: cited
   path: presets
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:32Z", actor: "agent:ratchet", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 6}
 ---
 ## Context
 

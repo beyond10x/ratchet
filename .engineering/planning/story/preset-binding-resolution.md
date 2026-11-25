@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-binding-resolution
 kind: story
-status: proposed
+status: active
 title: ratchet validate resolves a preset binding
 summary: 'A binding of a catalog preset from a path source: bound requirements join the project, digest and inputs are checked.'
 relations:
@@ -29,9 +29,10 @@ scope:
   path: examples/preset-binding
 - confidence: cited
   path: presets/README.md
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:33Z", actor: "agent:ratchet", revision: 14}
+- {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 15}
 ---
 ## Context
 
