@@ -1,0 +1,52 @@
+format: ratchet/1
+
+preset:
+  name: workload-throughput
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    tolerance_percent: {type: decimal, required: true}
+
+assessments:
+  throughput:
+    subject: ${inputs.subject}
+    assessor: timing-report@1
+    inputs:
+      report: ${inputs.report}
+      workload: ${inputs.workload}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+      coverage: {not_run: {max: 0}}
+    measurements:
+      requests-per-second:
+        kind: sampled
+        output: throughput
+        scope: run
+        aggregation: {kind: median}
+        unit: requests/s
+        better: higher
+
+requirements:
+  throughput-does-not-fall:
+    meaning: The number of requests the service answers per second while the workload runs is not below its accepted value by more than the tolerance of the binding.
+    assessment: throughput
+    measurement: requests-per-second
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

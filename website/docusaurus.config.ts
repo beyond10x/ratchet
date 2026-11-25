@@ -68,7 +68,7 @@ const pages: Record<string, Page> = {
   'research/candidate-presets.md': {
     slug: '/research/candidate-presets',
     title: 'Candidate presets',
-    lede: `First presets the survey answers support. Design input: the catalog presets/ holds the functional family, and no command resolves a binding yet. ${releaseState}`,
+    lede: `First presets the survey answers support. Design input: the catalog presets/ holds five families (functional, latency and throughput, resources, start and readiness, operability), and no command resolves a binding yet. ${releaseState}`,
     status: 'planned',
   },
   'research/consumer-input-ux-ui.md': {

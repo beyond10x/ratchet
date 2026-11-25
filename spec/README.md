@@ -84,8 +84,11 @@ runs eleven steps, and `task check` calls it:
     measurement as the table "Comparisons" of design § 3 allows for the value type of the
     output, the pass rate of an assertion as a number; and every measurement has one row with
     four filled cells on a page of the catalog. It then writes one defect per rule into copies
-    of `presets/`, in the ignored `target/presets/`, and fails when a defect is accepted or is
-    refused without the message of its rule. Defects that stand apart share a copy, each on a
+    of a fixed set of files of `presets/`, in the ignored `target/presets/`, and fails when a
+    defect is accepted or is refused without the message of its rule. The set is `README.md`
+    and the functional family, named once in the script (`set_files`): the whole of `presets/`
+    is checked once, and a copy holds no file of another family, so a family that the catalog
+    gets adds nothing to a copy. Defects that stand apart share a copy, each on a
     line of its own, and each is judged by a message that names its own line, path or value:
     the check of a copy takes most of the time of the script. It prints
     `presets: <d> of <d> defect(s) refused with the message of their rule`, and its last line is
@@ -100,14 +103,20 @@ rows in 13 tables of § 3 and 19 in 2 tables of § 10 (`record-fields`, `record-
 per table), 3 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.
-`presets.test.sh` states no number, because the catalog grows by a family at a time. It fails
+`presets.test.sh` states no number of the catalog, because the catalog grows by a family at a
+time. The one line of counts it states, in the case `file-last-line-of-one-file-alone`, counts
+the files and the measurements of the set of its copies, which a new family does not change.
+It fails
 on a directory without a preset, on a preset without a requirement, on an entry that is no file
-of the catalog, on a page without a table of rows, and when the edit of one of its copies
+of the catalog, on a page without a table of rows, when `presets/` lacks a file of the set,
+when a case edits a file that its copy does not hold, and when the edit of one of its copies
 changes nothing. Before the copies it runs the cases of its own harness: an edit that
-changes nothing stops the run, the unchanged catalog is accepted, `--spec` names the
-specification that is read, the run in a tree whose `presets/` is refused exits 1, a refusal
+changes nothing stops the run, and so does an edit of a file that the copy does not hold; the
+unchanged set is accepted; `--spec` names the
+specification that is read; the run in a tree whose `presets/` is refused exits 1, and so does
+the run in a tree whose `presets/` lacks a file of the set; a refusal
 counts only with the message of the rule of its case, also for a case that shares its copy
-with a case that is refused rightly, and an accepted copy gives exit 1. Its
+with a case that is refused rightly; and an accepted copy gives exit 1. Its
 header lists what it does not check, each with the reason: the invariants of the types beside
 the four of a plan over `runs_of`, a value that an input gives where a rule reads the value
 (only the kind of a target is read from the default of its input), a measurement of a plan of

@@ -1,0 +1,18 @@
+format: ratchet-assessor/1
+name: start-report
+version: "1"
+command: start-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  workload: {type: string, required: true}
+conditions: []
+coverage_unit: start
+coverage: [executed, not_run]
+outputs:
+  duration:
+    value_type: number
+    kind: sampled
+    scopes: []
+    unit: ms
+    boundaries: [process_start_to_ready, ready_to_first_answer]

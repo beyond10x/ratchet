@@ -17,6 +17,13 @@ Pages:
 
 - [functional.md](functional.md): conformance cases, differential equality against a reference
   implementation, the known-failure list.
+- [latency.md](latency.md): the time of each operation, the time from a request to the event
+  it causes, the requests answered per second.
+- [resources.md](resources.md): resident memory, CPU seconds per 1000 requests, open file
+  descriptors and threads while a workload runs.
+- [start.md](start.md): process start to ready, ready to first answer.
+- [operability.md](operability.md): the documented metric names a scrape exposes, the
+  health and readiness answers.
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name

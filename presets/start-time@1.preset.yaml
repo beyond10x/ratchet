@@ -1,0 +1,70 @@
+format: ratchet/1
+
+preset:
+  name: start-time
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    ready_tolerance_ms: {type: decimal, required: true}
+    first_answer_tolerance_ms: {type: decimal, required: true}
+
+assessments:
+  start:
+    subject: ${inputs.subject}
+    assessor: start-report@1
+    inputs:
+      report: ${inputs.report}
+      workload: ${inputs.workload}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+      coverage: {not_run: {max: 0}}
+    measurements:
+      start-to-ready:
+        kind: sampled
+        output: duration
+        boundary: process_start_to_ready
+        scope: run
+        aggregation: {kind: median}
+        unit: ms
+        better: lower
+      ready-to-first-answer:
+        kind: sampled
+        output: duration
+        boundary: ready_to_first_answer
+        scope: run
+        aggregation: {kind: median}
+        unit: ms
+        better: lower
+
+requirements:
+  start-to-ready-does-not-rise:
+    meaning: The time from the start of the process of the service to the moment it is ready is not above its accepted value by more than the tolerance of the binding.
+    assessment: start
+    measurement: start-to-ready
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.ready_tolerance_ms}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  first-answer-does-not-rise:
+    meaning: The time from the moment the service is ready to its first answer is not above its accepted value by more than the tolerance of the binding.
+    assessment: start
+    measurement: ready-to-first-answer
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.first_answer_tolerance_ms}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

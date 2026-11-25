@@ -1,0 +1,45 @@
+format: ratchet/1
+
+preset:
+  name: health-readiness
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+    min_expectations: {type: integer, required: true}
+
+assessments:
+  probes:
+    subject: ${inputs.subject}
+    assessor: probe-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+      coverage: {executed: {min: "${inputs.min_expectations}"}, skipped: {max: 0}, not_run: {max: 0}}
+    measurements:
+      health:
+        kind: exact
+        output: health
+        scope: expectation
+      readiness:
+        kind: exact
+        output: readiness
+        scope: expectation
+
+requirements:
+  health-answers-hold:
+    meaning: The health answer of the service is what the project documents, in every state the report checks.
+    assessment: probes
+    measurement: health
+    condition: {operator: holds}
+  readiness-answers-hold:
+    meaning: The readiness answer of the service is what the project documents, in every state the report checks.
+    assessment: probes
+    measurement: readiness
+    condition: {operator: holds}

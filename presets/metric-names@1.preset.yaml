@@ -1,0 +1,51 @@
+format: ratchet/1
+
+preset:
+  name: metric-names
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    scrape: {type: path, required: true}
+    documented: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  scrape:
+    subject: ${inputs.subject}
+    assessor: metrics-scrape@1
+    inputs:
+      scrape: ${inputs.scrape}
+      documented: ${inputs.documented}
+      workload: ${inputs.workload}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+    measurements:
+      documented-names:
+        kind: exact
+        output: documented_names
+        scope: run
+        identity: [name]
+      undocumented-names:
+        kind: exact
+        output: undocumented_names
+        scope: run
+        identity: [name]
+
+requirements:
+  no-documented-name-lost:
+    meaning: Every documented metric name of the accepted set is still exposed.
+    assessment: scrape
+    measurement: documented-names
+    condition: {operator: no_lost_items}
+    reference: {kind: accepted_value}
+  no-undocumented-name:
+    meaning: The service exposes no metric name that its documented list does not hold.
+    assessment: scrape
+    measurement: undocumented-names
+    condition: {operator: lte, value: 0}
