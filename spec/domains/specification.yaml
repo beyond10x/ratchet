@@ -740,6 +740,32 @@ types:
         The key a project binds a preset under, such as `ux`; the bound entries join the project
         under it, `ux.steps-do-not-rise` (§ 4).
 
+  # § 4 "Presets": what a preset file holds beside `format` and its `preset` block. Each value
+  # is the key of a map at the root of the file, and the name of the relation of
+  # `ratchet.specification.QualitySpecification` whose target is the entity of the entries: a
+  # preset holds the statements, assessments and requirements of a project by the same types.
+  # It holds no `subjects`, `gates`, `exceptions` and `presets`: the subject of a plan is an
+  # input, which requirement blocks at which stage is the project's decision, and a preset
+  # binds no preset. `spec/presets.test.sh` reads this list and those relations.
+  - name: ratchet.specification.PresetMember
+    kind: enum
+    variants: [statements, assessments, requirements]
+
+  - name: ratchet.specification.InputReference
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        `${inputs.<name>}` in an entry of a preset (§ 4): the value the binding passes for the
+        declared input `<name>`, or the default of that input. A reference is the whole of a
+        value, and no text stands beside it: it stands for a scalar where the input is one
+        and for a list where the input declares `list`. An input of the type `string` or `path`
+        stands for text and for a value of a closed list, `integer` for an integer and a
+        decimal, `decimal` for a decimal, `boolean` for a boolean. No key is a reference, and
+        the `preset` block holds none. Inside a flow mapping or a flow list the reference is
+        quoted, `"${inputs.<name>}"`: a plain scalar there holds no brace. A quoted reference
+        and a plain one mean the same.
+
 entities:
   - name: ratchet.specification.QualitySpecification
     naming:
@@ -1108,9 +1134,15 @@ entities:
       summary: >-
         A reusable part of a specification in the catalog `presets/` (§ 1, § 2, § 4): a
         ratchet/1 document with a `preset` block in place of `project`, holding a name, a
-        version and declared `inputs`. Its statements, assessments and requirements refer to an
-        input as `${inputs.<name>}`. It declares no gate and no exception. New in revision 3
-        and untested by any example.
+        version and declared `inputs`. In a catalog source it is the file
+        `<name>@<version>.preset.yaml` (`ratchet.config.CatalogFileKind`). Beside `format` and
+        the block, the file holds the maps that `ratchet.specification.PresetMember` lists:
+        `statements`, `assessments` and `requirements`, with entries of the entities a
+        project's file holds under the same keys. An entry states no `project`: the binding
+        gives it one. The entries refer to an input as `${inputs.<name>}`
+        (`ratchet.specification.InputReference`), and the subject of a plan is such an input.
+        A preset declares no subject, no gate, no exception and no binding of its own. The
+        functional family of `presets/` is its first use.
     provided: true
     identity:
       name: preset

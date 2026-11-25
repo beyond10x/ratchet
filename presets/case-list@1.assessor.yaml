@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: case-list
+version: "1"
+command: case-list
+targets: [revision]
+inputs:
+  list: {type: path, required: true}
+conditions: []
+coverage_unit: entry
+coverage: [executed]
+outputs:
+  cases:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [case_id]
+  count: {value_type: number, kind: exact, scopes: [], unit: cases}

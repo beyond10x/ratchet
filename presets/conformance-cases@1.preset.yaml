@@ -1,0 +1,80 @@
+format: ratchet/1
+
+preset:
+  name: conformance-cases
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  conformance:
+    subject: ${inputs.subject}
+    assessor: conformance-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      passing-cases:
+        kind: exact
+        output: passing_cases
+        scope: run
+        identity: [case_id]
+      passed:
+        kind: exact
+        output: passed
+        scope: run
+        unit: cases
+        better: higher
+      failed:
+        kind: exact
+        output: failed
+        scope: run
+        unit: cases
+        better: lower
+      skipped:
+        kind: exact
+        output: skipped
+        scope: run
+        unit: cases
+        better: lower
+      refused:
+        kind: exact
+        output: refused
+        scope: run
+        unit: cases
+        better: lower
+
+requirements:
+  no-case-lost:
+    meaning: Every case of the accepted set of passing cases still passes.
+    assessment: conformance
+    measurement: passing-cases
+    condition: {operator: no_lost_items}
+    reference: {kind: accepted_value}
+  passed-does-not-fall:
+    meaning: The number of passed cases is not below the accepted number.
+    assessment: conformance
+    measurement: passed
+    reference: {kind: accepted_value}
+  failed-does-not-rise:
+    meaning: The number of failed cases is not above the accepted number.
+    assessment: conformance
+    measurement: failed
+    reference: {kind: accepted_value}
+  skipped-does-not-rise:
+    meaning: The number of skipped cases is not above the accepted number.
+    assessment: conformance
+    measurement: skipped
+    reference: {kind: accepted_value}
+  refused-does-not-rise:
+    meaning: The number of refused cases is not above the accepted number.
+    assessment: conformance
+    measurement: refused
+    reference: {kind: accepted_value}

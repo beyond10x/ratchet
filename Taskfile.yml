@@ -81,7 +81,7 @@ tasks:
         exit "$status"
 
   check:spec:
-    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
+    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, check the preset catalog presets/ against it and against the pages of the catalog, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
     cmds:
       - |
         command -v jq > /dev/null 2>&1 || { echo "check:spec: jq is not installed, and spec/record-examples.test.sh reads the JSON examples with it"; exit 1; }
@@ -94,6 +94,7 @@ tasks:
       - sh spec/cli-coverage-row.test.sh
       - sh spec/cli-errors.test.sh
       - sh spec/gate-inputs.test.sh
+      - sh spec/presets.test.sh
       - |
         set -eu
         out=target/check-spec
@@ -116,7 +117,7 @@ tasks:
 
   check:ci-paths:
     silent: true
-    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, and each document a script of check:spec reads: the job runs check for code, check:spec for docs-site and nothing for planning."
+    desc: "Feed the change classifier of .github/workflows/pages.yml one file list per case: planning, docs-site, code, mixed, empty. Then feed the first step of its job gate each class, each document a script of check:spec reads and each file of presets/: the job runs check for code, check:spec for docs-site and nothing for planning."
     cmds:
       - |
         set -eu
@@ -179,6 +180,9 @@ tasks:
         code|crates/ratchet/tests/validate.rs
         code|crates/ratchet-cli-contract/README.md
         code|.engineering/planning/story/x.md crates/ratchet-cli-contract/README.md
+        code|presets/conformance-cases@1.preset.yaml
+        code|presets/functional.md
+        planning|examples/presets/functional.md
         CASES
         while IFS='|' read -r want class; do
           n=$((n + 1))
@@ -200,6 +204,17 @@ tasks:
           case $got in
             check | check:spec) echo "ok   the job gate: $got <- $document, which a script of check:spec reads" ;;
             *) echo "FAIL the job gate: check:spec <- $document, which a script of check:spec reads: got ${got:-nothing}"; fail=1 ;;
+          esac
+        done
+        # A file of the preset catalog, a page included, is a change the job gate runs
+        # check:spec for: spec/presets.test.sh reads every file of presets/.
+        for file in presets/*; do
+          [ -f "$file" ] || { echo "no file under presets/"; exit 1; }
+          n=$((n + 1))
+          got=$(runs "$(class "$file")")
+          case $got in
+            check | check:spec) echo "ok   the job gate: $got <- $file, which spec/presets.test.sh reads" ;;
+            *) echo "FAIL the job gate: check:spec <- $file, which spec/presets.test.sh reads: got ${got:-nothing}"; fail=1 ;;
           esac
         done
         echo "$n cases"

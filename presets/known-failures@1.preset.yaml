@@ -1,0 +1,47 @@
+format: ratchet/1
+
+preset:
+  name: known-failures
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    list: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  known-failures:
+    subject: ${inputs.subject}
+    assessor: case-list@1
+    inputs:
+      list: ${inputs.list}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      listed-cases:
+        kind: exact
+        output: cases
+        scope: run
+        identity: [case_id]
+      size:
+        kind: exact
+        output: count
+        scope: run
+        unit: cases
+        better: lower
+
+requirements:
+  no-new-known-failure:
+    meaning: The list holds no case that the accepted list does not hold.
+    assessment: known-failures
+    measurement: listed-cases
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  size-does-not-rise:
+    meaning: The list is not longer than the accepted list.
+    assessment: known-failures
+    measurement: size
+    reference: {kind: accepted_value}

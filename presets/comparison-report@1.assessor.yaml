@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: comparison-report
+version: "1"
+command: comparison-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: case
+coverage: [executed, skipped, not_run, unsupported]
+outputs:
+  cases:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [case_id]
+    item_fields: [class]
