@@ -1,0 +1,51 @@
+format: ratchet/1
+
+preset:
+  name: code-lines
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    generated_paths: {type: path, list: true, required: true}
+    environments: {type: string, list: true, required: true}
+    generated_better: {type: string, required: true}
+    handwritten_better: {type: string, required: true}
+
+assessments:
+  lines:
+    subject: ${inputs.subject}
+    assessor: line-count@1
+    inputs:
+      report: ${inputs.report}
+      generated_paths: ${inputs.generated_paths}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      generated:
+        kind: exact
+        output: generated
+        scope: run
+        unit: lines
+        better: ${inputs.generated_better}
+      handwritten:
+        kind: exact
+        output: handwritten
+        scope: run
+        unit: lines
+        better: ${inputs.handwritten_better}
+
+requirements:
+  generated-lines-do-not-get-worse:
+    meaning: The number of generated lines of code is not worse than the accepted number, in the direction the binding states.
+    assessment: lines
+    measurement: generated
+    reference: {kind: accepted_value}
+  handwritten-lines-do-not-get-worse:
+    meaning: The number of hand-written lines of code is not worse than the accepted number, in the direction the binding states.
+    assessment: lines
+    measurement: handwritten
+    reference: {kind: accepted_value}

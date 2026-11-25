@@ -1,0 +1,52 @@
+format: ratchet/1
+
+preset:
+  name: image-size
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    inspection: {type: path, required: true}
+    platform: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    size_tolerance_bytes: {type: integer, required: false, default: 0}
+
+assessments:
+  image:
+    subject: ${inputs.subject}
+    assessor: image-inspection@1
+    inputs:
+      inspection: ${inputs.inspection}
+      platform: ${inputs.platform}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      size:
+        kind: exact
+        output: size
+        scope: run
+        unit: bytes
+        better: lower
+      layers:
+        kind: exact
+        output: layers
+        scope: run
+        unit: layers
+        better: lower
+
+requirements:
+  size-does-not-rise:
+    meaning: The size of the container image is not above the accepted size by more than the tolerance of the binding.
+    assessment: image
+    measurement: size
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.size_tolerance_bytes}"}
+  layers-do-not-rise:
+    meaning: The container image has no more layers than the accepted number.
+    assessment: image
+    measurement: layers
+    reference: {kind: accepted_value}

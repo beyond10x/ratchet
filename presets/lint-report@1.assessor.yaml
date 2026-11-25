@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: lint-report
+version: "1"
+command: lint-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: file
+coverage: [executed, unsupported]
+outputs:
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [rule, path, line_text, occurrence]
+    item_fields: [severity, line, message]

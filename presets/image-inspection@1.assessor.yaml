@@ -1,0 +1,14 @@
+format: ratchet-assessor/1
+name: image-inspection
+version: "1"
+command: image-inspection
+targets: [revision]
+inputs:
+  inspection: {type: path, required: true}
+  platform: {type: string, required: true}
+conditions: []
+coverage_unit: image
+coverage: [executed]
+outputs:
+  size: {value_type: number, kind: exact, scopes: [], unit: bytes}
+  layers: {value_type: number, kind: exact, scopes: [], unit: layers}

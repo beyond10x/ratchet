@@ -14,7 +14,7 @@ scope:
   path: presets/README.md
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 5
+revision: 6
 ---
 ## Context
 
@@ -51,6 +51,17 @@ comparison.
   under "Not checked" with its reason (`spec/presets.test.sh:123`): `docs/design.md` § 5 says
   that the number has no default and names no report of `ratchet validate` for it. The story
   asks the design whether `validate` reports it.
+- Attack 1 on `story:preset-catalog-factory`
+  (`review-result:adversary-preset-catalog-factory-attack-1`, findings 16 and 17; its cases
+  b01, b02, b03, b07 and b08, run on `dd2cba5`) adds five accepted forms that stand neither
+  in the lists above nor under "Not checked": the one row of a preset with one measurement
+  on the page of another family, while `presets/README.md` says that a measurement has its
+  row on the page of its family (the script checks that the rows of one preset stand on one
+  page, and no file names the family page of a preset); a sampled measurement with a
+  literal `runs` above 1 and no aggregation; `runs: 1` with an aggregation
+  (`docs/design.md` § 3); a plan without a condition that the declaration of its assessor
+  lists; and `min_samples` above `runs`, both literals. `story:value-over-all-runs` asks
+  the design about the second. With them the story covers fourteen forms.
 - Where the design does not say whether a form is an error (the seven of the second list), the
   story asks the design first and writes the answer into `docs/design.md`.
 - The story is a draft. It was there before the planned waves to 0.1.0 and waits for them.

@@ -7,7 +7,7 @@ title: The specification answers six places the first format consumer could not 
 summary: 'observation.command, holds per item, scopes: [], a value aggregated in one run, units, comments, the evidence digest.'
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 3
+revision: 4
 ---
 ## Context
 
@@ -29,6 +29,12 @@ disagree.
 - **11, a value aggregated inside one run.** `specification.yaml:182-188`: `aggregation` is
   absent with `runs: 1`. `spec/domains/evidence.yaml:368-375`: a result carries `samples` and
   `aggregation`. The case: one command prints a median of three.
+  Two more cases of the same place, reported by the consumer on 2026-11-25 from a read of
+  `b8945e5`: a plan with `runs: 1` whose command repeats its measurement itself (an option of
+  the command, two repeats), and a command that prints one value per segment of its output
+  in one run. `docs/evidence-format.md` § 1 ("One document per assessment run") says that a run is one
+  execution of one plan by its assessor, so the repeats are samples of one run; no sentence
+  says so where a plan with `runs: 1` is described.
 - **14, one unit per output.** `specification.yaml:176-181`. 45 minutes is written `2700`;
   `examples/ci-turnaround.ratchet.yaml` uses `min` and `s` for the same kind of value.
 - **15, comments.** `spec/README.md:207` does not say whether a `ratchet/1` file may hold

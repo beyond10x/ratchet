@@ -1,0 +1,38 @@
+format: ratchet/1
+
+preset:
+  name: dependency-advisories
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+    unchecked_packages_max: {type: integer, required: false, default: 0}
+
+assessments:
+  scan:
+    subject: ${inputs.subject}
+    assessor: advisory-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+      coverage: {unsupported: {max: "${inputs.unchecked_packages_max}"}}
+    measurements:
+      advisories:
+        kind: exact
+        output: advisories
+        scope: run
+        identity: [advisory, package]
+
+requirements:
+  no-new-advisory:
+    meaning: No published advisory applies to a dependency of the project that the accepted set does not hold.
+    assessment: scan
+    measurement: advisories
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}

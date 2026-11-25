@@ -1,0 +1,16 @@
+format: ratchet-assessor/1
+name: obligation-report
+version: "1"
+command: obligation-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: obligation
+coverage: [executed]
+outputs:
+  obligations:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [obligation_id]

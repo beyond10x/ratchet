@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T15:52:40Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:preset-catalog-factory",
+  "kind": "story",
+  "revision": 13,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check in the pool of the workstation, whole gate by the coordinator on commit dd2cba5: exit 0; presets: 227 of 227 defects refused, 92 of 92 broken copies refused, 47 of 47 files valid, 41 of 41 measurements with a row",
+    "reference": ".engineering/waves/catalog-factory.md"
+  }
+}

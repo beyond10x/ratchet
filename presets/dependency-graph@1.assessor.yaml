@@ -1,0 +1,13 @@
+format: ratchet-assessor/1
+name: dependency-graph
+version: "1"
+command: dependency-graph
+targets: [revision]
+inputs:
+  graph: {type: path, required: true}
+conditions: []
+coverage_unit: package
+coverage: [executed]
+outputs:
+  direct: {value_type: number, kind: exact, scopes: [], unit: dependencies}
+  transitive: {value_type: number, kind: exact, scopes: [], unit: dependencies}

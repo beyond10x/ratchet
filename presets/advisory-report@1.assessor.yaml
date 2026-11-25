@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: advisory-report
+version: "1"
+command: advisory-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: package
+coverage: [executed, unsupported]
+outputs:
+  advisories:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [advisory, package]
+    item_fields: [severity, versions]

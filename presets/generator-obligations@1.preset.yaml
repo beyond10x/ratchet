@@ -1,0 +1,36 @@
+format: ratchet/1
+
+preset:
+  name: generator-obligations
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  obligations:
+    subject: ${inputs.subject}
+    assessor: obligation-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      obligations:
+        kind: exact
+        output: obligations
+        scope: run
+        identity: [obligation_id]
+
+requirements:
+  no-new-obligation:
+    meaning: The code generator leaves no piece of work to the project that the accepted set does not hold.
+    assessment: obligations
+    measurement: obligations
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}

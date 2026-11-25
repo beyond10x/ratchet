@@ -1,0 +1,54 @@
+format: ratchet/1
+
+preset:
+  name: cold-build-time
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    build_command: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    tolerance_percent: {type: decimal, required: true}
+
+assessments:
+  build:
+    subject: ${inputs.subject}
+    assessor: build-report@1
+    inputs:
+      report: ${inputs.report}
+      build_command: ${inputs.build_command}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      command: ${inputs.build_command}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+          cache_profile: cold
+      coverage: {not_run: {max: 0}}
+    measurements:
+      build-time:
+        kind: sampled
+        output: duration
+        boundary: run_time
+        scope: run
+        aggregation: {kind: median}
+        unit: s
+        better: lower
+
+requirements:
+  build-time-does-not-rise:
+    meaning: The time of a build of the tree that starts with no output of an earlier build is not above its accepted value by more than the tolerance of the binding.
+    assessment: build
+    measurement: build-time
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
