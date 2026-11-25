@@ -6,6 +6,8 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-11-25
+
 ### Added
 
 - The specification in `spec/` declares the four file formats: `ratchet/1`, `ratchet-evidence/1`, `ratchet-assessor/1` and `ratchet-reference/1`
