@@ -133,7 +133,7 @@
 # `0o17`, `1.5`, `true`, `null`).
 #
 # Usage:
-#   sh spec/presets.test.sh                      `presets/`, then one broken copy per rule
+#   sh spec/presets.test.sh                      `presets/`, then one defect per rule in copies of it
 #   sh spec/presets.test.sh --catalog <directory> [--spec <directory>]
 #                                                one directory, against `spec/domains` or the
 #                                                named directory of domain files; no copy
@@ -146,8 +146,11 @@
 # Exit 0: the last line is
 #   `presets: <f> of <f> file(s) valid, <r> of <r> measurement(s) with a row, <c> of <c> broken copies refused`
 # (with `--catalog`, without the third count). `<f>` counts the presets, the declarations and
-# the pages, and not `README.md`; `<r>` counts the measurements of the presets.
-# Exit 1: each failure is named with its file and line; or a broken copy is accepted, or
+# the pages, and not `README.md`; `<r>` counts the measurements of the presets; `<c>` counts the
+# copies that hold a defect. A copy holds one defect or several that stand apart, and the line
+# before the last counts the defects:
+#   `presets: <d> of <d> defect(s) refused with the message of their rule`
+# Exit 1: each failure is named with its file and line; or a defect in a copy is accepted, or
 # refused without the message of its rule; or the harness of the copies fails a case of its own.
 set -eu
 
@@ -1073,10 +1076,10 @@ check_catalog() {
       }
 
       # A field of a population filter is one the declaration lists.
-      if (n == 7 && s[1] == "assessments" && s[3] == "observation" && s[4] == "population" && s[5] == "filter") {
+      if (n == 6 && s[1] == "assessments" && s[3] == "observation" && s[4] == "population" && s[5] == "filter") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
-        if ((a in declaration) && !holds(declaration[a], "population_fields", s[7]))
-          fail(F, n_line[i], named(path) "filters the population by the field `" s[7] "`, and `" a "` declares the population fields `" items(declaration[a], "population_fields") "` (`population_field_mismatch`)")
+        if ((a in declaration) && !holds(declaration[a], "population_fields", s[6]))
+          fail(F, n_line[i], named(path) "filters the population by the field `" s[6] "`, and `" a "` declares the population fields `" items(declaration[a], "population_fields") "` (`population_field_mismatch`)")
       }
 
       if (n == 2 && s[1] == "requirements") {
@@ -1217,12 +1220,20 @@ if check_catalog "$catalog" "$work/tables" > "$work/catalog.out" 2>&1; then :; e
 fi
 summary=$(tail -n 1 "$work/catalog.out")
 
-# ---- one broken copy per rule ---------------------------------------------------------------
+# ---- one defect per rule, in copies of presets/ ----------------------------------------------
 #
-# Each case is a copy of presets/, the directory target/presets/<case>, with one defect. The case
-# holds when the check of the copy exits non-zero and names the defect with the words of its rule,
-# so a case fails when its rule is taken out of the check, also where another rule refuses the
-# copy then. A rule without a case here is not guarded: a new rule gets its copy.
+# Each case is one defect in a copy of presets/, the directory target/presets/<case> of the
+# case that starts the copy. The case holds when the check of the copy exits non-zero and names
+# the defect with the words of its rule, so a case fails when its rule is taken out of the
+# check, also where another rule refuses the copy then. A rule without a case here is not
+# guarded: a new rule gets its case.
+#
+# `copy` starts a case in a fresh copy. `again` starts a case in the copy of the case before
+# it: that copy then holds the defect of each of its cases, each on a line of its own, and is
+# checked once, when the next copy starts. A case that shares a copy states a message that no
+# other defect of the copy gives: it names the line, the path or the value of its own defect.
+# The check takes most of the time of this script, so the cases of one group share a copy
+# where their defects stand apart.
 
 stop() {
   echo "presets: $1"
@@ -1231,12 +1242,19 @@ stop() {
 
 # copy <case>: a fresh copy of presets/ as the directory $c; sets $c and $name. What a case
 # writes beside its copy is named $c.<word>. The copy is checked against the specification of
-# the repository until `own_spec` gives it one of its own.
+# the repository until `own_spec` gives it one of its own. The cases of the copy before it are
+# judged first.
 copy() {
+  judge_cases
   name=$1
   c=$work/$1
   cp -R "$catalog" "$c"
   case_tables=$work/tables
+}
+
+# again <case>: a further case in the copy of the case before it; sets $name.
+again() {
+  name=$1
 }
 
 # own_spec: the copy gets its own copy of spec/domains, $c.domains, for `edit_spec`.
@@ -1284,14 +1302,19 @@ drop() {
   mv "$c.new" "$c/$1"
 }
 
-# verdict <message>: sets $verdict for the copy: `accepted`, `refused` with the message in
-# the output of the check, or `other` for a refusal without it.
-verdict() {
+# check_copy: the check of the copy, once: its output is $c.out, its exit status $checked.
+check_copy() {
   if [ -z "$case_tables" ]; then
     tables "$c.domains" > "$c.tables"
     case_tables=$c.tables
   fi
-  if check_catalog "$c" "$case_tables" > "$c.out" 2>&1; then
+  if check_catalog "$c" "$case_tables" > "$c.out" 2>&1; then checked=0; else checked=1; fi
+}
+
+# judge <message>: sets $verdict from the check of the copy: `accepted`, `refused` with the
+# message in the output of the check, or `other` for a refusal without it.
+judge() {
+  if [ "$checked" -eq 0 ]; then
     verdict=accepted
   elif grep -F -q -e "$1" "$c.out"; then
     verdict=refused
@@ -1300,28 +1323,59 @@ verdict() {
   fi
 }
 
-cases=0
-accepted=0
-
-# refused <the message of the rule> <what the copy holds>
-refused() {
-  cases=$((cases + 1))
-  verdict "$1"
-  case $verdict in
-    refused) ;;
-    accepted)
-      accepted=$((accepted + 1))
-      echo "accepted: $name: $2"
-      echo "  $(tail -n 1 "$c.out")" ;;
-    *)
-      accepted=$((accepted + 1))
-      echo "refused without the message of its rule: $name: $2"
-      echo "  wanted: $1"
-      sed 's/^/  /' "$c.out" ;;
-  esac
+# verdict <message>: checks the copy and sets $verdict.
+verdict() {
+  check_copy
+  judge "$1"
 }
 
-# accepts <what the copy holds>: a copy with a form that is valid; a refusal stops the run.
+# The counts: `cases` are the defects, `accepted` those of them that were accepted or refused
+# without the message of their rule; `broken` are the copies that hold a defect, `kept` those of
+# them with such a case.
+cases=0
+accepted=0
+broken=0
+kept=0
+# The cases of the copy that wait for its check: a line a case, with the name, what the copy
+# holds and the message of the rule, between tabs.
+tab=$(printf '\t')
+waiting=$work/waiting
+: > "$waiting"
+
+# refused <the message of the rule> <what the copy holds>: the case waits for the check of its
+# copy, which `judge_cases` runs.
+refused() {
+  cases=$((cases + 1))
+  printf '%s\t%s\t%s\n' "$name" "$2" "$1" >> "$waiting"
+}
+
+# judge_cases: checks the copy once and judges every case that waits for it. The copy counts
+# as refused when each of its cases is refused with the message of its rule.
+judge_cases() {
+  [ -s "$waiting" ] || return 0
+  check_copy
+  broken=$((broken + 1))
+  before=$accepted
+  while IFS="$tab" read -r case_name case_holds case_message; do
+    judge "$case_message"
+    case $verdict in
+      refused) ;;
+      accepted)
+        accepted=$((accepted + 1))
+        echo "accepted: $case_name: $case_holds"
+        echo "  $(tail -n 1 "$c.out")" ;;
+      *)
+        accepted=$((accepted + 1))
+        echo "refused without the message of its rule: $case_name: $case_holds"
+        echo "  wanted: $case_message"
+        sed 's/^/  /' "$c.out" ;;
+    esac
+  done < "$waiting"
+  [ "$accepted" -eq "$before" ] || kept=$((kept + 1))
+  : > "$waiting"
+}
+
+# accepts <what the copy holds>: a copy with forms that are valid; a refusal stops the run.
 accepts() {
   verdict 'presets:'
   if [ "$verdict" != accepted ]; then
@@ -1331,13 +1385,17 @@ accepts() {
   fi
 }
 
-# result: the last line; fails when a copy was accepted.
+# result: the line of the defects and the last line; fails when a defect was accepted or was
+# refused without the message of its rule.
 result() {
+  judge_cases
   if [ "$accepted" -gt 0 ]; then
-    echo "$summary, $((cases - accepted)) of $cases broken copies refused, $accepted accepted"
+    echo "presets: $((cases - accepted)) of $cases defect(s) refused with the message of their rule, $accepted not"
+    echo "$summary, $((broken - kept)) of $broken broken copies refused, $kept accepted"
     return 1
   fi
-  echo "$summary, $cases of $cases broken copies refused"
+  echo "presets: $cases of $cases defect(s) refused with the message of their rule"
+  echo "$summary, $broken of $broken broken copies refused"
 }
 
 conf='conformance-cases@1.preset.yaml'
@@ -1349,6 +1407,10 @@ page='functional.md'
 
 # Lines of the catalog that many cases change.
 meaning='    meaning: Every case of the accepted set of passing cases still passes.'
+meaning_passed='    meaning: The number of passed cases is not below the accepted number.'
+meaning_failed='    meaning: The number of failed cases is not above the accepted number.'
+meaning_skipped='    meaning: The number of skipped cases is not above the accepted number.'
+meaning_refused='    meaning: The number of refused cases is not above the accepted number.'
 passes='      report: ${inputs.report}'
 set_rule='    condition: {operator: no_lost_items}'
 accepted_value='    reference: {kind: accepted_value}'
@@ -1364,25 +1426,56 @@ add_row() {
   printf '\n'"$table"'%s\n' "$1" >> "$c/$page"
 }
 
-# window_copy <case>: a copy whose preset known-failures@1 holds a second plan, a window over
-# the runs of the first, as docs/design.md § 3 writes `pool-queue-wait`; with its requirement
-# and its row.
+# cell <n> <text>: the cell <n> of the row of the measurement `skipped` becomes <text>; cell 1
+# is the name.
+cell() {
+  edit "$page" "$the_row"' { n = split($0, cell, /\|/); cell['"$(($1 + 1))"'] = "'"$2"'"; printf "|%s|%s|%s|%s|%s|\n", cell[2], cell[3], cell[4], cell[5], cell[6]; next } { print }'
+}
+
+# The eleven lines of `meaning` of the presets, as <file>:<line>.
+meanings="$conf:56 $conf:62 $conf:67 $conf:72 $conf:77 $differ:46 $differ:52 $differ:58 $differ:64 $known:38 $known:44"
+
+# meaning_bytes <n> <bytes, as awk writes them>: the n-th of those lines of the copy becomes a
+# text with the bytes; sets $at to its <file>:<line>. A line that is no line of `meaning`
+# stays, and the edit that changes nothing stops the run.
+meaning_bytes() {
+  bytes=$2
+  set -- $(($1 - 1)) $meanings
+  shift "$(($1 + 1))"
+  at=$1
+  edit "${at%:*}" 'NR == '"${at##*:}"' && /^    meaning: / { print "    meaning: Every case '"$bytes"' still passes."; next } { print }'
+}
+
+# add_window: the preset known-failures@1 of the copy gets a second plan, a window over the
+# runs of the first, as docs/design.md § 3 writes `pool-queue-wait`; with its requirement and
+# its row.
 window_plan='  size-over-runs:\n    subject: ${inputs.subject}\n    assessor: record-series@1\n    target: {kind: revision, environments: "${inputs.environments}"}\n    observation:\n      kind: time_window\n      window: {last: 20}\n      population: {runs_of: known-failures, from: trusted_revision}\n      min_samples: 10\n    measurements:\n      median:\n        kind: sampled\n        output: size\n        scope: run\n        aggregation: {kind: median}\n        unit: cases\n        better: lower\n\nrequirements:'
-window_copy() {
-  copy "$1"
+add_window() {
   swap "$known" 'requirements:' "$window_plan"
   printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference: {kind: accepted_value, tolerance: {absolute: 1}}\n' >> "$c/$known"
   add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 1 case | `record-series@1`, the measurement `size` of the plan `known-failures` |'
 }
 
-# rate_copy <case>: a copy whose preset conformance-cases@1 reads the pass rate of an
-# assertion that conformance-report@1 declares; with its requirement and its row.
-rate_copy() {
+# window_copy <case>: a copy with that plan.
+window_copy() {
   copy "$1"
+  add_window
+}
+
+# add_rate: the preset conformance-cases@1 of the copy reads the pass rate of an assertion
+# that conformance-report@1 declares; with its requirement and its row. It writes to the end of
+# the declaration, which is the map `outputs` until a case writes there.
+add_rate() {
   printf '  all_pass: {value_type: assertion, kind: exact, scopes: []}\n' >> "$c/$conf_d"
   swap "$conf" '        better: lower' '        better: lower\n      pass-rate:\n        kind: sampled\n        output: all_pass\n        scope: run\n        aggregation: {kind: pass_rate}\n        better: higher' 3
   printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference: {kind: accepted_value, tolerance: {absolute: 0.05}}\n' >> "$c/$conf"
   add_row '| `conformance-cases@1/conformance/pass-rate` | Higher | None | 0.05 | `conformance-report@1`, output `all_pass` |'
+}
+
+# rate_copy <case>: a copy with that measurement.
+rate_copy() {
+  copy "$1"
+  add_rate
 }
 
 # -- the harness of the copies ------------------------------------------------------------------
@@ -1456,14 +1549,27 @@ verdict 'the message of no rule'
 [ "$verdict" = other ] || stop "a refusal without the message of its rule counts as the refusal of its case"
 
 # An accepted copy, and a copy refused without the message of its rule, give exit 1.
-if (cases=0; accepted=0; copy harness-accepted; refused 'the message of no rule' 'the unchanged catalog'; result) > "$work/harness.out" 2>&1; then
+if (cases=0; accepted=0; broken=0; kept=0; copy harness-accepted; refused 'the message of no rule' 'the unchanged catalog'; result) > "$work/harness.out" 2>&1; then
   stop "an accepted copy does not fail the run"
 fi
 grep -q '^accepted: harness-accepted: ' "$work/harness.out" || stop "an accepted copy is not named"
-if (cases=0; accepted=0; name=harness-message; c=$work/harness-message; refused 'the message of no rule' 'the directory holds notes.txt'; result) > "$work/harness.out" 2>&1; then
+grep -q ', 0 of 1 broken copies refused, 1 accepted$' "$work/harness.out" || stop "an accepted copy is not counted as accepted in the last line"
+if (cases=0; accepted=0; broken=0; kept=0; name=harness-message; c=$work/harness-message; refused 'the message of no rule' 'the directory holds notes.txt'; result) > "$work/harness.out" 2>&1; then
   stop "a copy refused without the message of its rule does not fail the run"
 fi
 grep -q '^refused without the message of its rule: harness-message: ' "$work/harness.out" || stop "a copy refused without the message of its rule is not named"
+
+# Two cases that share a copy are judged each by its own message: the copy is refused with the
+# message of the first and without the message of the second, and the second alone is named.
+if (cases=0; accepted=0; broken=0; kept=0; name=harness-message; c=$work/harness-message; refused 'notes.txt: the entry is no preset, no declaration and no page' 'the directory holds notes.txt'; again harness-shared; refused 'the message of no rule' 'nothing more'; result) > "$work/harness.out" 2>&1; then
+  stop "a case that shares a copy and is refused without the message of its rule does not fail the run"
+fi
+grep -q '^refused without the message of its rule: harness-shared: ' "$work/harness.out" || stop "a case that shares a copy and is refused without the message of its rule is not named"
+if grep -q ': harness-message: ' "$work/harness.out"; then
+  stop "a case that shares a copy and is refused with the message of its rule is named as a failure"
+fi
+grep -q '^presets: 1 of 2 defect(s) refused with the message of their rule, 1 not$' "$work/harness.out" || stop "two cases that share a copy are not counted each"
+grep -q ', 0 of 1 broken copies refused, 1 accepted$' "$work/harness.out" || stop "a copy with a case that is refused without the message of its rule is not counted as accepted"
 
 # A copy that is refused stops the run where its case says that it is valid.
 if (name=harness-message; c=$work/harness-message; accepts 'the directory holds notes.txt') > /dev/null 2>&1; then
@@ -1471,102 +1577,90 @@ if (name=harness-message; c=$work/harness-message; accepts 'the directory holds 
 fi
 
 # -- forms that are valid ------------------------------------------------------------------------
+#
+# A copy holds several valid forms, each on a line of its own, and `accepts` checks it once: a
+# form that is refused stops the run, and the output names its line.
 
-copy valid-trailing-spaces
+copy valid-forms
+# spaces at the end of a line
 swap "$conf" '        kind: exact' '        kind: exact   '
-accepts "spaces at the end of a line"
-
-copy valid-quoted-reference
+# a quoted reference as the value of a key
 swap "$conf" "$passes" '      report: "${inputs.report}"'
-accepts "a quoted reference as the value of a key"
-
-copy valid-identity-absent
+# a measurement of a set that leaves the identity key to the declaration
 drop "$conf" '        identity: [case_id]'
-accepts "a measurement of a set that leaves the identity key to the declaration"
-
-copy valid-quoted-decimal
+# U+200C and U+200D, with which some writing systems are spelled, and the characters beside
+# the refused ranges: U+00A0, U+2027, U+202F, U+205F and U+FFFD
+swap "$conf" "$meaning" '    meaning: Every case \342\200\214 \342\200\215 \302\240 \342\200\247 \342\200\257 \342\201\237 \357\277\275 still passes.'
+# a default of a declaration that holds `${`, which is text there
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  label: {type: string, required: false, default: "${run}"}'
+# a decimal written as quoted text
 swap "$differ" "$limit" '      value: "0.5"'
-accepts "a decimal written as quoted text"
-
-copy valid-integer-input-for-decimal
+# an assessment that passes an integer input where a decimal is declared
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  limit: {type: decimal, required: true}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      limit: ${inputs.different_limit}'
-accepts "an assessment that passes an integer input where a decimal is declared"
+accepts "spaces at the end of a line, a quoted reference, a set without identity key, the characters beside the refused ranges, a default of a declaration with a dollar sign and a brace, a quoted decimal, an integer input for a decimal"
 
-# U+200C and U+200D, with which some writing systems are spelled, and the characters beside
-# the refused ranges: U+00A0, U+2027, U+202F, U+205F and U+FFFD.
-copy valid-characters-beside-the-refused
-swap "$conf" "$meaning" '    meaning: Every case \342\200\214 \342\200\215 \302\240 \342\200\247 \342\200\257 \342\201\237 \357\277\275 still passes.'
-accepts "a text with U+200C, U+200D and the characters beside the refused ranges"
-
-# A value that an input gives is not joined with the declaration: one copy per place, each with
-# a value that the declaration does not hold.
-copy valid-reference-assessor
-swap "$conf" '    assessor: conformance-report@1' '    assessor: ${inputs.subject}'
-accepts "an assessment whose assessor an input gives"
-
-copy valid-reference-output
+# A value that an input gives is not joined with the declaration. Each place has a value that
+# the declaration does not hold, and each stands in a plan, a measurement or a requirement of
+# its own, because a plan whose assessor an input gives and a measurement whose output an
+# input gives are not joined at all.
+copy valid-references
+# the assessor of a plan
+swap "$known" '    assessor: case-list@1' '    assessor: ${inputs.subject}'
+# the output of the measurement `passed`
 swap "$conf" '        output: passed' '        output: ${inputs.subject}'
-accepts "a measurement whose output an input gives"
-
-copy valid-reference-scope
-swap "$conf" '        scope: run' '        scope: ${inputs.subject}' 2
-accepts "a measurement whose scope an input gives"
-
-copy valid-reference-boundary
-swap "$conf" '        output: failed' '        output: failed\n        boundary: ${inputs.subject}'
-accepts "a measurement whose boundary an input gives"
-
-copy valid-reference-unit
-swap "$conf" '        unit: cases' '        unit: ${inputs.subject}'
-accepts "a measurement whose unit an input gives"
-
-copy valid-reference-condition-unit
+# the scope of `failed`
+swap "$conf" '        scope: run' '        scope: ${inputs.subject}' 3
+# the unit of `skipped`
+swap "$conf" '        unit: cases' '        unit: ${inputs.subject}' 3
+# the boundary and the kind of `refused`
+swap "$conf" '        output: refused' '        output: refused\n        boundary: ${inputs.subject}'
+swap "$conf" '        kind: exact' '        kind: ${inputs.subject}' 5
+# the unit of the condition of `failed-does-not-rise`, the operator of a condition of
+# `skipped-does-not-rise`, and the kind of the reference of `refused-does-not-rise`: each is
+# the third line with the accepted value that is left
 swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: "${inputs.subject}"}' 3
-accepts "a condition whose unit an input gives"
-
-copy valid-reference-identity-key
+swap "$conf" "$accepted_value" '    condition: {operator: "${inputs.subject}", value: 3, unit: cases}' 3
+swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}' 3
+# an identity key, and an item of one
 swap "$differ" '        identity: [case_id]' '        identity: ${inputs.environments}'
 swap "$differ" '        identity: [case_id]' '        identity: ["${inputs.subject}"]'
-accepts "an identity key that an input gives, and one with an item that an input gives"
+# the kind of the aggregation of an assertion, which is then not taken as a number
+add_rate
+swap "$conf" '        aggregation: {kind: pass_rate}' '        aggregation: {kind: "${inputs.subject}"}'
+# the assessor of a plan over the runs of another plan
+add_window
+swap "$known" '    assessor: record-series@1' '    assessor: ${inputs.list}'
+accepts "an assessor, an output, a scope, a unit, a boundary, a kind, the unit and the operator of a condition, the kind of a reference, an identity key, an item of one, the kind of an aggregation and the assessor of a window over runs, each given by an input"
 
+copy valid-inputs
 # The name of an input is text (`ratchet.specification.Preset.inputs`), so it may hold a `.`.
-copy valid-input-name-with-a-dot
 swap "$conf" '    report: {type: path, required: true}' '    report.file: {type: path, required: true}'
 swap "$conf" "$passes" '      report: ${inputs.report.file}'
-accepts "an input named report.file and a reference to it"
-
-copy valid-inputs-as-items-of-a-list
+# an assessment that passes a list of text with a text input as one item
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.subject}", other]'
-accepts "an assessment that passes a list of text with a text input as one item"
-
 # The kind of a target by an input: with a default that the declaration takes, and without one.
-copy valid-target-kind-by-input
 swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: false, default: revision}'
 swap "$conf" '      kind: revision' '      kind: ${inputs.target_kind}'
 swap "$differ" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: true}'
 swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
-accepts "a target kind by an input with the default revision, and one by an input without a default"
-
-copy valid-boundary-of-ratchet
+# a measurement with the boundary queue_wait on an output that declares no boundaries
 swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
-accepts "a measurement with the boundary queue_wait on an output that declares no boundaries"
-
-copy valid-dollar-brace-in-a-declaration
-swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  label: {type: string, required: false, default: "${run}"}'
-accepts 'a default of a declaration that holds `${`, which is text there'
-
 # A condition and a field of a population filter that the declaration lists, beside a
 # condition of Ratchet itself.
-copy valid-condition-and-population-field
 swap "$conf_d" 'conditions: []' 'conditions: [cache]'
 printf 'population_fields: [service]\n' >> "$c/$conf_d"
 swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache: warm, runner: ci-standard}}'
-accepts "a plan with the declared condition cache, the condition runner and a population filter by the declared field service"
+accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the condition runner and a declared field of a population filter"
 
-rate_copy valid-pass-rate-of-an-assertion
-accepts "a sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit and with a reference"
+# A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
+# and with a reference; and a second plan that names record-series@1 and reads the runs of the
+# first, with its requirement and its row.
+copy valid-plans
+add_rate
+add_window
+accepts "a pass rate of an assertion, and a window over the runs of another plan"
 
 # -- file ------------------------------------------------------------------------------------
 
@@ -1608,44 +1702,20 @@ copy file-nul
 printf 'note: a\000b\n' >> "$c/$conf"
 refused 'conformance-cases@1.preset.yaml: the entry holds a NUL byte' "a preset holds a NUL byte"
 
-copy file-not-utf8
-swap "$conf" "$meaning" '    meaning: Every case \377 still passes.'
-refused 'conformance-cases@1.preset.yaml:56: the line is not UTF-8' "a preset holds the byte 255"
-
-copy file-utf8-cut-short
-edit "$page" 'NR == 1 { print $0 " \342\202"; next } { print }'
-refused 'functional.md:1: the line is not UTF-8' "a character of the page ends after two of its three bytes"
-
-copy file-control-character
-swap "$conf" "$meaning" '    meaning: Every case \001 still passes.'
-refused 'conformance-cases@1.preset.yaml:56: the line holds a control character' "a preset holds the byte 1"
-
-copy file-carriage-return
-swap "$conf" "$meaning" '    meaning: Every case\r#  of the accepted set.'
-refused 'conformance-cases@1.preset.yaml:56: the line holds a control character' "a line of a preset holds a carriage return and no line feed after it"
-
-# Six byte sequences that look like UTF-8 and are none, each on the line of `meaning`.
+# Bytes that are refused in every file, each in a line of `meaning` of its own, eleven to a
+# copy: the byte 255 and six sequences that look like UTF-8 and are none; the byte 1; and the
+# characters that are UTF-8 and are refused, with the ends of each range and each character
+# that stands alone. The message names the line, so a case holds for its bytes alone.
+byte_case=0
 for case_bytes in \
-  'file-utf8-two-bytes-for-one|\300\200|U+0000 in two bytes' \
-  'file-utf8-three-bytes-for-two|\340\200\200|U+0000 in three bytes' \
-  'file-utf8-surrogate|\355\240\200|the surrogate U+D800' \
-  'file-utf8-four-bytes-for-three|\360\200\200\200|U+0000 in four bytes' \
-  'file-utf8-above-the-last|\364\220\200\200|U+110000, above the last character' \
-  'file-utf8-lead-of-five|\365\200\200\200|the lead byte 245'
-do
-  copy "${case_bytes%%|*}"
-  case_bytes=${case_bytes#*|}
-  swap "$conf" "$meaning" "    meaning: Every case ${case_bytes%%|*} still passes."
-  refused 'conformance-cases@1.preset.yaml:56: the line is not UTF-8' "a preset holds ${case_bytes#*|}"
-done
-
-copy file-control-character-in-readme
-printf 'A line.\033\n' >> "$c/README.md"
-refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a control character" "README.md holds the byte 27"
-
-# Characters that are UTF-8 and are refused in every file, each on the line of `meaning`: the
-# ends of each range, and each character that stands alone.
-for case_bytes in \
+  'file-not-utf8|\377|the byte 255|is not UTF-8' \
+  'file-utf8-two-bytes-for-one|\300\200|U+0000 in two bytes|is not UTF-8' \
+  'file-utf8-three-bytes-for-two|\340\200\200|U+0000 in three bytes|is not UTF-8' \
+  'file-utf8-surrogate|\355\240\200|the surrogate U+D800|is not UTF-8' \
+  'file-utf8-four-bytes-for-three|\360\200\200\200|U+0000 in four bytes|is not UTF-8' \
+  'file-utf8-above-the-last|\364\220\200\200|U+110000, above the last character|is not UTF-8' \
+  'file-utf8-lead-of-five|\365\200\200\200|the lead byte 245|is not UTF-8' \
+  'file-control-character|\001|the byte 1|holds a control character' \
   'file-c1-first|\302\200|U+0080, the first C1 control character|holds a C1 control character' \
   'file-c1-last|\302\237|U+009F, the last C1 control character|holds a C1 control character' \
   'file-paragraph-separator|\342\200\251|the paragraph separator U+2029|holds the line separator U+2028 or the paragraph separator U+2029' \
@@ -1661,20 +1731,34 @@ for case_bytes in \
   'file-isolate-first|\342\201\246|U+2066, the first of the isolates|holds a character that hides or reorders text' \
   'file-isolate-last|\342\201\251|U+2069, the last of the isolates|holds a character that hides or reorders text'
 do
-  copy "${case_bytes%%|*}"
+  if [ $((byte_case % 11)) -eq 0 ]; then copy "${case_bytes%%|*}"; else again "${case_bytes%%|*}"; fi
+  byte_case=$((byte_case + 1))
   case_bytes=${case_bytes#*|}
-  swap "$conf" "$meaning" "    meaning: Every case ${case_bytes%%|*} still passes."
+  meaning_bytes $(((byte_case - 1) % 11 + 1)) "${case_bytes%%|*}"
   case_bytes=${case_bytes#*|}
-  refused "conformance-cases@1.preset.yaml:56: the line ${case_bytes#*|}" "a preset holds ${case_bytes%%|*}"
+  refused "$at: the line ${case_bytes#*|}" "a preset holds ${case_bytes%%|*}"
 done
+
+copy file-carriage-return
+swap "$conf" "$meaning" '    meaning: Every case\r#  of the accepted set.'
+refused 'conformance-cases@1.preset.yaml:56: the line holds a control character' "a line of a preset holds a carriage return and no line feed after it"
+
+# The same in a page and in README.md.
+copy file-utf8-cut-short
+edit "$page" 'NR == 1 { print $0 " \342\202"; next } { print }'
+refused 'functional.md:1: the line is not UTF-8' "a character of the page ends after two of its three bytes"
+
+again file-control-character-in-readme
+printf 'A line.\033\n' >> "$c/README.md"
+refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a control character" "README.md holds the byte 27"
+
+again file-next-line-in-readme
+printf 'A line.\302\205And a line more for a YAML 1.1 reader.\n' >> "$c/README.md"
+refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a C1 control character" "README.md holds the next line U+0085"
 
 copy file-byte-order-mark-at-the-start-of-a-page
 edit "$page" 'NR == 1 { print "\357\273\277" $0; next } { print }'
 refused 'functional.md:1: the line holds the byte order mark U+FEFF' "the page starts with the byte order mark"
-
-copy file-next-line-in-readme
-printf 'A line.\302\205And a line more for a YAML 1.1 reader.\n' >> "$c/README.md"
-refused "README.md:$(($(wc -l < "$c/README.md"))): the line holds a C1 control character" "README.md holds the next line U+0085"
 
 # hidden_gate <the bytes of a character, as awk writes them>: the preset known-failures@1 of
 # the copy gets its assessments after its requirements, and its last two lines are a condition
@@ -1699,10 +1783,18 @@ copy file-next-line-hides-a-gate
 hidden_gate '\302\205'
 refused 'known-failures@1.preset.yaml:50: the line holds a C1 control character' "a condition of a preset holds the next line U+0085 before and after gates:"
 
+# The directory of this copy has a quote and a space in its name: the check makes the path of
+# each file one word of a shell command, to look at its last byte. The second case holds when
+# that one file is named and no other: a command that the shell cannot read names every file.
 copy file-last-line-without-line-feed
+mv "$c" "$work/a copy's last line"
+c="$work/a copy's last line"
 printf '%s' "$(cat "$c/$conf")" > "$c.new"
 mv "$c.new" "$c/$conf"
 refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
+
+again file-last-line-of-one-file-alone
+refused 'presets: 6 of 7 file(s) valid, 10 of 10 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -1740,49 +1832,101 @@ refused 'empty@1.preset.yaml:1: the preset holds no requirement' "a preset holds
 
 # -- form ------------------------------------------------------------------------------------
 
-copy form-block-list
-swap "$conf" '        identity: [case_id]' '        identity:\n          - case_id'
-refused 'not read: a block list' "an identity key is written as a block list"
+# Ten forms on ten lines of one copy. No edit of this copy adds or takes a line, and six
+# messages name their line.
+copy form-comment-after-value
+swap "$conf" "$meaning" '    meaning: Every case still passes. # the first rule'
+refused 'conformance-cases@1.preset.yaml:56: not read: a comment after a value' "a comment follows a value"
 
-copy form-key-twice
-swap "$conf" '        output: passed' '        output: passed\n        output: failed'
-refused 'stands twice in its mapping' "a measurement holds the key output twice"
+again form-quote-before-comment
+swap "$conf" "$meaning_passed" '    meaning: The number of "passed #1 cases" is not below the accepted number.'
+refused 'conformance-cases@1.preset.yaml:62: not read: a quote inside a plain scalar' 'a plain scalar holds a quoted part with " #" in it, where YAML starts a comment'
 
-copy form-unquoted-reference
+again form-lone-quote
+swap "$conf" "$meaning_failed" "    meaning: The number of 'failed cases is not above the accepted number. # and a comment"
+refused 'conformance-cases@1.preset.yaml:67: not read: a quote inside a plain scalar' "a plain scalar holds one quote and a comment after it"
+
+again form-tab
+swap "$conf" "$meaning_skipped" '    meaning: The number of skipped cases\tis not above the accepted number.'
+refused 'conformance-cases@1.preset.yaml:72: not read: a tab' "a value holds a tab"
+
+again form-single-quote-doubled
+swap "$conf" "$meaning_refused" "    meaning: 'The number of \"refused\" cases, it''s said, is not above the accepted number.'"
+refused 'conformance-cases@1.preset.yaml:77: not read: a quote inside a plain scalar' "a single-quoted scalar holds both kinds of quote, its own one doubled"
+
+again form-quote-in-flow-list
+swap "$differ" '        filter: {class: [equal]}' "        filter: {class: [equal 'a, b' c]}"
+refused 'differential-equality@1.preset.yaml:30: not read: a quote inside a plain scalar' "an item of a flow list holds a quoted part with a comma in it, which YAML reads as two items"
+
+again form-unquoted-reference
 swap "$conf" "$passes" '      {report: ${inputs.report}}'
 refused 'holds a bracket or a brace inside a flow collection; quote it' "a reference stands plain in a flow mapping"
 
+again form-flow-mapping-open
+swap "$conf" "$set_rule" '    condition: {operator: no_lost_items x'
+refused 'the flow mapping of `requirements.no-case-lost.condition` does not close on its line' "a flow mapping does not close"
+
+again form-flow-list-open
+swap "$conf" '        identity: [case_id]' '        identity: [case_id x'
+refused 'the flow list of `assessments.conformance.measurements.passing-cases.identity` does not close on its line' "a flow list does not close"
+
+again form-flow-list-bracket
+swap "$conf_d" 'conditions: []' 'conditions: []]'
+refused 'a bracket or a quote in the flow list of `conditions` does not close' "a flow list holds a bracket too many"
+
+# Eleven forms on lines of their own of a second copy, each named by its path or its text.
+copy form-escape
+swap "$conf" "$meaning" '    meaning: "Every case \\n still passes."'
+refused 'the quoted scalar of `requirements.no-case-lost.meaning` holds an escape' "a double-quoted scalar holds an escape"
+
+again form-quote-not-closed
+swap "$conf" "$meaning_passed" '    meaning: "The number of passed cases is not below the accepted number.'
+refused 'the quoted scalar of `requirements.passed-does-not-fall.meaning` does not end at its quote' "a quoted scalar does not close"
+
+again form-tag
+swap "$conf" "$meaning_failed" '    meaning: !!str The number of failed cases is not above the accepted number.'
+refused 'the value `!!str The number of failed cases is not above the accepted number.` of `requirements.failed-does-not-rise.meaning` is in a form this script does not read' "a value has a tag"
+
+again form-colon-in-plain
+swap "$conf" "$meaning_skipped" '    meaning: The number of skipped cases: it is not above the accepted number.'
+refused 'the plain scalar of `requirements.skipped-does-not-rise.meaning` holds `: `; quote it' "a plain scalar holds a colon and a space"
+
+again form-folded-scalar
+swap "$conf" "$meaning_refused" '    meaning: >-\n      The number of refused cases is not above the accepted number.'
+refused 'the value `>-` of `requirements.refused-does-not-rise.meaning` is in a form this script does not read' "a text is written as a folded scalar"
+
+again form-key-twice
+swap "$conf" '        output: passed' '        output: passed\n        output: failed'
+refused 'stands twice in its mapping' "a measurement holds the key output twice"
+
+again form-block-list
+swap "$conf" '        identity: [case_id]' '        identity:\n          - case_id'
+refused 'not read: a block list' "an identity key is written as a block list"
+
+again form-under-a-value
+swap "$conf" "$passes" '      report: ${inputs.report}\n        extra: 1'
+refused 'not read: `extra: 1` is indented under `assessments.conformance.inputs.report`, which has a value on its line' "a key stands under a key that has a value"
+
+again form-flow-mapping-no-pair
+swap "$conf" "$set_rule" '    condition: {operator}'
+refused '`operator` in the flow mapping of `requirements.no-case-lost.condition` is no `key: value`' "a flow mapping holds a word and no key with a value"
+
+again form-flow-mapping-bracket
+swap "$differ" '        filter: {class: [equal]}' '        filter: {class: [equal]]}'
+refused 'a bracket or a quote in the flow mapping of `assessments.comparison.measurements.equal-cases.filter` does not close' "a flow mapping holds a bracket too many"
+
+again form-flow-list-empty-item
+swap "$conf_d" 'conditions: []' 'conditions: [,]'
+refused 'the flow list of `conditions` holds an empty item' "a flow list holds an empty item"
+
+# Forms that change how the lines after them are read, each in a copy of its own.
 copy form-comment-line
 edit "$conf" 'NR == 1 { print "# The conformance preset of the functional family." } { print }'
 refused 'conformance-cases@1.preset.yaml:1: not read: a comment; a preset and a declaration hold none' "a preset starts with a comment line"
 
-copy form-comment-after-value
-swap "$conf" "$meaning" '    meaning: Every case still passes. # the first rule'
-refused 'not read: a comment after a value' "a comment follows a value"
-
-copy form-quote-before-comment
-swap "$conf" "$meaning" '    meaning: Every case of the "accepted #1 set" still passes.'
-refused 'conformance-cases@1.preset.yaml:56: not read: a quote inside a plain scalar' 'a plain scalar holds a quoted part with " #" in it, where YAML starts a comment'
-
-copy form-lone-quote
-swap "$conf" "$meaning" "    meaning: Every case of the 'accepted set still passes. # and a comment"
-refused 'conformance-cases@1.preset.yaml:56: not read: a quote inside a plain scalar' "a plain scalar holds one quote and a comment after it"
-
-copy form-quote-in-flow-list
-swap "$differ" '        filter: {class: [equal]}' "        filter: {class: [equal 'a, b' c]}"
-refused 'differential-equality@1.preset.yaml:30: not read: a quote inside a plain scalar' "an item of a flow list holds a quoted part with a comma in it, which YAML reads as two items"
-
-copy form-tab
-swap "$conf" "$meaning" '    meaning: Every case\tstill passes.'
-refused 'conformance-cases@1.preset.yaml:56: not read: a tab' "a value holds a tab"
-
 copy form-indented-at-root
 swap "$conf" 'format: ratchet/1' ' format: ratchet/1'
 refused 'not read: `format: ratchet/1` is indented at the root of the file' "the first key is indented by one space"
-
-copy form-under-a-value
-swap "$conf" "$passes" '      report: ${inputs.report}\n        extra: 1'
-refused 'not read: `extra: 1` is indented under `assessments.conformance.inputs.report`, which has a value on its line' "a key stands under a key that has a value"
 
 copy form-uneven-indent
 swap "$conf" '      refused:' '     refused:'
@@ -1796,61 +1940,13 @@ copy form-key-after-flow
 swap "$conf" '    subject: {type: string, required: true}' '    {subject: {type: string, required: true}}'
 refused 'follows the flow collection of `preset.inputs`' "keys follow a flow mapping in one block mapping"
 
-copy form-escape
-swap "$conf" "$meaning" '    meaning: "Every case \\n still passes."'
-refused 'the quoted scalar of `requirements.no-case-lost.meaning` holds an escape' "a double-quoted scalar holds an escape"
-
-copy form-single-quote-doubled
-swap "$conf" "$meaning" "    meaning: 'Every case of the \"accepted\" set, it''s said, still passes.'"
-refused 'conformance-cases@1.preset.yaml:56: not read: a quote inside a plain scalar' "a single-quoted scalar holds both kinds of quote, its own one doubled"
-
-copy form-folded-scalar
-swap "$conf" "$meaning" '    meaning: >-\n      Every case of the accepted set of passing cases still passes.'
-refused 'the value `>-` of `requirements.no-case-lost.meaning` is in a form this script does not read' "a text is written as a folded scalar"
-
 copy form-key-quoted
 swap "$conf" '  no-case-lost:' '  "no-case-lost":'
 refused 'not read: `"no-case-lost":` is no `key:` and no `key: value`' "a requirement has a quoted key"
 
-copy form-quote-not-closed
-swap "$conf" "$meaning" '    meaning: "Every case still passes.'
-refused 'the quoted scalar of `requirements.no-case-lost.meaning` does not end at its quote' "a quoted scalar does not close"
-
-copy form-tag
-swap "$conf" "$meaning" '    meaning: !!str Every case still passes.'
-refused 'the value `!!str Every case still passes.` of `requirements.no-case-lost.meaning` is in a form this script does not read' "a value has a tag"
-
-copy form-colon-in-plain
-swap "$conf" "$meaning" '    meaning: Every case: it still passes.'
-refused 'the plain scalar of `requirements.no-case-lost.meaning` holds `: `; quote it' "a plain scalar holds a colon and a space"
-
-copy form-flow-mapping-open
-swap "$conf" "$set_rule" '    condition: {operator: no_lost_items x'
-refused 'the flow mapping of `requirements.no-case-lost.condition` does not close on its line' "a flow mapping does not close"
-
-copy form-flow-mapping-bracket
-swap "$differ" '        filter: {class: [equal]}' '        filter: {class: [equal]]}'
-refused 'a bracket or a quote in the flow mapping of `assessments.comparison.measurements.equal-cases.filter` does not close' "a flow mapping holds a bracket too many"
-
-copy form-flow-mapping-no-pair
-swap "$conf" "$set_rule" '    condition: {operator}'
-refused '`operator` in the flow mapping of `requirements.no-case-lost.condition` is no `key: value`' "a flow mapping holds a word and no key with a value"
-
 copy form-flow-mapping-no-value
 swap "$conf" "$set_rule" '    condition: {operator: no_lost_items, unit:}'
 refused '`requirements.no-case-lost.condition.unit` has no value in its flow mapping' "a key of a flow mapping has no value"
-
-copy form-flow-list-open
-swap "$conf" '        identity: [case_id]' '        identity: [case_id x'
-refused 'the flow list of `assessments.conformance.measurements.passing-cases.identity` does not close on its line' "a flow list does not close"
-
-copy form-flow-list-bracket
-swap "$conf_d" 'conditions: []' 'conditions: []]'
-refused 'a bracket or a quote in the flow list of `conditions` does not close' "a flow list holds a bracket too many"
-
-copy form-flow-list-empty-item
-swap "$conf_d" 'conditions: []' 'conditions: [,]'
-refused 'the flow list of `conditions` holds an empty item' "a flow list holds an empty item"
 
 copy form-key-empty
 swap "$conf" '  no-case-lost:' '  :'
@@ -1878,9 +1974,21 @@ copy key-preset
 swap "$conf" '        better: higher' '        improves: higher'
 refused '`assessments.conformance.measurements.passed.improves` is not a field of ratchet.specification.Measurement' "a measurement holds the key improves"
 
-copy key-declaration
+again key-declaration
 swap "$conf_d" 'coverage_unit: case' 'coverage_units: case'
 refused '`coverage_units` is not a field of ratchet.assessor.Assessor' "a declaration holds the key coverage_units"
+
+again value-preset
+swap "$conf" "$set_rule" '    condition: {operator: no_lost_item}'
+refused 'is `no_lost_item`, which is no value of ratchet.specification.ComparisonOperator' "a condition has the operator no_lost_item"
+
+again value-declaration
+swap "$conf_d" '    value_type: identity_set' '    value_type: set'
+refused 'is `set`, which is no value of ratchet.specification.ValueType' "an output has the value type set"
+
+again value-absent
+swap "$conf" "$passes" '      report:'
+refused '`assessments.conformance.inputs.report` has no value on its line and nothing under it' "a key has no value"
 
 copy key-renamed-in-specification
 own_spec
@@ -1890,19 +1998,11 @@ edit_spec specification.yaml '
   { print }'
 refused '`assessments.conformance.measurements.passed.better` is not a field of ratchet.specification.Measurement' "the specification names the field improves and the presets still write better"
 
-copy value-preset
-swap "$conf" "$set_rule" '    condition: {operator: no_lost_item}'
-refused 'is `no_lost_item`, which is no value of ratchet.specification.ComparisonOperator' "a condition has the operator no_lost_item"
-
-copy value-declaration
-swap "$conf_d" '    value_type: identity_set' '    value_type: set'
-refused 'is `set`, which is no value of ratchet.specification.ValueType' "an output has the value type set"
-
 copy value-format
 swap "$conf" 'format: ratchet/1' 'format: ratchet/2'
 refused '`format` is not `ratchet/1`' "a preset has the format ratchet/2"
 
-copy value-format-of-declaration
+again value-format-of-declaration
 swap "$conf_d" 'format: ratchet-assessor/1' 'format: ratchet-assessor/2'
 refused '`format` is not `ratchet-assessor/1`' "a declaration has the format ratchet-assessor/2"
 
@@ -1917,75 +2017,74 @@ edit "$conf" '
   { block = 0; print }'
 refused 'conformance-cases@1.preset.yaml:1: `(root)` has no `preset` block' "a preset has no preset block"
 
-copy value-absent
-swap "$conf" "$passes" '      report:'
-refused '`assessments.conformance.inputs.report` has no value on its line and nothing under it' "a key has no value"
-
+# Seventeen values of another type than the declared one, each at a path of its own in one copy.
 copy type-null
 swap "$conf" "$meaning" '    meaning: null'
 refused '`requirements.no-case-lost.meaning` is null; an absent member is left out' "a text member is null"
 
-copy type-text
+again type-text
 swap "$conf" '  version: "1"' '  version: 1'
 refused '`preset.version` is a YAML integer where text is declared' "the version of a preset is the integer 1"
 
-copy type-text-number
-swap "$conf" "$meaning" '    meaning: 1.5'
-refused '`requirements.no-case-lost.meaning` is a YAML number where text is declared' "a text member is the number 1.5"
+again type-text-number
+swap "$conf" "$meaning_passed" '    meaning: 1.5'
+refused '`requirements.passed-does-not-fall.meaning` is a YAML number where text is declared' "a text member is the number 1.5"
 
-copy type-text-infinity
-swap "$conf" "$meaning" '    meaning: .inf'
-refused '`requirements.no-case-lost.meaning` is a YAML number where text is declared' "a text member is .inf"
+again type-text-infinity
+swap "$conf" "$meaning_failed" '    meaning: .inf'
+refused '`requirements.failed-does-not-rise.meaning` is a YAML number where text is declared' "a text member is .inf"
 
-copy type-text-not-a-number
-swap "$conf" "$meaning" '    meaning: .nan'
-refused '`requirements.no-case-lost.meaning` is a YAML number where text is declared' "a text member is .nan"
+again type-text-not-a-number
+swap "$conf" "$meaning_skipped" '    meaning: .nan'
+refused '`requirements.skipped-does-not-rise.meaning` is a YAML number where text is declared' "a text member is .nan"
 
-copy type-text-hexadecimal
-swap "$conf" "$meaning" '    meaning: 0x1F'
-refused '`requirements.no-case-lost.meaning` is a YAML integer where text is declared' "a text member is 0x1F"
+again type-text-hexadecimal
+swap "$conf" "$meaning_refused" '    meaning: 0x1F'
+refused '`requirements.refused-does-not-rise.meaning` is a YAML integer where text is declared' "a text member is 0x1F"
 
-copy type-text-empty-output
+again type-text-empty-output
 swap "$conf" '        output: failed' '        output: ""'
 refused '`assessments.conformance.measurements.failed.output` is empty text' "a measurement has the output \"\""
 
-copy type-text-empty-scope
+again type-text-empty-scope
 swap "$conf" '        scope: run' '        scope: ""' 3
 refused '`assessments.conformance.measurements.failed.scope` is empty text' "a measurement has the scope \"\""
 
-copy type-text-empty-assessment
+again type-text-empty-assessment
 swap "$conf" '    assessment: conformance' '    assessment: ""' 3
 refused '`requirements.failed-does-not-rise.assessment` is empty text' "a requirement has the assessment \"\""
 
-copy type-enum-boolean
+# The third `kind: exact` is the kind of `failed`, then of `skipped`, then of `refused`: each
+# swap takes one away.
+again type-enum-boolean
 swap "$conf" '        kind: exact' '        kind: true' 3
 refused '`assessments.conformance.measurements.failed.kind` is a YAML boolean where a value of ratchet.specification.MeasurementKind is declared' "the kind of a measurement is true"
 
-copy type-list-for-scalar
+again type-list-for-scalar
 swap "$conf" '        kind: exact' '        kind: [exact]' 3
-refused '`assessments.conformance.measurements.failed.kind` is a list where `ratchet.specification.MeasurementKind` is declared' "the kind of a measurement is a list"
+refused '`assessments.conformance.measurements.skipped.kind` is a list where `ratchet.specification.MeasurementKind` is declared' "the kind of a measurement is a list"
 
-copy type-mapping-for-scalar
+again type-mapping-for-scalar
 swap "$conf" '        kind: exact' '        kind: {a: b}' 3
-refused '`assessments.conformance.measurements.failed.kind` is a mapping where `ratchet.specification.MeasurementKind` is declared' "the kind of a measurement is a mapping"
+refused '`assessments.conformance.measurements.refused.kind` is a mapping where `ratchet.specification.MeasurementKind` is declared' "the kind of a measurement is a mapping"
 
-copy type-scalar-for-list
+again type-scalar-for-list
 swap "$conf_d" 'targets: [revision]' 'targets: revision'
 refused '`targets` is not a list (`List<ratchet.specification.TargetKind>`)' "the targets of a declaration are one word"
 
-copy type-scalar-for-mapping
+again type-scalar-for-mapping
 swap "$differ" '        filter: {class: [equal]}' '        filter: equal'
 refused '`assessments.comparison.measurements.equal-cases.filter` is not a mapping' "a filter is one word"
 
-copy type-integer
+again type-integer
 swap "$conf" '      kind: snapshot' '      kind: snapshot\n      runs: one'
 refused '`assessments.conformance.observation.runs` is not an integer' "the runs of an observation are the word one"
 
-copy type-boolean
+again type-boolean
 swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, required: "true"}'
 refused '`preset.inputs.report.required` is not `true` or `false`' "an input is required by the text \"true\""
 
-copy type-decimal
+again type-decimal
 swap "$conf" "$of_failed" '    measurement: failed\n    condition: {operator: lte, value: 1e3, unit: cases}'
 refused '`requirements.failed-does-not-rise.condition.value` is not a decimal without exponent' "the limit of a condition is 1e3"
 
@@ -2001,7 +2100,7 @@ copy required-field
 drop "$conf" '        output: passed'
 refused '`assessments.conformance.measurements.passed` has no `output`, which ratchet.specification.Measurement requires' "a measurement names no output"
 
-copy required-field-of-declaration
+again required-field-of-declaration
 drop "$conf_d" 'coverage_unit: case'
 refused '`(root)` has no `coverage_unit`, which ratchet.assessor.Assessor requires' "a declaration states no coverage unit"
 
@@ -2011,71 +2110,72 @@ copy preset-gate
 printf '\ngates:\n  merge:\n    stage: pre-merge\n    qualifying_environments: [ci]\n    requires: [no-case-lost]\n' >> "$c/$conf"
 refused '`gates` is no member of a preset' "a preset holds a gate"
 
-copy preset-exception
+again preset-exception
 printf '\nexceptions:\n  known-failing:\n    requirement: no-case-lost\n    item: {case_id: case-0042}\n    reason: The fix is planned.\n    owner: story:case-0042\n    expires: 2027-01-31\n' >> "$c/$conf"
 refused '`exceptions` is no member of a preset' "a preset holds an exception"
 
-copy preset-binding
+again preset-binding
 printf '\npresets:\n  inner:\n    use: known-failures@1\n    digest: sha256:0000\n' >> "$c/$conf"
 refused '`presets` is no member of a preset' "a preset binds a preset"
 
-copy preset-project
+again preset-project
 swap "$conf" '  conformance:' '  conformance:\n    project: orders-api'
 refused '`assessments.conformance.project` is the `project` of an entry' "an assessment of a preset states a project"
 
-copy preset-local-input
+again preset-local-input
 swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, required: true, local: true}'
 refused 'the input `report` is local, and a preset declares no local input' "an input of a preset is local"
 
 # -- the inputs of a preset ----------------------------------------------------------------------
 
+# Eleven references, each at a path of its own in one copy.
 copy input-undeclared
 swap "$conf" "$passes" '      report: ${inputs.reports}'
 refused 'refers to the input `reports`, which the preset does not declare' "an assessment refers to the input reports"
 
-copy input-beside-text
-swap "$conf" "$passes" '      report: target/${inputs.report}'
-refused 'is not `${inputs.<name>}` alone' "a reference stands beside text"
+again input-beside-text
+swap "$differ" "$passes" '      report: target/${inputs.report}'
+refused '`assessments.comparison.inputs.report` holds `${` or `{inputs.` and is not `${inputs.<name>}` alone' "a reference stands beside text"
 
-copy input-with-a-space
-swap "$conf" "$passes" '      report: $ {inputs.report}'
-refused '`assessments.conformance.inputs.report` holds `${` or `{inputs.` and is not `${inputs.<name>}` alone' "a reference has a space after its dollar sign"
+again input-with-a-space
+swap "$conf" '    subject: ${inputs.subject}' '    subject: $ {inputs.subject}'
+refused '`assessments.conformance.subject` holds `${` or `{inputs.` and is not `${inputs.<name>}` alone' "a reference has a space after its dollar sign"
 
-copy input-in-double-braces
-swap "$conf" "$passes" '      report: "{{inputs.report}}"'
-refused '`assessments.conformance.inputs.report` holds `${` or `{inputs.` and is not `${inputs.<name>}` alone' "a reference is written in double braces"
+again input-in-double-braces
+swap "$known" '      list: ${inputs.list}' '      list: "{{inputs.list}}"'
+refused '`assessments.known-failures.inputs.list` holds `${` or `{inputs.` and is not `${inputs.<name>}` alone' "a reference is written in double braces"
 
-copy input-in-declaration
+again input-in-declaration
 swap "$conf_d" 'command: conformance-report' 'command: ${inputs.command}'
 refused 'refers to the input `command`, and only a preset declares inputs to refer to' "a declaration refers to an input"
+
+again input-scalar-for-list
+swap "$conf" '      environments: ${inputs.environments}' '      environments: ${inputs.report}'
+refused 'takes a list (`List<ratchet.specification.TargetClass>`), and the input `report` declares no `list`' "the classes of a target are one path"
+
+again input-list-for-scalar
+swap "$conf" '      selection: candidate' '      selection: ${inputs.environments}'
+refused '`assessments.conformance.target.selection` takes one value' "the selection of a target is a list input"
+
+again input-for-mapping
+swap "$conf" "$set_rule" '    condition: ${inputs.subject}'
+refused '`requirements.no-case-lost.condition` is a `ratchet.specification.Condition`, and an input stands for a scalar or a list of scalars' "a condition is a reference"
+
+again input-text-for-decimal
+swap "$differ" "$limit" '      value: ${inputs.subject}'
+refused 'takes `Decimal`, and the input `subject` has the type `string`' "the limit of a condition is a text input"
+
+again input-text-for-integer
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      runs: ${inputs.subject}'
+refused 'takes `Integer`, and the input `subject` has the type `string`' "the runs of an observation are a text input"
+
+again input-integer-for-text
+swap "$differ" '    subject: ${inputs.subject}' '    subject: ${inputs.different_limit}'
+refused 'takes `ratchet.specification.SubjectName`, and the input `different_limit` has the type `integer`' "the subject of an assessment is an integer input"
 
 copy input-in-preset-block
 swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: "${inputs.subject}", required: true}'
 refused '`preset.inputs.subject.type` is a reference inside the `preset` block' "the type of an input is a reference"
-
-copy input-scalar-for-list
-swap "$conf" '      environments: ${inputs.environments}' '      environments: ${inputs.report}'
-refused 'takes a list (`List<ratchet.specification.TargetClass>`), and the input `report` declares no `list`' "the classes of a target are one path"
-
-copy input-list-for-scalar
-swap "$conf" '      selection: candidate' '      selection: ${inputs.environments}'
-refused '`assessments.conformance.target.selection` takes one value' "the selection of a target is a list input"
-
-copy input-for-mapping
-swap "$conf" "$set_rule" '    condition: ${inputs.subject}'
-refused '`requirements.no-case-lost.condition` is a `ratchet.specification.Condition`, and an input stands for a scalar or a list of scalars' "a condition is a reference"
-
-copy input-text-for-decimal
-swap "$differ" "$limit" '      value: ${inputs.subject}'
-refused 'takes `Decimal`, and the input `subject` has the type `string`' "the limit of a condition is a text input"
-
-copy input-text-for-integer
-swap "$conf" '      kind: snapshot' '      kind: snapshot\n      runs: ${inputs.subject}'
-refused 'takes `Integer`, and the input `subject` has the type `string`' "the runs of an observation are a text input"
-
-copy input-integer-for-text
-swap "$differ" '    subject: ${inputs.subject}' '    subject: ${inputs.different_limit}'
-refused 'takes `ratchet.specification.SubjectName`, and the input `different_limit` has the type `integer`' "the subject of an assessment is an integer input"
 
 copy input-text-for-boolean
 own_spec
@@ -2085,64 +2185,66 @@ edit_spec specification.yaml '
   { print }'
 refused 'takes `Boolean`, and the input `subject` has the type `string`' "the specification makes the subject of a plan a boolean, and the presets pass a text input"
 
+# Five defaults of five inputs in one copy, and two more of two of those inputs in a second.
 copy input-default-integer
 swap "$differ" '    different_limit: {type: integer, required: true}' '    different_limit: {type: integer, required: true, default: banana}'
 refused '`preset.inputs.different_limit.default` is no integer, and its input has the type `integer`' "the default of an integer input is a word"
+
+again input-default-boolean
+swap "$differ" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    strict: {type: boolean, required: false, default: "true"}'
+refused '`preset.inputs.strict.default` is not `true` or `false`, and its input has the type `boolean`' "the default of a boolean input is the text \"true\""
+
+again input-default-text
+swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true, default: 3}'
+refused '`preset.inputs.subject.default` is no text, and its input has the type `string`' "the default of a text input is the integer 3"
+
+again input-default-no-list
+swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true, default: ci}'
+refused '`preset.inputs.environments.default` is no list, and its input has the type a list of `string`' "the default of a list input is one word"
+
+again input-default-list-for-scalar
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, default: [report.json]}'
+refused '`inputs.report.default` is a list and no scalar, and its input has the type `path`' "the default of a path input of a declaration is a list"
 
 copy input-default-decimal
 swap "$differ" '    different_limit: {type: integer, required: true}' '    different_limit: {type: decimal, required: true, default: 1e3}'
 refused '`preset.inputs.different_limit.default` is no decimal without exponent' "the default of a decimal input is 1e3"
 
-copy input-default-boolean
-swap "$differ" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    strict: {type: boolean, required: false, default: "true"}'
-refused '`preset.inputs.strict.default` is not `true` or `false`, and its input has the type `boolean`' "the default of a boolean input is the text \"true\""
-
-copy input-default-text
-swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true, default: 3}'
-refused '`preset.inputs.subject.default` is no text, and its input has the type `string`' "the default of a text input is the integer 3"
-
-copy input-default-no-list
-swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true, default: ci}'
-refused '`preset.inputs.environments.default` is no list, and its input has the type a list of `string`' "the default of a list input is one word"
-
-copy input-default-item
+again input-default-item
 swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true, default: [ci, 3]}'
 refused '`preset.inputs.environments.default` holds an item that is no text' "the default of a list of text holds the integer 3"
 
-copy input-default-list-for-scalar
-swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, default: [report.json]}'
-refused '`inputs.report.default` is a list and no scalar, and its input has the type `path`' "the default of a path input of a declaration is a list"
-
 # -- names inside a preset -----------------------------------------------------------------------
 
+# Four names in four requirements of one copy.
 copy name-assessment
 swap "$conf" '    assessment: conformance' '    assessment: conformances'
 refused '`requirements.no-case-lost` names the assessment `conformances`, which the preset does not hold' "a requirement names the assessment conformances"
 
-copy name-measurement
-swap "$conf" '    measurement: passing-cases' '    measurement: passing'
-refused 'names the measurement `passing`, which the assessment `conformance` does not hold' "a requirement names the measurement passing"
+again name-measurement
+swap "$conf" '    measurement: passed' '    measurement: passing'
+refused '`requirements.passed-does-not-fall` names the measurement `passing`, which the assessment `conformance` does not hold' "a requirement names the measurement passing"
 
-copy name-no-measurement
+again name-no-measurement
 drop "$conf" "$of_failed"
 refused '`requirements.failed-does-not-rise` names no measurement, and the assessment `conformance` holds 5' "a requirement names no measurement of an assessment with five"
 
-copy name-statement
-swap "$conf" "$meaning" "$meaning"'\n    serves: [nothing]'
-refused '`requirements.no-case-lost` serves the statement `nothing`, which the preset does not hold' "a requirement serves a statement the preset does not hold"
+again name-statement
+swap "$conf" "$meaning_skipped" "$meaning_skipped"'\n    serves: [nothing]'
+refused '`requirements.skipped-does-not-rise` serves the statement `nothing`, which the preset does not hold' "a requirement serves a statement the preset does not hold"
 
 # The three names are written out: a reference is refused where it stands.
 copy name-assessment-by-reference
 swap "$conf" '    assessment: conformance' '    assessment: ${inputs.subject}'
 refused '`requirements.no-case-lost.assessment` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement names its assessment by an input"
 
-copy name-measurement-by-reference
-swap "$conf" '    measurement: passing-cases' '    measurement: ${inputs.subject}'
-refused '`requirements.no-case-lost.measurement` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement names its measurement by an input"
+again name-measurement-by-reference
+swap "$conf" '    measurement: passed' '    measurement: ${inputs.subject}'
+refused '`requirements.passed-does-not-fall.measurement` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement names its measurement by an input"
 
-copy name-statement-by-reference
-swap "$conf" "$meaning" "$meaning"'\n    serves: ["${inputs.subject}"]'
-refused '`requirements.no-case-lost.serves[1]` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement serves a statement that an input names"
+again name-statement-by-reference
+swap "$conf" "$meaning_failed" "$meaning_failed"'\n    serves: ["${inputs.subject}"]'
+refused '`requirements.failed-does-not-rise.serves[1]` is a reference, and the name by which a requirement names an assessment, a measurement or a statement of its preset is written out' "a requirement serves a statement that an input names"
 
 # -- a preset against the declaration of its assessor -------------------------------------------
 
@@ -2150,118 +2252,119 @@ copy assessor-absent
 rm "$c/$conf_d"
 refused 'names the assessor `conformance-report@1`, and the directory holds no `conformance-report@1.assessor.yaml`' "the declaration of conformance-report@1 is absent"
 
+# The joins of a plan, of the input it passes and of a measurement are apart from each other
+# (each is one `if` of the check). The three copies below hold one defect in a plan, in the
+# one input of a plan and in a measurement, and no two in the same.
 copy assessor-target-kind
 swap "$conf" '      kind: revision' '      kind: deployment'
 refused '`assessments.conformance.target.kind` is `deployment`, and `conformance-report@1` declares the targets `[revision]`' "a plan has a target of the kind deployment"
 
-copy assessor-input
+again assessor-input
 swap "$conf" "$passes" '      reports: ${inputs.report}'
 refused 'passes the input `reports`, which `conformance-report@1` does not declare' "an assessment passes the input reports"
 
-copy assessor-input-absent
+again assessor-input-absent
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  suite: {type: string, required: true}'
 refused '`assessments.conformance` passes no `suite`, which `conformance-report@1` requires' "a declaration requires an input the assessment does not pass"
+
+again assessor-input-type
+swap "$differ" "$passes" '      report: ${inputs.different_limit}'
+refused 'passes the input `different_limit` of the preset, `integer`, and `comparison-report@1` declares the input `report` as `path`' "an assessment passes an integer input where a path is declared"
+
+again assessor-input-list
+swap "$known" '      list: ${inputs.list}' '      list: ${inputs.environments}'
+refused 'passes the input `environments` of the preset, a list of `string`, and `case-list@1` declares the input `list` as `path`' "an assessment passes a list input where one path is declared"
+
+again assessor-output
+swap "$conf" '        output: passing_cases' '        output: passing'
+refused 'names the output `passing`, which `conformance-report@1` does not declare' "a measurement names the output passing"
+
+again assessor-kind
+swap "$conf" '        kind: exact' '        kind: sampled' 3
+refused '`assessments.conformance.measurements.failed` has the kind `sampled`, and the output `failed` of `conformance-report@1` declares `exact`' "a measurement of an exact output has the kind sampled"
+
+again assessor-unit-other
+swap "$conf" '        unit: cases' '        unit: case'
+refused 'states the unit `case`, and the output `passed` of `conformance-report@1` declares `cases`' "a measurement has the unit case"
+
+# The second `unit: cases` that is left is the unit of `skipped`.
+again assessor-unit-absent
+drop "$conf" '        unit: cases' 2
+refused 'has no `unit`, and the output `skipped` of `conformance-report@1` declares `cases`' "a measurement of a count has no unit"
+
+again assessor-scope
+swap "$conf" '        scope: run' '        scope: case' 5
+refused 'has the scope `case`, which the output `refused` of `conformance-report@1` does not declare' "a measurement has the scope case"
+
+again assessor-identity-key
+swap "$known" '        identity: [case_id]' '        identity: [case_id, suite]'
+refused 'states the identity key `[case_id, suite]`, and the output `cases` of `case-list@1` declares `[case_id]`' "a measurement has the identity key case_id and suite"
+
+again assessor-filter-field
+swap "$differ" '        filter: {class: [different]}' '        filter: {result: [different]}'
+refused 'filters by the field `result`, which the output `cases` of `comparison-report@1` does not declare for its items' "a measurement filters by the field result"
+
+again assessor-condition
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {moon_phase: full}}'
+refused '`assessments.conformance.observation.conditions.all.moon_phase` is the condition `moon_phase`, which is none of Ratchet itself, and `conformance-report@1` declares the conditions `[]`' "a plan states a condition that its assessor does not declare"
 
 copy assessor-input-local
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, local: true}'
 refused 'passes the input `report`, which `conformance-report@1` declares local' "an assessment passes an input its assessor declares local"
 
-copy assessor-input-type
-swap "$differ" "$passes" '      report: ${inputs.different_limit}'
-refused 'passes the input `different_limit` of the preset, `integer`, and `comparison-report@1` declares the input `report` as `path`' "an assessment passes an integer input where a path is declared"
-
-copy assessor-input-list
-swap "$conf" "$passes" '      report: ${inputs.environments}'
-refused 'passes the input `environments` of the preset, a list of `string`, and `conformance-report@1` declares the input `report` as `path`' "an assessment passes a list input where one path is declared"
-
-copy assessor-input-literal
-swap "$conf" "$passes" '      report: 3'
-refused '`assessments.conformance.inputs.report` is no text, and `conformance-report@1` declares the input `report` as `path`' "an assessment passes the integer 3 where a path is declared"
-
-copy assessor-output
-swap "$conf" '        output: passing_cases' '        output: passing'
-refused 'names the output `passing`, which `conformance-report@1` does not declare' "a measurement names the output passing"
-
-copy assessor-input-list-of-its-type
-swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, list: true, required: true}'
-refused 'passes the input `report` of the preset, a list of `path`, and `conformance-report@1` declares the input `report` as `path`' "an assessment passes a list of paths where one path is declared"
-
-copy assessor-kind
-swap "$conf" '        kind: exact' '        kind: sampled' 3
-refused '`assessments.conformance.measurements.failed` has the kind `sampled`, and the output `failed` of `conformance-report@1` declares `exact`' "a measurement of an exact output has the kind sampled"
-
-copy assessor-unit-other
-swap "$conf" '        unit: cases' '        unit: case'
-refused 'states the unit `case`, and the output `passed` of `conformance-report@1` declares `cases`' "a measurement has the unit case"
-
-copy assessor-unit-absent
-drop "$conf" '        unit: cases'
-refused 'has no `unit`, and the output `passed` of `conformance-report@1` declares `cases`' "a measurement of a count has no unit"
-
-copy assessor-unit-undeclared
-swap "$conf" '        identity: [case_id]' '        identity: [case_id]\n        unit: cases'
-refused 'states the unit `cases`, and the output `passing_cases` of `conformance-report@1` declares none' "a measurement of a set has a unit"
-
-copy assessor-scope
-swap "$conf" '        scope: run' '        scope: case' 2
-refused 'has the scope `case`, which the output `passed` of `conformance-report@1` does not declare' "a measurement has the scope case"
-
-copy assessor-boundary
-swap "$conf" '        output: failed' '        output: failed\n        boundary: request_start_to_response_complete'
-refused 'has the boundary `request_start_to_response_complete`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has a boundary that is none of Ratchet itself, on an output that declares no boundaries"
-
-copy assessor-boundary-not-listed
-swap "$conf_d" "$number_output" '  failed: {value_type: number, kind: exact, scopes: [], unit: cases, boundaries: [request_start_to_response_complete]}'
-swap "$conf" '        output: failed' '        output: failed\n        boundary: run_time'
-refused 'has the boundary `run_time`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has the boundary run_time on an output that declares its boundaries without it"
-
-copy assessor-identity-key
-swap "$conf" '        identity: [case_id]' '        identity: [case_id, suite]'
-refused 'states the identity key `[case_id, suite]`, and the output `passing_cases` of `conformance-report@1` declares `[case_id]`' "a measurement has the identity key case_id and suite"
-
-copy assessor-identity-of-a-number
-swap "$conf" '        output: failed' '        output: failed\n        identity: [case_id]'
-refused 'states an identity key, and the output `failed` of `conformance-report@1` declares none' "a measurement of a number states an identity key"
-
-copy assessor-filter-field
-swap "$differ" '        filter: {class: [different]}' '        filter: {result: [different]}'
-refused 'filters by the field `result`, which the output `cases` of `comparison-report@1` does not declare for its items' "a measurement filters by the field result"
-
-copy assessor-target-kind-by-default
-swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: false, default: deployment}'
-swap "$conf" '      kind: revision' '      kind: ${inputs.target_kind}'
-refused '`assessments.conformance.target.kind` is `deployment`, the default of the input `target_kind`, and `conformance-report@1` declares the targets `[revision]`' "the kind of a target is an input whose default the declaration does not take"
-
-copy assessor-input-type-in-a-list
+again assessor-input-type-in-a-list
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.subject}", "${inputs.different_limit}"]'
 refused '`assessments.comparison.inputs.exclude` holds an item that is the input `different_limit` of the preset, `integer`, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with an integer input as one item"
 
-copy assessor-input-list-in-a-list
-swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
-swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
-refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
+again assessor-input-literal
+swap "$known" '      list: ${inputs.list}' '      list: 3'
+refused '`assessments.known-failures.inputs.list` is no text, and `case-list@1` declares the input `list` as `path`' "an assessment passes the integer 3 where a path is declared"
 
-copy assessor-pass-rate-of-a-number
-swap "$conf" '        output: failed' '        output: failed\n        aggregation: {kind: pass_rate}'
-refused '`assessments.conformance.measurements.failed` aggregates with `pass_rate`, which takes an assertion, and the output `failed` of `conformance-report@1` has the value type `number`' "a measurement aggregates a number with pass_rate"
+again assessor-unit-undeclared
+swap "$conf" '        identity: [case_id]' '        identity: [case_id]\n        unit: cases'
+refused 'states the unit `cases`, and the output `passing_cases` of `conformance-report@1` declares none' "a measurement of a set has a unit"
+
+again assessor-boundary
+swap "$conf" '        output: failed' '        output: failed\n        boundary: request_start_to_response_complete'
+refused 'has the boundary `request_start_to_response_complete`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has a boundary that is none of Ratchet itself, on an output that declares no boundaries"
+
+again assessor-identity-of-a-number
+swap "$conf" '        output: skipped' '        output: skipped\n        identity: [case_id]'
+refused 'states an identity key, and the output `skipped` of `conformance-report@1` declares none' "a measurement of a number states an identity key"
+
+again assessor-pass-rate-of-a-number
+swap "$conf" '        output: refused' '        output: refused\n        aggregation: {kind: pass_rate}'
+refused '`assessments.conformance.measurements.refused` aggregates with `pass_rate`, which takes an assertion, and the output `refused` of `conformance-report@1` has the value type `number`' "a measurement aggregates a number with pass_rate"
+
+again assessor-target-kind-by-default
+swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: string, required: true}\n    target_kind: {type: string, required: false, default: deployment}'
+swap "$conf" '      kind: revision' '      kind: ${inputs.target_kind}'
+refused '`assessments.conformance.target.kind` is `deployment`, the default of the input `target_kind`, and `conformance-report@1` declares the targets `[revision]`' "the kind of a target is an input whose default the declaration does not take"
+
+again assessor-population-field
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10'
+refused '`assessments.conformance.observation.population.filter.service` filters the population by the field `service`, and `conformance-report@1` declares the population fields `[]` (`population_field_mismatch`)' "a plan filters its population by a field that its assessor does not declare"
 
 rate_copy assessor-kind-of-an-assertion-without-rate
 swap "$conf" '        aggregation: {kind: pass_rate}' '        aggregation: {kind: median}'
 refused '`assessments.conformance.measurements.pass-rate` has the kind `sampled`, and the output `all_pass` of `conformance-report@1` declares `exact` (`kind_mismatch`)' "a sampled measurement of an exact assertion aggregates with median and not with pass_rate"
 
-copy assessor-condition
-swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {moon_phase: full}}'
-refused '`assessments.conformance.observation.conditions.all.moon_phase` is the condition `moon_phase`, which is none of Ratchet itself, and `conformance-report@1` declares the conditions `[]`' "a plan states a condition that its assessor does not declare"
+again assessor-boundary-not-listed
+swap "$conf_d" "$number_output" '  failed: {value_type: number, kind: exact, scopes: [], unit: cases, boundaries: [request_start_to_response_complete]}'
+swap "$conf" '        output: failed' '        output: failed\n        boundary: run_time'
+refused 'has the boundary `run_time`, which the output `failed` of `conformance-report@1` does not declare' "a measurement has the boundary run_time on an output that declares its boundaries without it"
 
-copy assessor-population-field
-swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10'
-refused '`assessments.conformance.observation.population.filter.service` filters the population by the field `service`, and `conformance-report@1` declares the population fields `[]` (`population_field_mismatch`)' "a plan filters its population by a field that its assessor does not declare"
+again assessor-input-list-of-its-type
+swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, list: true, required: true}'
+refused 'passes the input `report` of the preset, a list of `path`, and `conformance-report@1` declares the input `report` as `path`' "an assessment passes a list of paths where one path is declared"
+
+again assessor-input-list-in-a-list
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
+swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
+refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
 
 # -- a window over the runs of another plan ------------------------------------------------------
-
-window_copy valid-window-over-runs
-accepts "a second plan that names record-series@1 and reads the runs of the first, with its requirement and its row"
 
 window_copy series-without-runs-of
 swap "$known" '      population: {runs_of: known-failures, from: trusted_revision}' '      population: {filter: {service: orders-api}}'
@@ -2271,11 +2374,11 @@ window_copy series-other-assessor
 swap "$known" '    assessor: record-series@1' '    assessor: case-list@1'
 refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and names the assessor `case-list@1`' "a plan over the runs of another plan names case-list@1"
 
-window_copy series-with-selection
+again series-with-selection
 swap "$known" '    target: {kind: revision, environments: "${inputs.environments}"}' '    target: {kind: revision, environments: "${inputs.environments}", selection: candidate}'
 refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and has a `target.selection`' "a plan over the runs of another plan has a target selection"
 
-window_copy series-with-conditions
+again series-with-conditions
 swap "$known" '      min_samples: 10' '      min_samples: 10\n      conditions: {ci: {runner: ci-standard}}'
 refused '`assessments.size-over-runs` reads the runs of another plan (`observation.population.runs_of`) and declares `observation.conditions`' "a plan over the runs of another plan declares conditions"
 
@@ -2288,78 +2391,88 @@ printf 'format: ratchet-assessor/1\nname: record-series\nversion: "1"\ncommand: 
 refused 'record-series@1.assessor.yaml:1: the file declares `record-series@1`, the assessor of Ratchet itself' "the directory holds a declaration of record-series@1"
 
 # -- a requirement against the value type of its output -----------------------------------------
+#
+# The comparison is checked a requirement at a time. The two copies below hold one defect in a
+# requirement, and where a requirement holds two, the two are apart in the check and each has
+# its own message. The comments say which line `$accepted_value` is left to be the n-th.
 
 copy compare-holds-on-a-set
 swap "$conf" "$set_rule" '    condition: {operator: holds}'
 refused '`requirements.no-case-lost` has the operator `holds`, which takes an assertion, and the output `passing_cases` of `conformance-report@1` has the value type `identity_set`' "a requirement on a set has the operator holds"
 
-copy compare-set-operator-on-a-number
+# the third is the reference of `failed-does-not-rise`
+again compare-set-operator-on-a-number
 swap "$conf" "$accepted_value" '    condition: {operator: no_new_items}' 3
 refused '`requirements.failed-does-not-rise` has the operator `no_new_items`, which takes an identity set, and the output `failed` of `conformance-report@1` has the value type `number`' "a requirement on a number has the operator no_new_items"
 
-copy compare-set-operator-without-reference
-drop "$conf" "$accepted_value"
-refused '`requirements.no-case-lost` has the operator `no_lost_items` and no reference of the kind `accepted_value`' "a requirement with no_lost_items has no reference"
+# then of `skipped-does-not-rise`
+again compare-limit-without-value
+swap "$conf" "$accepted_value" '    condition: {operator: lte}' 3
+refused '`requirements.skipped-does-not-rise` has the operator `lte` and no `value`' "a requirement with lte has no value"
 
-copy compare-limit-on-an-assertion
+# then of `refused-does-not-rise`
+again compare-unit-other
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: seconds}' 3
+refused '`requirements.refused-does-not-rise` has a condition in the unit `seconds`, and the output `refused` of `conformance-report@1` declares `cases`' "a condition has another unit than its output"
+
+# the second is the reference of `passed-does-not-fall`
+again compare-reference-of-a-number
+swap "$conf" "$accepted_value" '    reference: {kind: generated}' 2
+refused '`requirements.passed-does-not-fall` has the reference `generated`, and the output `passed` of `conformance-report@1` has the value type `number`, which takes `accepted_value`' "a requirement on a number has the reference generated"
+
+again compare-limit-on-an-assertion
 swap "$differ_d" '    value_type: identity_set' '    value_type: assertion'
 refused '`requirements.different-cases-within-limit` has the operator `lte`, which takes a number or the number of items of a set, and the output `cases` of `comparison-report@1` has the value type `assertion`' "a requirement with lte reads an output that is an assertion"
 
-copy compare-limit-without-value
-swap "$conf" "$accepted_value" '    condition: {operator: lte}' 3
-refused '`requirements.failed-does-not-rise` has the operator `lte` and no `value`' "a requirement with lte has no value"
-
-copy compare-value-without-limit
-swap "$conf" "$set_rule" '    condition: {operator: no_lost_items, value: 3}'
-refused '`requirements.no-case-lost` has the operator `no_lost_items`, which takes no `value`' "a requirement with no_lost_items has a value"
-
-copy compare-condition-on-a-digest
-swap "$differ_d" '    value_type: identity_set' '    value_type: digest'
-refused '`requirements.different-cases-within-limit` has a condition, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes none' "a requirement with a condition reads an output that is a digest"
-
-copy compare-unit-other
-swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: seconds}' 3
-refused '`requirements.failed-does-not-rise` has a condition in the unit `seconds`, and the output `failed` of `conformance-report@1` declares `cases`' "a condition has another unit than its output"
-
-copy compare-unit-absent
-swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3}' 3
-refused '`requirements.failed-does-not-rise` has a condition without a `unit`, and the output `failed` of `conformance-report@1` declares `cases`' "a condition on an output with a unit has none"
-
-copy compare-unit-undeclared
+again compare-unit-undeclared
 swap "$differ" "$limit" "$limit"'\n      unit: cases'
 refused '`requirements.different-cases-within-limit` has a condition in the unit `cases`, and the output `cases` of `comparison-report@1` declares none' "a condition on the number of items of a set has a unit"
 
-copy compare-reference-of-an-assertion
-swap "$conf_d" "$number_output" '  failed: {value_type: assertion, kind: exact, scopes: [], unit: cases}'
-refused '`requirements.failed-does-not-rise` has a reference, and the output `failed` of `conformance-report@1` has the value type `assertion`, which takes none' "a requirement with a reference reads an output that is an assertion"
+again compare-set-operator-without-reference
+drop "$known" "$accepted_value"
+refused '`requirements.no-new-known-failure` has the operator `no_new_items` and no reference of the kind `accepted_value`' "a requirement with no_new_items has no reference"
 
-copy compare-reference-of-a-digest
-swap "$conf_d" "$number_output" '  failed: {value_type: digest, kind: exact, scopes: [], unit: cases}'
-refused '`requirements.failed-does-not-rise` has the reference `accepted_value`, and the output `failed` of `conformance-report@1` has the value type `digest`, which takes `generated`' "a requirement with an accepted value reads an output that is a digest"
-
-copy compare-reference-of-a-number
-swap "$conf" "$accepted_value" '    reference: {kind: generated}' 3
-refused '`requirements.failed-does-not-rise` has the reference `generated`, and the output `failed` of `conformance-report@1` has the value type `number`, which takes `accepted_value`' "a requirement on a number has the reference generated"
-
-copy compare-set-without-condition
-drop "$conf" "$set_rule"
-refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has a reference and no operator"
-
-copy compare-number-without-better
-drop "$conf" '        better: lower'
-refused '`assessments.conformance.measurements.failed` states no `better`, and `requirements.failed-does-not-rise` compares it with a reference' "a number that is compared with a reference states no better"
+again compare-number-without-better
+drop "$known" '        better: lower'
+refused '`assessments.known-failures.measurements.size` states no `better`, and `requirements.size-does-not-rise` compares it with a reference' "a number that is compared with a reference states no better"
 
 # The two rules that read that there is a reference, and not its kind, hold where an input
-# gives the kind.
+# gives the kind: the first two cases of this copy.
 copy compare-set-without-condition-by-reference-input
 drop "$conf" "$set_rule"
 swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}'
 refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has no operator and a reference whose kind an input gives"
 
-copy compare-number-without-better-by-reference-input
-drop "$conf" '        better: lower'
-swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}' 3
-refused '`assessments.conformance.measurements.failed` states no `better`, and `requirements.failed-does-not-rise` compares it with a reference' "a number without better is compared with a reference whose kind an input gives"
+# the first that is left is the reference of `passed-does-not-fall`
+again compare-number-without-better-by-reference-input
+drop "$conf" '        better: higher'
+swap "$conf" "$accepted_value" '    reference: {kind: "${inputs.subject}"}'
+refused '`assessments.conformance.measurements.passed` states no `better`, and `requirements.passed-does-not-fall` compares it with a reference' "a number without better is compared with a reference whose kind an input gives"
+
+# then of `failed-does-not-rise`
+again compare-unit-absent
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3}'
+refused '`requirements.failed-does-not-rise` has a condition without a `unit`, and the output `failed` of `conformance-report@1` declares `cases`' "a condition on an output with a unit has none"
+
+again compare-reference-of-an-assertion
+swap "$conf_d" '  skipped: {value_type: number, kind: exact, scopes: [], unit: cases}' '  skipped: {value_type: assertion, kind: exact, scopes: [], unit: cases}'
+refused '`requirements.skipped-does-not-rise` has a reference, and the output `skipped` of `conformance-report@1` has the value type `assertion`, which takes none' "a requirement with a reference reads an output that is an assertion"
+
+again compare-reference-of-a-digest
+swap "$conf_d" '  refused: {value_type: number, kind: exact, scopes: [], unit: cases}' '  refused: {value_type: digest, kind: exact, scopes: [], unit: cases}'
+refused '`requirements.refused-does-not-rise` has the reference `accepted_value`, and the output `refused` of `conformance-report@1` has the value type `digest`, which takes `generated`' "a requirement with an accepted value reads an output that is a digest"
+
+again compare-condition-on-a-digest
+swap "$differ_d" '    value_type: identity_set' '    value_type: digest'
+refused '`requirements.different-cases-within-limit` has a condition, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes none' "a requirement with a condition reads an output that is a digest"
+
+again compare-value-without-limit
+swap "$known" '    condition: {operator: no_new_items}' '    condition: {operator: no_new_items, value: 3}'
+refused '`requirements.no-new-known-failure` has the operator `no_new_items`, which takes no `value`' "a requirement with no_new_items has a value"
+
+copy compare-set-without-condition
+drop "$conf" "$set_rule"
+refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has a reference and no operator"
 
 # -- rows ----------------------------------------------------------------------------------------
 
@@ -2375,24 +2488,19 @@ copy row-twice
 edit "$page" "$the_row"' { print } { print }'
 refused 'the measurement `conformance-cases@1/conformance/skipped` has 2 rows' "a measurement has two rows"
 
-# A row whose cell <n> is <text>: cell 1 is the name.
-cell() {
-  edit "$page" "$the_row"' { n = split($0, cell, /\|/); cell['"$(($1 + 1))"'] = "'"$2"'"; printf "|%s|%s|%s|%s|%s|\n", cell[2], cell[3], cell[4], cell[5], cell[6]; next } { print }'
-}
-
 copy row-direction-empty
 cell 2 ' '
 refused 'the cell `Direction` of the row `conformance-cases@1/conformance/skipped` is empty' "the direction of a row is empty"
 
-copy row-unit-empty
+again row-unit-empty
 cell 3 ''
 refused 'the cell `Unit` of the row `conformance-cases@1/conformance/skipped` is empty' "the unit of a row is empty"
 
-copy row-tolerance-empty
+again row-tolerance-empty
 cell 4 '  '
 refused 'the cell `Tolerance` of the row `conformance-cases@1/conformance/skipped` is empty' "the tolerance of a row is empty"
 
-copy row-evidence-empty
+again row-evidence-empty
 cell 5 ' '
 refused 'the cell `Evidence` of the row `conformance-cases@1/conformance/skipped` is empty' "the evidence of a row is empty"
 
@@ -2407,11 +2515,6 @@ refused 'the cell `Unit` of the row `conformance-cases@1/conformance/skipped` is
 copy row-cell-html-comment
 cell 3 ' <!-- --> '
 refused 'the cell `Unit` of the row `conformance-cases@1/conformance/skipped` is empty' "the unit of a row is an HTML comment"
-
-# `\|` is a bar of the text of a cell and no border of a cell.
-copy row-with-escaped-bar
-cell 4 ' 0 \\| none '
-accepts 'a cell of a row holds `\|`'
 
 copy row-ends-with-escaped-bar
 edit "$page" "$the_row"' { print substr($0, 1, length($0) - 1) "\\|"; next } { print }'
@@ -2428,10 +2531,6 @@ refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on
 copy row-in-html-comment
 edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n<!--\n'"$table"'%s\n-->\n", row }'
 refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in an HTML comment"
-
-copy row-after-html-comment
-edit "$page" "$the_row"' { print "<!-- " $0 " -->" $0; next } { print }'
-accepts "a row follows an HTML comment that ends on its line"
 
 # A fence closes at a run of its character that is at least as long, indented by at most
 # three spaces, with nothing but spaces and tabs after it (CommonMark).
@@ -2451,14 +2550,17 @@ copy row-after-fence-line-with-text
 edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n```markdown\n``` and text\n'"$table"'%s\n```\n", row }'
 refused 'the measurement `conformance-cases@1/conformance/skipped` has no row on a page of the directory' "the row of a measurement stands in a fence, after a line of three backticks with text after them"
 
-copy row-after-a-longer-fence
+# Four forms that are valid, in one copy: `\|` is a bar of the text of a cell and no border of
+# a cell; a fence closes at a run of its character that is at least as long, indented by at
+# most three spaces, with nothing but spaces and tabs after it (CommonMark), and the table
+# after it is read; a row follows an HTML comment that ends on its line; and `<!--` inside a
+# code span that closes on its line is text of the page.
+copy row-forms-that-are-valid
+cell 4 ' 0 \\| none '
 edit "$page" "$the_row"' { row = $0; next } { print } END { printf "\n````markdown\n```\n| a line of the example |\n   `````  \n\n'"$table"'%s\n", row }'
-accepts "a row follows a fence of four backticks that holds a line of three and closes at a line of five, indented by three spaces, with spaces after it"
-
-# `<!--` inside a code span that closes on its line is text of the page.
-copy row-after-comment-mark-in-code
+edit "$page" "$the_row"' { print "<!-- " $0 " -->" $0; next } { print }'
 edit "$page" 'NR == 3 { print "The mark `<!--` in a code span opens no comment, and `` ` <!-- `` in a longer span opens none."; print "" } { print }'
-accepts "the page holds the mark of a comment in two code spans before its tables"
+accepts 'a cell of a row holds `\|`, the row follows a fence of four backticks that holds a line of three and closes at a line of five, indented by three spaces, with spaces after it, the row follows an HTML comment that ends on its line, and the page holds the mark of a comment in two code spans before its tables'
 
 copy row-after-comment-mark-behind-a-lone-backtick
 edit "$page" 'NR == 3 { print "A lone ` closes no code span, and <!-- after it opens a comment."; print "" } { print }'

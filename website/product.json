@@ -85,7 +85,7 @@
         },
         {
           "title": "Preset catalog",
-          "description": "Reusable YAML for web, backend, code quality, build and CI concerns.",
+          "description": "Reusable YAML for web, backend, code quality, build and CI concerns. The first family, the functional one, is in presets/; no command resolves a binding yet.",
           "status": "planned",
           "href": "/docs/design#4-presets-and-custom-assessors"
         },
