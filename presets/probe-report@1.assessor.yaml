@@ -1,0 +1,13 @@
+format: ratchet-assessor/1
+name: probe-report
+version: "1"
+command: probe-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: expectation
+coverage: [executed, skipped, not_run, passed, failed]
+outputs:
+  health: {value_type: assertion, kind: exact, scopes: [expectation]}
+  readiness: {value_type: assertion, kind: exact, scopes: [expectation]}

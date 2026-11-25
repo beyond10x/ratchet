@@ -13,6 +13,10 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 - A preset is the file `<name>@<version>.preset.yaml` in a catalog source and holds `statements`, `assessments` and `requirements`; no command resolves a binding yet, and `presets/README.md` says what a project writes until one does
 - `task check:spec` checks every file of `presets/` against the specification, each preset against the declaration of its assessor and against the comparisons the design allows for the value type of an output, and every measurement against its row on a page of the catalog
 - A reference to an input has the one spelling `${inputs.<name>}`: a value of a preset that holds `${` or `{inputs.` in another form is an error and no text
+- `presets/` holds the presets of four more families, observed while a project's own workload runs against a started service: `operation-time@1`, `event-time@1` and `workload-throughput@1` (latency and throughput), `process-resources@1` (memory, CPU, file descriptors, threads), `start-time@1` (start to ready, ready to first answer), and `metric-names@1` and `health-readiness@1` (operability), with the five assessor declarations they name; the catalog ships no workload, no load runner and no program that reads a report
+- `presets/latency.md`, `presets/resources.md`, `presets/start.md` and `presets/operability.md` state for each measurement the direction, the unit, the tolerance input and the source of the evidence, and name what `ratchet/1` and `ratchet-assessor/1` cannot say yet
+- Every duration, memory value, rate and count of a running service in these presets is sampled: its tolerance, the number of runs, the runs of an adoption and the workload are required inputs without a default, and no release judges a sampled value yet; of the four families 0.1.0 judges the metric names of `metric-names@1` alone
+- `task check:spec` refuses a preset whose plan of a sampled measurement declares no condition (a window over `runs_of` declares none), and a requirement that compares a sampled measurement with an accepted value and has no tolerance or no `adoption`
 
 ### Changed
 

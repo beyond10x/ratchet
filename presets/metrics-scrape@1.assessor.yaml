@@ -1,0 +1,23 @@
+format: ratchet-assessor/1
+name: metrics-scrape
+version: "1"
+command: metrics-scrape
+targets: [revision]
+inputs:
+  scrape: {type: path, required: true}
+  documented: {type: path, required: true}
+  workload: {type: string, required: true}
+conditions: []
+coverage_unit: metric
+coverage: [executed]
+outputs:
+  documented_names:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [name]
+  undocumented_names:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [name]

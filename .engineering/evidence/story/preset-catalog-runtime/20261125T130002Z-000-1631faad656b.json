@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T13:00:02Z",
+  "actor": "agent:ratchet",
+  "artifact": "story:preset-catalog-runtime",
+  "kind": "story",
+  "revision": 13,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check on the build node, whole gate by the coordinator on commit 791fdc4: exit 0; presets: 227 of 227 defects refused, 92 of 92 broken copies refused, 23 of 23 files valid, 26 of 26 measurements with a row",
+    "reference": ".engineering/waves/catalog-runtime.md"
+  }
+}

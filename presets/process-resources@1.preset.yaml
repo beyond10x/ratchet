@@ -1,0 +1,116 @@
+format: ratchet/1
+
+preset:
+  name: process-resources
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    peak_memory_tolerance_percent: {type: decimal, required: true}
+    steady_memory_tolerance_percent: {type: decimal, required: true}
+    cpu_tolerance_percent: {type: decimal, required: true}
+    descriptors_tolerance: {type: integer, required: true}
+    threads_tolerance: {type: integer, required: true}
+
+assessments:
+  resources:
+    subject: ${inputs.subject}
+    assessor: resource-report@1
+    inputs:
+      report: ${inputs.report}
+      workload: ${inputs.workload}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+      coverage: {not_run: {max: 0}}
+    measurements:
+      peak-resident-memory:
+        kind: sampled
+        output: peak_resident_memory
+        scope: run
+        aggregation: {kind: median}
+        unit: bytes
+        better: lower
+      steady-resident-memory:
+        kind: sampled
+        output: steady_resident_memory
+        scope: run
+        aggregation: {kind: median}
+        unit: bytes
+        better: lower
+      cpu-seconds-per-1000-requests:
+        kind: sampled
+        output: cpu_seconds_per_1000_requests
+        scope: run
+        aggregation: {kind: median}
+        unit: s
+        better: lower
+      open-file-descriptors:
+        kind: sampled
+        output: open_file_descriptors
+        scope: run
+        aggregation: {kind: median}
+        unit: descriptors
+        better: lower
+      threads:
+        kind: sampled
+        output: threads
+        scope: run
+        aggregation: {kind: median}
+        unit: threads
+        better: lower
+
+requirements:
+  peak-memory-does-not-rise:
+    meaning: The highest resident memory of the service while the workload runs is not above its accepted value by more than the tolerance of the binding.
+    assessment: resources
+    measurement: peak-resident-memory
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.peak_memory_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  steady-memory-does-not-rise:
+    meaning: The resident memory the service settles at while the workload runs is not above its accepted value by more than the tolerance of the binding.
+    assessment: resources
+    measurement: steady-resident-memory
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.steady_memory_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  cpu-does-not-rise:
+    meaning: The CPU seconds the service uses per 1000 requests are not above their accepted value by more than the tolerance of the binding.
+    assessment: resources
+    measurement: cpu-seconds-per-1000-requests
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.cpu_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  descriptors-do-not-rise:
+    meaning: The most file descriptors the service holds open while the workload runs are not above their accepted number by more than the tolerance of the binding.
+    assessment: resources
+    measurement: open-file-descriptors
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.descriptors_tolerance}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  threads-do-not-rise:
+    meaning: The most threads the service runs while the workload runs are not above their accepted number by more than the tolerance of the binding.
+    assessment: resources
+    measurement: threads
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.threads_tolerance}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

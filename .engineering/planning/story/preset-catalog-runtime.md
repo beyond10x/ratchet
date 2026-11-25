@@ -2,21 +2,30 @@
 format: aep.planning-md/3
 id: story:preset-catalog-runtime
 kind: story
-status: active
+status: implemented
 title: 'The preset catalog: latency, resources, start and operability'
 summary: Preset files, assessor declarations and pages for the four families observed while a fixed workload runs.
 relations:
 - decomposes: epic:preset-catalog
 - depends_on: story:preset-catalog-functional
 scope:
+- confidence: inferred
+  path: AGENTS.md
 - confidence: cited
   path: CHANGELOG.md
 - confidence: cited
   path: presets
-revision: 8
+- confidence: inferred
+  path: spec/README.md
+- confidence: inferred
+  path: spec/presets.test.sh
+- confidence: inferred
+  path: website/docusaurus.config.ts
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:32Z", actor: "agent:ratchet", revision: 7}
 - {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 8}
+- {from: "active", to: "implemented", at: "2026-11-25T13:00:21Z", actor: "agent:ratchet", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":10}}}
 ---
 ## Context
 
@@ -35,8 +44,14 @@ those files are absent and the last line holds the counts of the functional fami
 ## Scope
 
 - `presets/`: the preset files and declarations of the four families, and the four pages.
-  `presets/README.md` and `spec/presets.test.sh` are not edited: the script reads every file
-  of the directory.
+  `presets/README.md` gains the four pages in its list.
+- `spec/presets.test.sh`: the script reads every file of the directory, and its broken copies
+  hold a fixed set of files, so that a file a family adds is checked once and not once per
+  copy. Found by the unit on 2026-11-25: one case of the script pinned the number of files
+  of the functional family, so the first added file made the script fail, and every copy
+  held the whole directory.
+- `spec/README.md`, `AGENTS.md`: the description of the copies, where it changes.
+- `website/docusaurus.config.ts`: the sentence that names the families the catalog holds.
 - `CHANGELOG.md`: lines under `## [Unreleased]`.
 
 ## The four families

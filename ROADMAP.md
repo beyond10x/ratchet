@@ -90,6 +90,10 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   `story:preset-catalog-functional` is delivered (2026-11-25): `presets/` holds the functional
   family, and `sh spec/presets.test.sh` checks every file of the catalog in `task check:spec`.
   Record: `.engineering/waves/catalog-functional.md`.
+  `story:preset-catalog-runtime` is delivered (2026-11-25): seven presets of four families
+  observed while a workload runs (latency and throughput, resources, start and readiness,
+  operability), five assessor declarations and four pages. Of them 0.1.0 judges
+  `metric-names@1` alone. Record: `.engineering/waves/catalog-runtime.md`.
 - `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
   consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
   stories. They wait for the waves to 0.1.0.

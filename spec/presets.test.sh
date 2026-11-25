@@ -85,6 +85,13 @@
 #             condition. A number that is compared with a reference states `better`. A
 #             condition states the unit of the output, or none where the output has none. An
 #             assertion that its measurement aggregates with `pass_rate` is a number here
+#   sampled   what docs/design.md § 3 and § 5 say `ratchet validate` reports. The plan of a
+#             measurement of the kind `sampled` declares at least one condition under
+#             `observation.conditions`, unless it reads the runs of another plan (`runs_of`),
+#             which declares none. A requirement that compares such a measurement with a
+#             reference of the kind `accepted_value` has a `reference.tolerance` with a
+#             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
+#             without a declaration, so also on a plan of `record-series@1`
 #   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
@@ -113,6 +120,10 @@
 #     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
 #     the measurements of the source plan, and the source plan may be in another file
 #   - the plan that `runs_of` names: it may be in another file
+#   - the number of runs of an adoption from the trusted revision (`reference.adoption.runs`):
+#     docs/design.md § 5 "Ratchet policy" says that it has no default and names no report of
+#     `ratchet validate` for an adoption without it, and `ratchet.specification.RatchetPolicy`
+#     holds `runs` as an optional member without an invariant
 #   - the class a condition is declared for (`all`, `ci`, ...): the key of an open map
 #   - the value of a `Json` other than a passed input and a default: no type is declared
 #   - the values of a `filter`: no declaration lists the values of an item field
@@ -133,10 +144,14 @@
 # `0o17`, `1.5`, `true`, `null`).
 #
 # Usage:
-#   sh spec/presets.test.sh                      `presets/`, then one defect per rule in copies of it
+#   sh spec/presets.test.sh                      `presets/`, then one defect per rule in copies of
+#                                                the set of its files that `set_files` names
 #   sh spec/presets.test.sh --catalog <directory> [--spec <directory>]
 #                                                one directory, against `spec/domains` or the
 #                                                named directory of domain files; no copy
+# The whole of `presets/` is checked once. A copy holds `README.md` and the functional family
+# and no file of another family: a defect tests a rule of this script, so the run with the
+# copies takes the same time when the catalog gets a family.
 # Work files go to the ignored target/presets. It needs POSIX sh and awk, and of the other
 # utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `ln`, `mkdir`, `mv`, `rm`, `sed`, `tail`,
 # `tr` and `wc`. `tr` and `wc` find a NUL byte, which an awk may not read, and count the line
@@ -151,7 +166,9 @@
 # before the last counts the defects:
 #   `presets: <d> of <d> defect(s) refused with the message of their rule`
 # Exit 1: each failure is named with its file and line; or a defect in a copy is accepted, or
-# refused without the message of its rule; or the harness of the copies fails a case of its own.
+# refused without the message of its rule; or the harness of the copies fails a case of its own;
+# or `presets/` lacks a file of the set of the copies; or a case edits a file its copy does not
+# hold.
 set -eu
 
 # Bytes, not characters of the locale of the caller: the same reading under every awk.
@@ -629,6 +646,14 @@ check_catalog() {
     return nkeys[F, mp] == 1 ? mp SEP keyof[F, mp, 1] : ""
   }
 
+  # The number of conditions a plan declares, over the classes of `observation.conditions`.
+  function conditions_of(F, plan,    cp, j, c) {
+    cp = plan SEP "observation" SEP "conditions"
+    for (j = 1; j <= nkeys[F, cp]; j++) c += nkeys[F, cp SEP keyof[F, cp, j]]
+    return c + 0
+  }
+  function last(path) { sub(/^.*\037/, "", path); return path }
+
   # ---- a page: what Markdown does not show ---------------------------------------------------
 
   # The run of backticks or of tildes that a line starts with after at most three spaces: its
@@ -1021,6 +1046,12 @@ check_catalog() {
         id = stated[F] "/" s[2] "/" s[4]
         ms[++nm] = id; ms_file[nm] = F; ms_line[nm] = n_line[i]; ms_preset[nm] = stated[F]
         is_measurement[id] = 1
+        # Sampled evidence qualifies under declared conditions (docs/design.md § 3,
+        # "Measurement kind and observation conditions"). A window over the runs of another
+        # plan declares none: only runs that qualified under the source plan enter it.
+        plan = "assessments" SEP s[2]
+        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
+          fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
         op = output_of(F, path)
         # Nothing is joined without a declaration (`record-series@1`, an assessor that an
         # input gives, an assessor that is named as absent) and where an input gives the output.
@@ -1102,6 +1133,16 @@ check_catalog() {
         # "Comparisons").
         mp = compared(F, path)
         if (mp == "") continue
+        # A sampled measurement that is compared with an accepted value: the reference has a
+        # band and says where its value is adopted from (docs/design.md § 3 "Comparisons" and
+        # § 5 "Ratchet policy"). Read without a declaration, so also on a window over runs.
+        if (text(F, mp SEP "kind") == "sampled" && text(F, path SEP "reference" SEP "kind") == "accepted_value") {
+          tp = path SEP "reference" SEP "tolerance"
+          if (!has(F, tp SEP "percent") && !has(F, tp SEP "absolute"))
+            fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no tolerance, a `reference.tolerance` with `percent` or `absolute`: Ratchet ships no default band")
+          if (!has(F, path SEP "reference" SEP "adoption"))
+            fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no `reference.adoption`, which says from which runs the value is adopted")
+        }
         op = output_of(F, mp)
         if (op == "") continue
         vt = text(D, op SEP "value_type")
@@ -1220,13 +1261,13 @@ if check_catalog "$catalog" "$work/tables" > "$work/catalog.out" 2>&1; then :; e
 fi
 summary=$(tail -n 1 "$work/catalog.out")
 
-# ---- one defect per rule, in copies of presets/ ----------------------------------------------
+# ---- one defect per rule, in copies of a set of files of presets/ ------------------------------
 #
-# Each case is one defect in a copy of presets/, the directory target/presets/<case> of the
-# case that starts the copy. The case holds when the check of the copy exits non-zero and names
-# the defect with the words of its rule, so a case fails when its rule is taken out of the
-# check, also where another rule refuses the copy then. A rule without a case here is not
-# guarded: a new rule gets its case.
+# Each case is one defect in a copy of the set (`set_files` below), the directory
+# target/presets/<case> of the case that starts the copy. The case holds when the check of the
+# copy exits non-zero and names the defect with the words of its rule, so a case fails when
+# its rule is taken out of the check, also where another rule refuses the copy then. A rule
+# without a case here is not guarded: a new rule gets its case.
 #
 # `copy` starts a case in a fresh copy. `again` starts a case in the copy of the case before
 # it: that copy then holds the defect of each of its cases, each on a line of its own, and is
@@ -1240,7 +1281,30 @@ stop() {
   exit 1
 }
 
-# copy <case>: a fresh copy of presets/ as the directory $c; sets $c and $name. What a case
+# The files that the cases edit. A case names a file by its variable.
+conf='conformance-cases@1.preset.yaml'
+conf_d='conformance-report@1.assessor.yaml'
+differ='differential-equality@1.preset.yaml'
+differ_d='comparison-report@1.assessor.yaml'
+known='known-failures@1.preset.yaml'
+known_d='case-list@1.assessor.yaml'
+page='functional.md'
+
+# The set: the files a copy holds. They are `README.md`, which every directory of the catalog
+# holds, and the functional family: its presets, the declarations they name and its page. A
+# copy holds no file of another family, so a family that the catalog gets adds its files to the
+# one check of presets/ above and to no copy. The set is a directory of its own,
+# target/presets/set, which is valid alone: the case `harness-unchanged` below fails where it
+# is not. A file of the set that presets/ does not hold stops the run.
+set_files="README.md $page $conf $conf_d $differ $differ_d $known $known_d"
+set_dir=$work/set
+mkdir "$set_dir"
+for set_file in $set_files; do
+  [ -f "$catalog/$set_file" ] || stop "presets/ holds no $set_file, a file of the set that every copy of this script holds ($set_files)"
+  cp "$catalog/$set_file" "$set_dir/$set_file"
+done
+
+# copy <case>: a fresh copy of the set as the directory $c; sets $c and $name. What a case
 # writes beside its copy is named $c.<word>. The copy is checked against the specification of
 # the repository until `own_spec` gives it one of its own. The cases of the copy before it are
 # judged first.
@@ -1248,7 +1312,7 @@ copy() {
   judge_cases
   name=$1
   c=$work/$1
-  cp -R "$catalog" "$c"
+  cp -R "$set_dir" "$c"
   case_tables=$work/tables
 }
 
@@ -1263,14 +1327,23 @@ own_spec() {
   case_tables=
 }
 
-# An edit that changes nothing stops the run: its case would test the unchanged catalog.
+# An edit that changes nothing stops the run: its case would test the unchanged set.
 nothing() {
   echo "presets: the edit of the case $name changes nothing in $1" >&2
   exit 1
 }
 
+# An edit of a file that the copy does not hold stops the run: a copy holds the set and what
+# its case wrote, and no file of another family.
+holds() {
+  [ -f "$c/$1" ] && return 0
+  echo "presets: the case $name edits $1, and its copy holds no $1: a copy holds the set ($set_files) and what its case wrote" >&2
+  exit 1
+}
+
 # edit <file of the copy> <awk program>
 edit() {
+  holds "$1"
   awk "$2" "$c/$1" > "$c.new"
   if cmp -s "$c/$1" "$c.new"; then nothing "$1"; fi
   mv "$c.new" "$c/$1"
@@ -1286,6 +1359,7 @@ edit_spec() {
 # swap <file of the copy> <line> <text> [<n>]: the n-th line that is <line>, the first
 # without <n>, becomes <text>. awk reads the escapes of <text>: `\n` starts a further line.
 swap() {
+  holds "$1"
   awk -v old="$2" -v new="$3" -v nth="${4:-1}" '
     ($0 "") == (old "") && ++seen == nth { print new; swapped = ((new "") != (old "")); next }
     { print }
@@ -1295,6 +1369,7 @@ swap() {
 
 # drop <file of the copy> <line> [<n>]: the n-th line that is <line> is taken out.
 drop() {
+  holds "$1"
   awk -v old="$2" -v nth="${3:-1}" '
     ($0 "") == (old "") && ++seen == nth { dropped = 1; next }
     { print }
@@ -1398,14 +1473,7 @@ result() {
   echo "$summary, $broken of $broken broken copies refused"
 }
 
-conf='conformance-cases@1.preset.yaml'
-conf_d='conformance-report@1.assessor.yaml'
-differ='differential-equality@1.preset.yaml'
-differ_d='comparison-report@1.assessor.yaml'
-known_d='case-list@1.assessor.yaml'
-page='functional.md'
-
-# Lines of the catalog that many cases change.
+# Lines of the set that many cases change.
 meaning='    meaning: Every case of the accepted set of passing cases still passes.'
 meaning_passed='    meaning: The number of passed cases is not below the accepted number.'
 meaning_failed='    meaning: The number of failed cases is not above the accepted number.'
@@ -1419,7 +1487,6 @@ limit='      value: ${inputs.different_limit}'
 number_output='  failed: {value_type: number, kind: exact, scopes: [], unit: cases}'
 the_row='index($0, "| `conformance-cases@1/conformance/skipped` |") == 1'
 table='| Measurement | Direction | Unit | Tolerance | Evidence |\n| --- | --- | --- | --- | --- |\n'
-known='known-failures@1.preset.yaml'
 
 # add_row <row>: a further table at the end of the page of the copy, with the row.
 add_row() {
@@ -1452,8 +1519,8 @@ meaning_bytes() {
 window_plan='  size-over-runs:\n    subject: ${inputs.subject}\n    assessor: record-series@1\n    target: {kind: revision, environments: "${inputs.environments}"}\n    observation:\n      kind: time_window\n      window: {last: 20}\n      population: {runs_of: known-failures, from: trusted_revision}\n      min_samples: 10\n    measurements:\n      median:\n        kind: sampled\n        output: size\n        scope: run\n        aggregation: {kind: median}\n        unit: cases\n        better: lower\n\nrequirements:'
 add_window() {
   swap "$known" 'requirements:' "$window_plan"
-  printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference: {kind: accepted_value, tolerance: {absolute: 1}}\n' >> "$c/$known"
-  add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 1 case | `record-series@1`, the measurement `size` of the plan `known-failures` |'
+  printf '  median-size-does-not-rise:\n    meaning: The median size of the list over the last 20 runs is not above the accepted median.\n    assessment: size-over-runs\n    reference:\n      kind: accepted_value\n      tolerance: {percent: 10}\n      adoption: {from: trusted_revision, runs: 4, aggregation: {kind: median}}\n' >> "$c/$known"
+  add_row '| `known-failures@1/size-over-runs/median` | Lower | `cases` | 10 percent | `record-series@1`, the measurement `size` of the plan `known-failures` |'
 }
 
 # window_copy <case>: a copy with that plan.
@@ -1464,11 +1531,13 @@ window_copy() {
 
 # add_rate: the preset conformance-cases@1 of the copy reads the pass rate of an assertion
 # that conformance-report@1 declares; with its requirement and its row. It writes to the end of
-# the declaration, which is the map `outputs` until a case writes there.
+# the declaration, which is the map `outputs` until a case writes there. The measurement is
+# sampled, so the plan gets a condition and the reference a tolerance and an adoption.
 add_rate() {
   printf '  all_pass: {value_type: assertion, kind: exact, scopes: []}\n' >> "$c/$conf_d"
+  swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {runner: ci-standard}}'
   swap "$conf" '        better: lower' '        better: lower\n      pass-rate:\n        kind: sampled\n        output: all_pass\n        scope: run\n        aggregation: {kind: pass_rate}\n        better: higher' 3
-  printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference: {kind: accepted_value, tolerance: {absolute: 0.05}}\n' >> "$c/$conf"
+  printf '  pass-rate-holds:\n    meaning: Nine of ten runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 0.05}\n      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}\n' >> "$c/$conf"
   add_row '| `conformance-cases@1/conformance/pass-rate` | Higher | None | 0.05 | `conformance-report@1`, output `all_pass` |'
 }
 
@@ -1501,16 +1570,36 @@ if (own_spec; edit_spec specification.yaml '{ print }') 2> /dev/null; then
   stop "an edit of the specification that changes nothing does not stop the run"
 fi
 
-# The unchanged catalog is accepted, also through the options, and is not counted as refused.
+# An edit of a file that the copy does not hold stops the run and names the case and the
+# file, with each of the three ways to edit a file of the copy.
+outside='a-page-of-another-family.md'
+for way in edit swap drop; do
+  if (
+    case $way in
+      edit) edit "$outside" '{ print }' ;;
+      swap) swap "$outside" 'a line' 'another line' ;;
+      drop) drop "$outside" 'a line' ;;
+    esac
+  ) 2> "$c.outside"; then
+    stop "the $way of a file that the copy does not hold does not stop the run"
+  fi
+  grep -F -q "presets: the case harness-edit edits $outside, and its copy holds no $outside" "$c.outside" || {
+    cat "$c.outside"
+    stop "the $way of a file that the copy does not hold does not name the case and the file"
+  }
+done
+
+# The unchanged set is accepted, also through the options, and is not counted as refused.
 copy harness-unchanged
 verdict 'presets:'
 if [ "$verdict" != accepted ]; then
   cat "$c.out"
-  stop "the unchanged copy of presets/ is not accepted"
+  stop "the unchanged copy of the set is not accepted"
 fi
-if sh "$self" --catalog "$c" --spec "$spec" > "$c.options" 2>&1 && [ "$(cat "$c.options")" = "$summary" ]; then :; else
+set_summary=$(tail -n 1 "$c.out")
+if sh "$self" --catalog "$c" --spec "$spec" > "$c.options" 2>&1 && [ "$(cat "$c.options")" = "$set_summary" ]; then :; else
   cat "$c.options"
-  stop "the unchanged copy of presets/ fails with --catalog and --spec, or prints another line than: $summary"
+  stop "the unchanged copy of the set fails with --catalog and --spec, or prints another line than: $set_summary"
 fi
 
 # `--spec` names the specification that is read: against a directory of domain files that
@@ -1527,11 +1616,11 @@ grep -F -q 'presets: the specification declares no ratchet.config.CatalogFileKin
 }
 
 # The run without options fails where presets/ itself is refused: this script in a tree of its
-# own, target/presets/harness-tree, whose presets/ holds a file of no kind.
+# own, target/presets/harness-tree, whose presets/ is the set and a file of no kind.
 mkdir -p "$work/harness-tree/spec"
 cp "$self" "$work/harness-tree/spec/presets.test.sh"
 cp -R "$root/spec/domains" "$work/harness-tree/spec/domains"
-cp -R "$catalog" "$work/harness-tree/presets"
+cp -R "$set_dir" "$work/harness-tree/presets"
 printf 'A note.\n' > "$work/harness-tree/presets/notes.txt"
 if sh "$work/harness-tree/spec/presets.test.sh" > "$work/harness-tree.out" 2>&1; then
   cat "$work/harness-tree.out"
@@ -1542,6 +1631,23 @@ grep -F -q 'notes.txt: the entry is no preset, no declaration and no page' "$wor
   stop "the run in a tree whose presets/ holds notes.txt does not name the entry"
 }
 
+# The run without options stops where presets/ lacks a file of the set, and names the file:
+# this script in a tree of its own, target/presets/harness-set, whose presets/ is valid and
+# holds the page of the set under another name.
+mkdir -p "$work/harness-set/spec"
+cp "$self" "$work/harness-set/spec/presets.test.sh"
+cp -R "$root/spec/domains" "$work/harness-set/spec/domains"
+cp -R "$set_dir" "$work/harness-set/presets"
+mv "$work/harness-set/presets/$page" "$work/harness-set/presets/family.md"
+if sh "$work/harness-set/spec/presets.test.sh" > "$work/harness-set.out" 2>&1; then
+  cat "$work/harness-set.out"
+  stop "the run in a tree whose presets/ lacks a file of the set exits 0"
+fi
+grep -F -q "presets: presets/ holds no $page, a file of the set that every copy of this script holds" "$work/harness-set.out" || {
+  cat "$work/harness-set.out"
+  stop "the run in a tree whose presets/ lacks a file of the set does not name the file"
+}
+
 # A refusal counts only with the message of the rule of its case.
 copy harness-message
 printf 'A note.\n' > "$c/notes.txt"
@@ -1549,7 +1655,7 @@ verdict 'the message of no rule'
 [ "$verdict" = other ] || stop "a refusal without the message of its rule counts as the refusal of its case"
 
 # An accepted copy, and a copy refused without the message of its rule, give exit 1.
-if (cases=0; accepted=0; broken=0; kept=0; copy harness-accepted; refused 'the message of no rule' 'the unchanged catalog'; result) > "$work/harness.out" 2>&1; then
+if (cases=0; accepted=0; broken=0; kept=0; copy harness-accepted; refused 'the message of no rule' 'the unchanged set'; result) > "$work/harness.out" 2>&1; then
   stop "an accepted copy does not fail the run"
 fi
 grep -q '^accepted: harness-accepted: ' "$work/harness.out" || stop "an accepted copy is not named"
@@ -1656,11 +1762,14 @@ accepts "an input named report.file, a text input as an item of a list, a target
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
-# first, with its requirement and its row.
+# first, with its requirement and its row. The rate is sampled: its plan declares a condition
+# and its reference a tolerance and an adoption, the window declares no conditions, and a
+# requirement that compares the rate with a limit alone needs no reference.
 copy valid-plans
 add_rate
 add_window
-accepts "a pass rate of an assertion, and a window over the runs of another plan"
+printf '  pass-rate-above-half:\n    meaning: At least half of the runs pass every case.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.5}\n' >> "$c/$conf"
+accepts "a pass rate of an assertion with a reference and with a limit alone, and a window over the runs of another plan"
 
 # -- file ------------------------------------------------------------------------------------
 
@@ -2390,6 +2499,42 @@ copy series-declared
 printf 'format: ratchet-assessor/1\nname: record-series\nversion: "1"\ncommand: record-series\ntargets: [revision]\nconditions: []\ncoverage_unit: entry\ncoverage: [executed]\noutputs:\n  size: {value_type: number, kind: exact, scopes: [], unit: cases}\n' > "$c/record-series@1.assessor.yaml"
 refused 'record-series@1.assessor.yaml:1: the file declares `record-series@1`, the assessor of Ratchet itself' "the directory holds a declaration of record-series@1"
 
+# -- a sampled measurement -----------------------------------------------------------------------
+#
+# The set holds no sampled measurement. Each copy takes the pass rate of `add_rate` or the
+# window of `add_window`, which the copy `valid-plans` holds unchanged, and takes one thing out.
+
+rate_copy sampled-without-conditions
+drop "$conf" '      conditions: {all: {runner: ci-standard}}'
+refused '`assessments.conformance.measurements.pass-rate` is sampled, and the plan `conformance` declares no condition' "a plan with a sampled measurement declares no conditions"
+
+again sampled-without-tolerance
+drop "$conf" '      tolerance: {absolute: 0.05}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no tolerance' "a requirement compares a sampled measurement with an accepted value and has no tolerance"
+
+again sampled-without-adoption
+drop "$conf" '      adoption: {from: trusted_revision, runs: 10, aggregation: {kind: median}}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no `reference.adoption`' "a requirement compares a sampled measurement with an accepted value and has no adoption"
+
+rate_copy sampled-with-a-class-without-condition
+swap "$conf" '      conditions: {all: {runner: ci-standard}}' '      conditions: {all: {}}'
+refused '`assessments.conformance.measurements.pass-rate` is sampled, and the plan `conformance` declares no condition' "a plan with a sampled measurement declares a class of conditions that holds none"
+
+again sampled-with-an-empty-tolerance
+swap "$conf" '      tolerance: {absolute: 0.05}' '      tolerance: {}'
+refused '`requirements.pass-rate-holds` compares the sampled measurement `pass-rate` with an accepted value and has no tolerance' "a requirement on a sampled measurement has a tolerance without a percent and without an absolute band"
+
+# A window over the runs of another plan declares no conditions, and its requirement is under
+# the two rules of the reference all the same: its plan has no declaration to be read.
+again sampled-window-without-tolerance
+add_window
+drop "$known" '      tolerance: {percent: 10}'
+refused '`requirements.median-size-does-not-rise` compares the sampled measurement `median` with an accepted value and has no tolerance' "a requirement on a window over runs has an accepted value and no tolerance"
+
+again sampled-window-without-adoption
+drop "$known" '      adoption: {from: trusted_revision, runs: 4, aggregation: {kind: median}}'
+refused '`requirements.median-size-does-not-rise` compares the sampled measurement `median` with an accepted value and has no `reference.adoption`' "a requirement on a window over runs has an accepted value and no adoption"
+
 # -- a requirement against the value type of its output -----------------------------------------
 #
 # The comparison is checked a requirement at a time. The two copies below hold one defect in a
@@ -2570,7 +2715,7 @@ copy row-on-another-page
 edit "$page" "$the_row"' { next } { print }'
 {
   printf '# Other\n\n'"$table"
-  grep -F '| `conformance-cases@1/conformance/skipped` |' "$catalog/functional.md"
+  grep -F '| `conformance-cases@1/conformance/skipped` |' "$set_dir/$page"
 } > "$c/other.md"
 refused 'stands on another page than the rows of its preset' "one row of a preset stands on a second page"
 

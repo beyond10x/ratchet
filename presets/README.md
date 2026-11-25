@@ -17,6 +17,13 @@ Pages:
 
 - [functional.md](functional.md): conformance cases, differential equality against a reference
   implementation, the known-failure list.
+- [latency.md](latency.md): the time of each operation, the time from a request to the event
+  it causes, the requests answered per second.
+- [resources.md](resources.md): resident memory, CPU seconds per 1000 requests, open file
+  descriptors and threads while a workload runs.
+- [start.md](start.md): process start to ready, ready to first answer.
+- [operability.md](operability.md): the documented metric names a scrape exposes, the
+  health and readiness answers.
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name
@@ -80,11 +87,12 @@ A file in another form is refused, also where a YAML reader would accept it:
 
 ## Rules of the catalog
 
-- **Tolerance.** An exact value (a count, a size in bytes, a set) has the tolerance 0. A count
-  and a set have no input for it. A size may have a tolerance input with the default 0, for a
-  project that accepts a small rise. A sampled value (a duration, memory, a rate) has no default
-  tolerance, because the format ships none: its preset declares the tolerance as a required
-  input, and the page says so.
+- **Tolerance.** An exact value (a count, a size in bytes, a set) has the tolerance 0. An exact
+  count and a set have no input for it. A size may have a tolerance input with the default 0,
+  for a project that accepts a small rise. A sampled value (a duration, memory, a rate, a count
+  read while a service runs, such as its open file descriptors) has no default tolerance,
+  because the format ships none: its preset declares the tolerance as a required input, and the
+  page says so.
 - **A value against a reference implementation.** A requirement compares a measurement with a
   fixed limit or with a protected reference, and not with another measurement. The catalog
   expresses a candidate against a reference implementation with what `ratchet/1` has. What that
@@ -131,6 +139,11 @@ A file in another form is refused, also where a YAML reader would accept it:
 - **A comparison its value type allows.** A requirement compares its measurement as the table
   "Comparisons" of [`docs/design.md`](../docs/design.md) § 3 allows for the value type of the
   output: the operator, the `value`, the kind of the reference, `better` and the unit.
+- **A sampled measurement.** What [`docs/design.md`](../docs/design.md) § 3 and § 5 say
+  `ratchet validate` reports, the script refuses. The plan of a sampled measurement declares at
+  least one condition under `observation.conditions`, unless it is a window over `runs_of`,
+  which declares none. A requirement that compares a sampled measurement with an accepted value
+  has a tolerance, with `percent` or `absolute`, and an `adoption`.
 - **No text that is empty.** A member without a value is left out, not written as `""`.
 - **No comment in a preset or a declaration.** A binding carries the digest of the preset file,
   so a reworded comment would be a new digest. What a file means is on the page. The script
@@ -142,8 +155,8 @@ A file in another form is refused, also where a YAML reader would accept it:
 against the specification, against the declaration of its assessor and against the pages. Its
 header says what it checks and what it does not: among the latter the invariants of the types
 beside the four of a plan over `runs_of`, a value that an input gives where a rule reads the
-value, a measurement of a plan of `record-series@1` against the source plan, and the prose of a
-row. No script
+value, a measurement of a plan of `record-series@1` against the source plan, the number of runs
+of an adoption from the trusted revision, and the prose of a row. No script
 checks the rules "Tolerance", "A value against a reference implementation", "Names",
 "Evidence" and "Generic examples".
 

@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: resource-report
+version: "1"
+command: resource-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  workload: {type: string, required: true}
+conditions: []
+coverage_unit: run
+coverage: [executed, not_run]
+outputs:
+  peak_resident_memory: {value_type: number, kind: sampled, scopes: [], unit: bytes}
+  steady_resident_memory: {value_type: number, kind: sampled, scopes: [], unit: bytes}
+  cpu_seconds_per_1000_requests: {value_type: number, kind: sampled, scopes: [], unit: s}
+  open_file_descriptors: {value_type: number, kind: sampled, scopes: [], unit: descriptors}
+  threads: {value_type: number, kind: sampled, scopes: [], unit: threads}
