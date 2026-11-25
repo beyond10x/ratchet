@@ -1,0 +1,18 @@
+format: ratchet-assessor/1
+name: build-report
+version: "1"
+command: build-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  build_command: {type: string, required: true}
+conditions: [cache_profile]
+coverage_unit: build
+coverage: [executed, not_run]
+outputs:
+  duration:
+    value_type: number
+    kind: sampled
+    scopes: []
+    unit: s
+    boundaries: [run_time]

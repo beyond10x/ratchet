@@ -1,0 +1,20 @@
+format: ratchet-assessor/1
+name: test-report
+version: "1"
+command: test-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  test_command: {type: string, required: true}
+conditions: [cache_profile]
+coverage_unit: run
+coverage: [executed, not_run]
+outputs:
+  step_duration:
+    value_type: number
+    kind: sampled
+    scopes: []
+    unit: s
+    boundaries: [run_time]
+  slowest_test_duration: {value_type: number, kind: sampled, scopes: [], unit: s}
+  flake_rate: {value_type: number, kind: sampled, scopes: []}

@@ -1,0 +1,63 @@
+format: ratchet/1
+
+preset:
+  name: test-step-time
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    test_command: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    limit_s: {type: decimal, required: false, default: 120}
+    tolerance_percent: {type: decimal, required: true}
+
+assessments:
+  test-step:
+    subject: ${inputs.subject}
+    assessor: test-report@1
+    inputs:
+      report: ${inputs.report}
+      test_command: ${inputs.test_command}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      command: ${inputs.test_command}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+          cache_profile: warm
+      coverage: {not_run: {max: 0}}
+    measurements:
+      step-time:
+        kind: sampled
+        output: step_duration
+        boundary: run_time
+        scope: run
+        aggregation: {kind: median}
+        unit: s
+        better: lower
+
+requirements:
+  step-within-limit:
+    meaning: The time of the test step is at most the limit of the binding.
+    assessment: test-step
+    measurement: step-time
+    condition:
+      operator: lte
+      value: ${inputs.limit_s}
+      unit: s
+  step-time-does-not-rise:
+    meaning: The time of the test step is not above its accepted value by more than the tolerance of the binding.
+    assessment: test-step
+    measurement: step-time
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

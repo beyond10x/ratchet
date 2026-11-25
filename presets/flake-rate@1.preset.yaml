@@ -1,0 +1,52 @@
+format: ratchet/1
+
+preset:
+  name: flake-rate
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    test_command: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    tolerance: {type: decimal, required: true}
+
+assessments:
+  test-runs:
+    subject: ${inputs.subject}
+    assessor: test-report@1
+    inputs:
+      report: ${inputs.report}
+      test_command: ${inputs.test_command}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      command: ${inputs.test_command}
+      runs: ${inputs.runs}
+      min_samples: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+          cache_profile: warm
+      coverage: {not_run: {max: 0}}
+    measurements:
+      flake-rate:
+        kind: sampled
+        output: flake_rate
+        scope: run
+        better: lower
+
+requirements:
+  flake-rate-does-not-rise:
+    meaning: The share of the tests that pass in one execution and fail in another, over the runs of the test step on one tree, is not above its accepted value by more than the tolerance of the binding.
+    assessment: test-runs
+    measurement: flake-rate
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.tolerance}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

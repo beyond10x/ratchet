@@ -1,0 +1,47 @@
+format: ratchet/1
+
+preset:
+  name: dependency-count
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    graph: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  dependencies:
+    subject: ${inputs.subject}
+    assessor: dependency-graph@1
+    inputs:
+      graph: ${inputs.graph}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      direct:
+        kind: exact
+        output: direct
+        scope: run
+        unit: dependencies
+        better: lower
+      transitive:
+        kind: exact
+        output: transitive
+        scope: run
+        unit: dependencies
+        better: lower
+
+requirements:
+  direct-does-not-rise:
+    meaning: The project names no more dependencies than the accepted number.
+    assessment: dependencies
+    measurement: direct
+    reference: {kind: accepted_value}
+  transitive-does-not-rise:
+    meaning: The resolved dependency graph of the project holds no more dependencies than the accepted number.
+    assessment: dependencies
+    measurement: transitive
+    reference: {kind: accepted_value}

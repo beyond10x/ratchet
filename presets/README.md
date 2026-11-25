@@ -24,6 +24,12 @@ Pages:
 - [start.md](start.md): process start to ready, ready to first answer.
 - [operability.md](operability.md): the documented metric names a scrape exposes, the
   health and readiness answers.
+- [build.md](build.md): the time of a cold and of a warm build, of the test step and of its
+  slowest test, the share of flaky tests.
+- [artifact.md](artifact.md): the size and the layers of a container image, the size of a
+  binary, the number of dependencies, the advisories that apply to them.
+- [code.md](code.md): generated and hand-written lines of code, the obligations a generator
+  leaves, the findings of a linter.
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name

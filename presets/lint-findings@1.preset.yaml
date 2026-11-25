@@ -1,0 +1,37 @@
+format: ratchet/1
+
+preset:
+  name: lint-findings
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  lint:
+    subject: ${inputs.subject}
+    assessor: lint-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+      coverage: {unsupported: {max: 0}}
+    measurements:
+      findings:
+        kind: exact
+        output: findings
+        scope: run
+        identity: [rule, path, line_text, occurrence]
+
+requirements:
+  no-new-finding:
+    meaning: The linter reports no finding that the accepted set does not hold.
+    assessment: lint
+    measurement: findings
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}

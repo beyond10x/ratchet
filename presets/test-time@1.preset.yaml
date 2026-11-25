@@ -1,0 +1,62 @@
+format: ratchet/1
+
+preset:
+  name: test-time
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    test_command: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    limit_s: {type: decimal, required: false, default: 60}
+    tolerance_percent: {type: decimal, required: true}
+
+assessments:
+  tests:
+    subject: ${inputs.subject}
+    assessor: test-report@1
+    inputs:
+      report: ${inputs.report}
+      test_command: ${inputs.test_command}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      command: ${inputs.test_command}
+      runs: ${inputs.runs}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+          cache_profile: warm
+      coverage: {not_run: {max: 0}}
+    measurements:
+      slowest-test:
+        kind: sampled
+        output: slowest_test_duration
+        scope: run
+        aggregation: {kind: median}
+        unit: s
+        better: lower
+
+requirements:
+  slowest-test-within-limit:
+    meaning: The median over the runs of the test step of the time of the slowest execution of a test in a run is at most the limit of the binding.
+    assessment: tests
+    measurement: slowest-test
+    condition:
+      operator: lte
+      value: ${inputs.limit_s}
+      unit: s
+  slowest-test-does-not-rise:
+    meaning: The median over the runs of the test step of the time of the slowest execution of a test in a run is not above its accepted value by more than the tolerance of the binding.
+    assessment: tests
+    measurement: slowest-test
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

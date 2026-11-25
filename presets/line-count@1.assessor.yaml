@@ -1,0 +1,14 @@
+format: ratchet-assessor/1
+name: line-count
+version: "1"
+command: line-count
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  generated_paths: {type: path, list: true, required: true}
+conditions: []
+coverage_unit: file
+coverage: [executed]
+outputs:
+  generated: {value_type: number, kind: exact, scopes: [], unit: lines}
+  handwritten: {value_type: number, kind: exact, scopes: [], unit: lines}
