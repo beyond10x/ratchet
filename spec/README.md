@@ -79,7 +79,8 @@ runs twelve steps, and `task check` calls it:
     also for each item of a list, and names a target kind the assessor takes; a measurement
     names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
     that the declaration of its assessor declares, and a plan a condition and a population
-    field that it declares; a plan over `runs_of` names `record-series@1`, which no file
+    field that it declares; the cache condition is `cache_profile` and never `cache`, in a plan
+    and in a declaration; a plan over `runs_of` names `record-series@1`, which no file
     declares, and has no target selection and no conditions; a requirement compares its
     measurement as the table "Comparisons" of design § 3 allows for the value type of the
     output, the pass rate of an assertion as a number; the plan of a sampled measurement
@@ -119,7 +120,7 @@ runs twelve steps, and `task check` calls it:
 Each script states how much it reads and fails on another number, so that a section, a table
 or an example which an edit moves out of the form the script looks for is not skipped: 78 field
 rows in 13 tables of § 3 and 19 in 2 tables of § 10 (`record-fields`, `record-types`, a number
-per table), 3 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
+per table), 5 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.
 `presets.test.sh` states no number of the catalog, because the catalog grows by a family at a

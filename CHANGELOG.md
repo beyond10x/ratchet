@@ -9,6 +9,9 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 ### Changed
 
 - `task check` runs the `ess` release `spec/ess-inputs.yaml` requires also on a host whose `ess` in `PATH` is newer and holds that release beside it: `ESS_TOOLCHAIN` in `Taskfile.yml` pins it to the release the forge installs, and `task check:scripts` fails when the pin differs from the forge's or from the requirement, or when a call of `ess` in `task check:spec` or `task check:generated` loses it; `.github/scripts/check-generated.sh` started directly, not through `task`, gets no pin
+- `docs/evidence-format.md` § 3 and `spec/domains/evidence.yaml` name the identifiers of a target of the kind `workflow_run`, `run_id` and `job` (`<workflow> / <job>`), and its candidate, the commit id the run ran at, with a record of such a run in § 6; `identifiers` stays an open map, and nothing refuses a record without these names or with others
+- `docs/design.md` § 3, `docs/evidence-format.md` § 3 and `spec/` state that a record under `selection: merge_result` holds the revision under judgement as `candidate` and the merged tree that was read as `target.revision`, with a record of such a run in § 6; nothing refuses a record with the two swapped yet, and the assessor invocation of § 10 still passes one revision
+- The cache condition has one name, `cache_profile`, in a plan, an assessor declaration and an evidence record: `docs/design.md`, `docs/evidence-format.md` and `spec/` say so, the design example and `examples/quality/assessors/command-timing@1.assessor.yaml` write it, and `task check:spec` refuses a condition `cache` in a preset or in the `conditions` of a declaration of `presets/`; `ratchet validate` does not refuse it yet
 
 ## [0.0.3] - 2026-11-26
 

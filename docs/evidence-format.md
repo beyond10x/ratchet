@@ -59,7 +59,7 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `assessment` | text | yes | The key of the plan under `assessments` | spec: `AssessmentRun.assessment` |
 | `assessor` | text | yes | The assessor and its version, `ux-static@1` | spec: `AssessmentRun.assessor`; § 6 |
 | `protocol_version` | text | no | The version of the assessment protocol. A change that affects comparability starts a new evidence series (§ 5). | spec: `AssessmentRun.protocol_version` |
-| `candidate` | text | exactly when `target.selection` is present | The identity the evidence is attributable to: the commit id for a target of the kind `revision`, the digest of the document for `document`, the artifact digest for `build` | changed: `AssessmentRun.candidate` is required and a revision |
+| `candidate` | text | exactly when `target.selection` is present | The identity the evidence is attributable to: the commit id for a target of the kind `revision`, the digest of the document for `document`, the artifact digest for `build`, and for `workflow_run` the commit id the run ran at, equal to `target.revision`. Under `target.selection: merge_result` it is the revision under judgement, such as the head of a pull request, and not the merged tree, which is `target.revision` | changed: `AssessmentRun.candidate` is required and a revision |
 | `target` | object | yes | The resolved target (§ 3) | spec: `ResolvedTarget` |
 | `inputs` | map from an input name to an input | no | The resolved value of each input of the plan that is not local (§ 4) and is not the target (§ 10) | new: § 4, § 6 |
 | `completion` | text | yes | `completed`, `timed_out`, `stopped_by_infrastructure`, `skipped_locally`, or `refused_inputs`. The CLI writes the document of a run whose assessor left none (§ 10). | changed: `RunCompletion`; `refused_inputs` is a new value (E9) |
@@ -74,9 +74,9 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | --- | --- | --- | --- | --- |
 | `kind` | text | yes | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, or `document` | changed: `ResolvedTarget.kind`; `document` is a new value (E1) |
 | `class` | text | yes | Where the evidence was produced: `local`, `ci`, `ephemeral`, `staging`, or `production` | spec: `ResolvedTarget.class` |
-| `selection` | text | no | `candidate` or `merge_result`. Absent: the evidence is attributable to no candidate (§ 3). | spec: `ResolvedTarget.selection` |
+| `selection` | text | no | `candidate` or `merge_result`. Absent: the evidence is attributable to no candidate (§ 3). Under `merge_result`, `candidate` is the revision under judgement and `revision` the merged tree that was read, two different commits. | spec: `ResolvedTarget.selection` |
 | `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. | spec: `ResolvedTarget.revision` |
-| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). | spec: `ResolvedTarget.identifiers` |
+| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). For `workflow_run`: `run_id`, the forge’s id of the run, as text, and `job`, `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two jobs of one run are two records with the same `run_id`. The map stays open (E5). | spec: `ResolvedTarget.identifiers` |
 | `window` | object | exactly for a time-window plan | The window that was read (§ 3) | spec: `ResolvedTarget.window` |
 
 ### `evidence.target.window`
@@ -109,6 +109,8 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `tools` | map from a tool to its version | no | The resolved version of each tool, the assessor’s own included | spec: `ObservedConditions.tools` |
 | `cache_profile` | text | no | The cache profile, such as `warm` | spec: `ObservedConditions.cache_profile` |
 | `other` | map from text to text | no | Every further condition that the plan or the assessor declares | spec: `ObservedConditions.other` |
+
+**The cache condition.** A plan and a declaration write the cache condition as `cache_profile`, the key of its row above, and under no other name; a record holds it in `cache_profile` and not under `other`.
 
 **Unknown, or not applicable** (Q13). A condition is read only where it is declared: by the plan, for the class of the run, or by the assessor in its declaration (§ 10). A declared condition that the document does not hold is unknown, and the evidence does not qualify for a gate (design § 6). A condition that neither declares does not apply to the run, and its absence says nothing. `ux-static@1` declares no condition and reads no viewport, so its documents hold `tools` alone and no viewport is unknown. The format has no value for “does not apply”: the declaration says it once, for every run.
 
@@ -472,6 +474,64 @@ The two checks that could not be evaluated are entries of `coverage.not_executed
 ```
 
 Under E6 (A), a requirement `eq 0` on the accessible names of that page fails, because “at least 1” already breaks the limit. A requirement on the actions of that journey returns insufficient evidence with the cause `coverage_below_plan`. Its result has no value: the steps the assessor knows take 0 actions in that journey, and a bound of 0 says nothing (U6). In the journey that stops a campaign, the same unknown step gives `"value": "2", "at_least": true` under U6. The assessor writes that bound: `value` and `at_least` for a journey with an unknown step, where the bound is above 0 (Q6).
+
+A run of a CI workflow: the plan `ci-gate-timing` of `examples/ci-turnaround.ratchet.yaml`, a target of the kind `workflow_run` with `selection: candidate`. The ids and times are illustrations. `run_id` and `job` name the run and its job (§ 3, `evidence.target`); a second job of the same run is a second record with the same `run_id`. `candidate` is the commit id the run ran at, the same as `target.revision`. The plan declares the condition `runner` for the class `ci`, and the results are sampled, so the document has `run` (§ 2).
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "build-pool",
+    "assessment": "ci-gate-timing",
+    "assessor": "forge-workflow-timing@1",
+    "candidate": "4b8e1f2a9c3d5e7f60a1b2c3d4e5f6a7b8c9d0e1",
+    "target": {
+      "kind": "workflow_run",
+      "class": "ci",
+      "selection": "candidate",
+      "revision": "4b8e1f2a9c3d5e7f60a1b2c3d4e5f6a7b8c9d0e1",
+      "identifiers": {"run_id":"19733281406","job":"gate.yml / gate"}
+    },
+    "inputs": {"workflow": {"value":"gate.yml"}},
+    "completion": "completed",
+    "conditions": {"runner":"ci-standard"},
+    "coverage": {"unit":"run","executed":1,"skipped":0,"not_run":0,"unsupported":0,"passed":0,"failed":0},
+    "results": [
+      {"output":"duration","kind":"sampled","scope":"run","boundary":"run_time","value_type":"number","value":"24.6","unit":"min","samples":1},
+      {"output":"duration","kind":"sampled","scope":"run","boundary":"queue_wait","value_type":"number","value":"1.8","unit":"min","samples":1}
+    ]
+  },
+  "run": {"started_at":"2026-11-25T09:14:02Z","ended_at":"2026-11-25T09:38:38Z"}
+}
+```
+
+A run on a pull request under `selection: merge_result`: the plan `regenerated-scenarios` of `examples/generated-artifact.ratchet.yaml`. The run checked out the merge of the head of the pull request into the trusted revision. `candidate` is the head, the revision under judgement, and `target.revision` the merge commit, the tree that was read: two different commit ids (§ 3, `evidence.candidate` and `evidence.target`). The ids, the paths, and the digests are illustrations. The results are exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "protocol-compiler",
+    "assessment": "regenerated-scenarios",
+    "assessor": "generator-check@1",
+    "candidate": "1a954628a960aaef81d7b2d4521929579f3541e6",
+    "target": {
+      "kind": "revision",
+      "class": "ci",
+      "selection": "merge_result",
+      "revision": "14091a9f2461267ee7e02525b4f1f2923f1c9849"
+    },
+    "completion": "completed",
+    "conditions": {"tools":{"ess":"0.97.4"}},
+    "coverage": {"unit":"file","executed":3,"skipped":0,"not_run":0,"unsupported":0,"passed":0,"failed":0},
+    "results": [
+      {"output":"digest","kind":"exact","scope":"file","item":"conformance/scenarios/accept.yaml","value_type":"digest","digest":"sha256:4a914640d8fccf507beb813f1f09b1d5bf887f0162909f1c6ac05bd8acc48e16"},
+      {"output":"digest","kind":"exact","scope":"file","item":"conformance/scenarios/refuse.yaml","value_type":"digest","digest":"sha256:6f1413daffe6465e4c9789c2a1d33fa54c11f0cc4a7f36a5244413905146018f"},
+      {"output":"digest","kind":"exact","scope":"file","item":"conformance/scenarios/retry.yaml","value_type":"digest","digest":"sha256:5d80094427a2678b1b821895bb56f233501651c84f575420b22f7963c01e425f"}
+    ]
+  }
+}
+```
 
 ## 7. Mapping from the uxui draft
 

@@ -24,7 +24,7 @@
 # `ratchet.evidence.MeasurementResult`; an array of objects with `state` is a list of
 # `ratchet.evidence.NotExecutedUnit`. An example of another shape fails.
 #
-# § 6 holds 3 examples, each a block fenced `json`; `want_examples` below states the number.
+# § 6 holds 5 examples, each a block fenced `json`; `want_examples` below states the number.
 # Another number fails, and so does a fenced block of § 6 that is not fenced `json`, because
 # this script does not read it, and a document without a section "## 6. ".
 #
@@ -43,7 +43,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 doc=$root/docs/evidence-format.md
 work=$root/target/record-examples
 # The number of examples of docs/evidence-format.md § 6.
-want_examples=3
+want_examples=5
 
 command -v jq > /dev/null 2>&1 || { echo "record-examples: jq is not installed" >&2; exit 1; }
 

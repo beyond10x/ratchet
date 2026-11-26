@@ -67,7 +67,9 @@
 #             measurement of such a rate may be `sampled`. A condition of the observation
 #             is `host_load_per_cpu`, `tools`, `runner` or one the declaration lists, and
 #             a field of a population filter is one of its `population_fields`
-#             (`population_field_mismatch`)
+#             (`population_field_mismatch`). The cache condition is `cache_profile`, the
+#             member of the record: a condition `cache` of a plan and an item `cache` of the
+#             `conditions` of a declaration are refused, also where the two agree
 #   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
 #             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
 #             the directory declares it, and a plan that names it needs no declaration. As
@@ -973,6 +975,10 @@ check_catalog() {
           if (m != "") fail(F, n_line[i], named(path) m ", and its input has the type " typed(it, il))
         }
       }
+      # The cache condition has one name in a plan, a declaration and a record:
+      # `cache_profile`, the member of ratchet.evidence.ObservedConditions.
+      if (fk == "assessor" && n == 2 && s[1] == "conditions" && s[2] ~ /^\[[0-9]+\]$/ && n_text[i] == "cache")
+        fail(F, n_line[i], named(path) "is the condition `cache`; a declaration writes the cache condition as `cache_profile` and under no other name")
       if (fk != "preset") continue
 
       if (n == 4 && s[1] == "preset" && s[2] == "inputs" && s[4] == "local" && n_text[i] == "true")
@@ -1099,10 +1105,13 @@ check_catalog() {
       }
 
       # A condition of the observation, under its class: one of the three that have a field
-      # in ratchet.specification.ObservationConditions, or one the declaration lists.
+      # in ratchet.specification.ObservationConditions, or one the declaration lists. The
+      # cache condition is `cache_profile` and never `cache`, also where a declaration lists it.
       if (n == 6 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
-        if ((a in declaration) && !(("ratchet.specification.ObservationConditions", s[6]) in ftype) && !holds(declaration[a], "conditions", s[6]))
+        if (s[6] == "cache")
+          fail(F, n_line[i], named(path) "is the condition `cache`; a plan writes the cache condition as `cache_profile` and under no other name")
+        else if ((a in declaration) && !(("ratchet.specification.ObservationConditions", s[6]) in ftype) && !holds(declaration[a], "conditions", s[6]))
           fail(F, n_line[i], named(path) "is the condition `" s[6] "`, which is none of Ratchet itself, and `" a "` declares the conditions `" items(declaration[a], "conditions") "`")
       }
 
@@ -1755,9 +1764,9 @@ swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
 swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
 # A condition and a field of a population filter that the declaration lists, beside a
 # condition of Ratchet itself.
-swap "$conf_d" 'conditions: []' 'conditions: [cache]'
+swap "$conf_d" 'conditions: []' 'conditions: [cache_profile]'
 printf 'population_fields: [service]\n' >> "$c/$conf_d"
-swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache: warm, runner: ci-standard}}'
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard}}'
 accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the condition runner and a declared field of a population filter"
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
@@ -1881,7 +1890,7 @@ hidden_gate() {
     moved && ($0 == "    observation:" || $0 == "      kind: snapshot") { next }
     moved { if ($0 != "") held = held $0 "\n"; next }
     { print }
-    END { printf "\n%s    observation:\n      kind: snapshot\n      conditions:\n        all:\n          cache: warm'"$1"'gates:'"$1"'\n          merge: {stage: pre-merge, qualifying_environments: [ci], requires: [size-does-not-rise]}\n", held }'
+    END { printf "\n%s    observation:\n      kind: snapshot\n      conditions:\n        all:\n          cache_profile: warm'"$1"'gates:'"$1"'\n          merge: {stage: pre-merge, qualifying_environments: [ci], requires: [size-does-not-rise]}\n", held }'
 }
 
 copy file-line-separator-hides-a-gate
@@ -2416,6 +2425,15 @@ refused 'filters by the field `result`, which the output `cases` of `comparison-
 again assessor-condition
 swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {moon_phase: full}}'
 refused '`assessments.conformance.observation.conditions.all.moon_phase` is the condition `moon_phase`, which is none of Ratchet itself, and `conformance-report@1` declares the conditions `[]`' "a plan states a condition that its assessor does not declare"
+
+# The cache condition has one name, `cache_profile`, the member of the record
+# (spec/domains/specification.yaml, ObservationConditions). The declaration lists `cache` and
+# the plan writes it: both are refused, though the declaration lists what the plan writes.
+copy assessor-cache-condition
+swap "$conf_d" 'conditions: []' 'conditions: [cache]'
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {cache: warm}}'
+refused '`conditions[1]` is the condition `cache`; a declaration writes the cache condition as `cache_profile` and under no other name' "a declaration lists the condition cache"
+refused '`assessments.conformance.observation.conditions.all.cache` is the condition `cache`; a plan writes the cache condition as `cache_profile` and under no other name' "a plan states the condition cache that its assessor declares"
 
 copy assessor-input-local
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, local: true}'

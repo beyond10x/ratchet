@@ -55,7 +55,8 @@ types:
     naming:
       summary: >-
         The identity evidence is attributable to: the commit id for a target of the kind
-        `revision`, the digest of the document for `document`, the artifact digest for `build`
+        `revision`, the digest of the document for `document`, the artifact digest for `build`,
+        and for `workflow_run` the commit id the run ran at, equal to `target.revision`
         (§ 3; format § 3).
 
   - name: ratchet.evidence.Window
@@ -102,7 +103,10 @@ types:
         summary: Where the evidence was produced; `ci` when a CI environment is detected (§ 5).
       - name: selection
         type: Optional<ratchet.specification.Selection>
-        summary: Absent when the evidence is attributable to no candidate (§ 3).
+        summary: >-
+          Absent when the evidence is attributable to no candidate (§ 3). Under `merge_result`,
+          `candidate` is the revision under judgement and `revision` the merged tree that was
+          read; the two are different commits.
       - name: revision
         type: Optional<ratchet.specification.Revision>
         summary: >-
@@ -115,8 +119,11 @@ types:
           The identifiers § 3 lists per target kind, by name: `lockfile`, `environment_id`,
           `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For the kind
           `document`: `digest`, `digest_form`, and `path` where the document is a file of the
-          tree. A document outside the tree has no `path`: its digest identifies it
-          (format § 1, § 3).
+          tree. A document outside the tree has no `path`: its digest identifies it. For the
+          kind `workflow_run`: `run_id`, the forge's id of the run, as text, and `job`,
+          `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two
+          jobs of one run are two records with the same `run_id`. The map stays open: an
+          assessor may write a further name (format § 1, § 3, E5).
       - name: window
         type: Optional<ratchet.evidence.Window>
         summary: >-
@@ -175,7 +182,8 @@ types:
       summary: >-
         The conditions the evidence was observed under (§ 3, § 6): runner, host load, tools and
         cache profile, and every further condition the plan or the assessor declares. A
-        condition is read only where it is declared: by the plan, for the class of the run, or
+        declared `cache_profile`, the one name of the cache condition in a plan and a
+        declaration, is held in `cache_profile` and not under `other`. A condition is read only where it is declared: by the plan, for the class of the run, or
         by the assessor in its declaration. A declared condition the document does not hold,
         such as the host load of an imported run, is unknown; evidence with an unknown value
         for a declared condition does not qualify for a gate and still extends a series (§ 6).
@@ -483,7 +491,9 @@ types:
         summary: >-
           The candidate identity the evidence is attributable to (§ 3). Present exactly when
           `target.selection` is: a run of a time-window plan without `selection` is
-          attributable to no candidate.
+          attributable to no candidate. Under `selection: merge_result` it is the revision
+          under judgement, such as the head of a pull request, and not the merged tree, which
+          is `target.revision`.
       - name: target
         type: ratchet.evidence.ResolvedTarget
       - name: inputs

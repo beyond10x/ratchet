@@ -227,6 +227,12 @@ types:
   - name: ratchet.specification.Selection
     kind: enum
     variants: [candidate, merge_result]
+    naming:
+      summary: >-
+        Which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged
+        into the trusted revision (§ 3). Under `merge_result` the record names the two apart:
+        `candidate` is the revision under judgement, such as the head of a pull request, and
+        `target.revision` the merged tree that was read (format § 3).
 
   - name: ratchet.specification.TargetSpec
     kind: struct
@@ -347,7 +353,8 @@ types:
       summary: >-
         The conditions that qualify in one target class (§ 3 "Conditions are declared per target
         class"). Three have a defined meaning; an assessor declares others, such as
-        `cache: warm`, which this open struct admits.
+        `cache_profile: warm`, which this open struct admits. A plan and a declaration write the
+        cache condition as `cache_profile`, the member of the record, and under no other name.
     fields:
       - name: host_load_per_cpu
         type: Optional<ratchet.specification.LoadBound>

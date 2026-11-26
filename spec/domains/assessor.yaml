@@ -173,7 +173,9 @@ entities:
         type: Optional<List<String>>
         summary: >-
           The observation conditions it declares beyond `host_load_per_cpu`, `tools` and
-          `runner`, such as `cache` (§ 3). Absent or empty: it declares none.
+          `runner`, such as `cache_profile` (§ 3). Absent or empty: it declares none. A plan
+          and a declaration write the cache condition as `cache_profile`, the member of the
+          record, and under no other name.
       - name: coverage_unit
         type: ratchet.assessor.CoverageUnit
         summary: >-

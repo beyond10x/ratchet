@@ -73,7 +73,7 @@ A requirement describes **what must hold**. An assessment plan describes **how w
 
 Record both the **expected target** in the plan and the **resolved target** in the evidence. For source checks, this may be a commit and lockfile. For a deployed benchmark, it may be an ephemeral environment ID, the candidate’s artifact digest, and the workload version. For production telemetry, it may be a service, region, traffic filter, deployment or cohort identifier where available, and exact window bounds. Local, CI, ephemeral, staging, and production are explicit target classes. A pre-release gate can use an ephemeral environment with declared production-like conditions. A production window with mixed revisions describes that population and can support an operational gate, such as pausing a rollout. Candidate-specific verdicts require evidence attributable to that candidate.
 
-A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references). A time-window plan declares a `selection` only when its population is the candidate’s alone, such as a cohort that only the candidate serves. Without one, its evidence is attributable to no candidate, and the plan serves an operational gate (§ 5).
+A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references). Under `merge_result` the evidence names two commits apart: its `candidate` is the revision under judgement, such as the head of a pull request, and its `target.revision` the merged tree that was read. A time-window plan declares a `selection` only when its population is the candidate’s alone, such as a cohort that only the candidate serves. Without one, its evidence is attributable to no candidate, and the plan serves an operational gate (§ 5).
 
 The local gate and CI are different targets, even for the same tree. 14 answers report a different check set or a different result between the two (F10). A plan lists the classes it runs in as `environments`, always a list. Evidence records where it was produced: the target class, the runner, and the tools. A gate names the classes whose evidence qualifies. A requirement that a location cannot assess is reported there as not run: its verdict is insufficient evidence with the cause `not_assessable_here`. It is not left out of the list, and the run does not exit 0 as if it had passed (ext-07 D3).
 
@@ -293,7 +293,7 @@ assessments:
       conditions:
         all:
           tools: {rustc: {pin: rust-toolchain.toml}}
-          cache: warm
+          cache_profile: warm
         local: {host_load_per_cpu: {max: 1.0}}
         ci: {runner: ci-standard}
       coverage: {skipped: {max: 0}}
@@ -407,6 +407,8 @@ exceptions:
 ```
 
 The sample count illustrates a project choice. A real plan also defines how the assessor selects the request, handles errors and timeouts, and versions the workload. For user-perceived latency, the measurement would instead span the input action to the expected result becoming visible. Both measurements can use the same interaction.
+
+The plan `test-step` declares the cache condition as `cache_profile: warm`, a condition its assessor declares. A plan and a declaration write the cache condition as `cache_profile`, the member that holds it in the evidence record, and under no other name.
 
 Two things are not written in the YAML because the assessor declares them (§ 4). One is the coverage unit: `executed: {min: 3}` of `search-ui` counts the unit of `ux-eval@1`, and `skipped: {max: 0}` of `test-step` counts tests. The other is a local input: `test-step` passes no input for the place of the build pool’s job log, because `command-timing@1` declares `job_log` as local and the local config supplies it (§ 5).
 
