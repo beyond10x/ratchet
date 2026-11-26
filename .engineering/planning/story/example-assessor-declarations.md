@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:example-assessor-declarations
 kind: story
-status: active
+status: implemented
 title: Each assessor the examples name has a declaration
 summary: ratchet-assessor/1 files for the example assessors and a test that compares the examples with them.
 relations:
@@ -26,10 +26,11 @@ scope:
   path: spec/README.md
 - confidence: inferred
   path: spec/example-declarations.test.sh
-revision: 9
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T19:06:07Z", actor: "agent:ratchet", revision: 8}
 - {from: "proposed", to: "active", at: "2026-11-25T19:06:07Z", actor: "agent:ratchet", revision: 9}
+- {from: "active", to: "implemented", at: "2026-11-26T03:37:08Z", actor: "human:operator", revision: 10, decided_on: {"recorded":{"test_result":1,"review_outcome":7}}}
 ---
 ## Context
 

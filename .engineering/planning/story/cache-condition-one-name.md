@@ -23,7 +23,7 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 8
+revision: 9
 ---
 ## Context
 
@@ -60,3 +60,9 @@ by side and no rule joins them.
 - The story is a draft. It was there before the planned waves to 0.1.0 and waits for them;
   `story:evidence-reader` reads the conditions of a record and is the first code that needs
   the answer.
+- `examples/quality/assessors/command-timing@1.assessor.yaml`
+  (`story:example-assessor-declarations`,
+  2026-11-26) declares `conditions: []`: the example plans use only the conditions ratchet
+  provides. `docs/design.md` § 3 plans the same assessor with `cache: warm`. When this story
+  settles the name, that declaration gets the condition in the same change (finding 7 of
+  `review-result:adversary-example-assessor-declarations-attack-1`).
