@@ -19,7 +19,7 @@ scope:
   path: presets/production.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 8
+revision: 9
 ---
 ## Context
 
@@ -38,19 +38,18 @@ deployment. `presets/production.md`, point 1 of "Not expressible yet" (`:123-127
 `ratchet.specification.JudgedCandidate` with the form `{tag: <pattern>}`: a candidate gate
 that judges a revision other than the candidate of a change.
 
-## The question and the answer taken
+## The question and the decision
 
 Whether a production gate is a third gate kind, a candidate gate that names the deployment it
 judges, or a candidate gate over plans of the target kind `deployment` with nothing new.
 
-Taken here as the reversible answer (AGENTS.md § "Phase: implementation"), pending the owner's
-word on the fork (the wave record names the question): a production gate is a candidate gate
+Decided on 2026-11-26 by the operator session acting for the owner (D88 A; B, a third gate
+kind, and C, nothing new, were not taken): a production gate is a candidate gate
 whose `judges` names the deployment it judges, `judges: {deployment: <target class>}`, such as
 `staging`. `JudgedCandidate` gets the optional `deployment` of the type
 `ratchet.specification.TargetClass`, and exactly one of `tag` and `deployment` is present. The
 candidate of such a gate is the revision deployed in that class. `GateKind` keeps its two
-values: a third kind would repeat every rule of a candidate gate, and an answer of the owner
-for a third kind replaces one member and one paragraph.
+values: a third kind would repeat every rule of a candidate gate.
 
 ## Acceptance
 
