@@ -211,6 +211,14 @@ types:
           and no `aggregation` (format § 3). Absent means `false`.
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
+      - name: cell
+        type: Optional<Map<String, String>>
+        summary: >-
+          Selects the results of one condition cell, such as `{viewport: narrow}`, of an
+          output that declares `cells` (§ 3 "Scope and aggregation"). Absent, the measurement
+          reads one value per item and cell: two results of one item in two cells are two
+          entries of the series, and an aggregation within the scope may aggregate over the
+          cells.
       - name: better
         type: Optional<ratchet.specification.Direction>
         summary: >-

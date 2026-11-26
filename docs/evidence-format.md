@@ -49,7 +49,7 @@ Every digest is SHA-256 over bytes as they were written (U9). The format fixes n
 
 The column **From** says where a field comes from. `spec`: the field is in the specification with this meaning, and only its place in the JSON may differ. `changed`: it is in the specification with another name, type, or number. `new`: the specification does not have it. `§` is a section of the design. Specification types are in the domain `ratchet.evidence` unless they say otherwise.
 
-There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
+There are 80 fields: 48 `spec`, 7 `changed`, 25 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
 
 ### Top level
 
@@ -73,7 +73,7 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `completion` | text | yes | `completed`, `timed_out`, `stopped_by_infrastructure`, `skipped_locally`, or `refused_inputs`. The CLI writes the document of a run whose assessor left none (§ 10). | changed: `RunCompletion`; `refused_inputs` is a new value (E9) |
 | `conditions` | object | yes | The observed conditions. A declared condition that is absent is unknown (§ 6). One that nobody declares does not apply (below, `evidence.conditions`). | spec: `ObservedConditions` |
 | `coverage` | object | yes | How much of the plan the run executed (§ 3) | spec: `EvidenceCoverage` |
-| `results` | list of results | yes | One result per output, scope item, boundary, and aggregation. Empty when nothing ran. | changed: `AssessmentRun.results` is a map keyed by measurement name (E3) |
+| `results` | list of results | yes | One result per output, scope item, cell, boundary, and aggregation. Empty when nothing ran. | changed: `AssessmentRun.results` is a map keyed by measurement name (E3) |
 | `source` | object | exactly for an imported run | Where an imported run came from (§ 6) | spec: `ImportSource` |
 
 ### `evidence.target`
@@ -127,12 +127,13 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
 | `unit` | text | yes | The assessor’s coverage unit, such as `walk`, `test`, or `check` | new: § 3 evidence coverage, § 6 (G29) |
-| `executed` | count | yes | Units that ran and gave a result | spec: `EvidenceCoverage.executed` |
-| `skipped` | count | yes | Units that the run left out on purpose | spec: `EvidenceCoverage.skipped` |
-| `not_run` | count | yes | Units that should have run and did not | spec: `EvidenceCoverage.not_run` |
-| `unsupported` | count | yes | Units that the assessor cannot evaluate | spec: `EvidenceCoverage.unsupported` |
-| `passed` | count | yes | Executed units whose own outcome is a pass | spec: `EvidenceCoverage.passed` |
-| `failed` | count | yes | Executed units whose own outcome is a fail | spec: `EvidenceCoverage.failed` |
+| `executed` | count | no | Units that ran and gave a result; absent: not known | spec: `EvidenceCoverage.executed` |
+| `skipped` | count | no | Units that the run left out on purpose; absent: not known | spec: `EvidenceCoverage.skipped` |
+| `not_run` | count | no | Units that should have run and did not; absent: not known | spec: `EvidenceCoverage.not_run` |
+| `unsupported` | count | no | Units that the assessor cannot evaluate; absent: not known | spec: `EvidenceCoverage.unsupported` |
+| `passed` | count | no | Executed units whose own outcome is a pass; absent: not known | spec: `EvidenceCoverage.passed` |
+| `failed` | count | no | Executed units whose own outcome is a fail; absent: not known | spec: `EvidenceCoverage.failed` |
+| `at_least` | list of text | no | The counts whose value is a lower bound, such as `["executed"]`: at least that many units, and more may exist (§ 5, U6). A count named here is present. Absent: every count that is present is exact. | new: U6, an imported report that states a lower bound |
 | `executed_ids` | list of text | no | The ids of the executed units, for a plan that declares `executed_ids` | spec: `EvidenceCoverage.executed_ids` |
 | `not_executed` | list | no | The units that were not executed, each with its state and reason | new: U3 |
 | `not_executed[].id` | text | yes | The id of the unit, in the assessor’s spelling. Unique within the run, and the same for the same unit in every run (rule 4). | new: U3 |
@@ -151,6 +152,7 @@ A unit is one piece of work, and it is counted once, however often the inputs na
 | `kind` | text | yes | `exact` or `sampled` | spec: `MeasurementResult.kind` |
 | `scope` | text | yes | The scope the result was observed at: `run`, or one the assessor declares | spec: `MeasurementResult.scope` |
 | `item` | text | exactly when `scope` is not `run` | The scope item: the journey, the page, the test. The same spelling in every run, because accepted values are kept per item. | changed: `MeasurementResult.scope_item` |
+| `cell` | map from a condition name to text | exactly when the output declares `cells` | The condition cell the result was observed under, beside its scope item, such as `{"viewport": "narrow"}`: one value per name of the `cells` of its output (§ 10). Two results of one item in two cells are two results (rule 3). | new: a result per condition cell, such as a viewport and a theme |
 | `boundary` | text | no | The part of a duration: `run_time`, `queue_wait`, or one the assessor declares | spec: `MeasurementResult.boundary` |
 | `value_type` | text | yes | `number`, `identity_set`, `digest`, or `assertion`. It decides which of the members below the result has. | spec: the tag of `MeasuredValue` |
 | `incomplete` | object | no | Present when the result has no value, or less than the whole value (U5, U6) | new: U5 |
@@ -188,8 +190,10 @@ A result of the value type `digest` or `assertion`:
 
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
-| `kind` | text | yes | `forge_runs`, `build_pool_log`, or `junit` | spec: `ImportSource.kind` |
-| `location` | text | yes | The forge run, the job log, or the file that was read | spec: `ImportSource.location` |
+| `kind` | text | yes | `forge_runs`, `build_pool_log`, `junit`, or `tree_file`, a file of the tree such as a committed results file | spec: `ImportSource.kind` |
+| `location` | text | yes | The forge run, the job log, or the file that was read. For `tree_file`, a path relative to the root (§ 1). | spec: `ImportSource.location` |
+
+**A file of the tree.** A record whose `source.kind` is `tree_file` holds `target.revision`, the commit the file was read at, and a reader rejects one without it. The results of a run made by hand are kept as such a file and imported from it: they have no kind of their own (§ 6, example 7).
 
 ### `run`
 
@@ -208,8 +212,8 @@ A reader checks these and rejects a document that breaks one.
 
 1. `candidate` is present exactly when `target.selection` is.
 2. `item` is absent exactly when `scope` is `run`.
-3. `results` holds at most one result per `output`, `scope`, `item`, `boundary`, and `aggregation`.
-4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`, and is counted once (§ 3, `evidence.coverage`). `passed` plus `failed` is at most `executed`: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts. The id of a unit is unique within the run: no id is twice in `executed_ids` and `not_executed` taken together. The same unit has the same id in every run.
+3. `results` holds at most one result per `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation`.
+4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`, and is counted once (§ 3, `evidence.coverage`). A count that a record leaves out is not known, and a count it holds is read as written, 0 included: a record that holds all six counts reads as it did before they became optional. A count that `at_least` names is present and is a lower bound (§ 5, U6). `passed` plus `failed` is at most `executed`, where the counts are present: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts. The id of a unit is unique within the run: no id is twice in `executed_ids` and `not_executed` taken together. The same unit has the same id in every run.
 5. A result is complete or incomplete. A complete result has the value of its type and no `incomplete`. An incomplete result has `incomplete`, and either no value or less than the whole one: a number with `at_least`, or the items of a set that were found.
 6. `at_least: true` appears only on an incomplete result.
 7. When `completion` is not `completed`, every result is incomplete, with the cause of that completion (§ 5, U5).
@@ -218,7 +222,7 @@ A reader checks these and rejects a document that breaks one.
 
 Rules 1 to 7 and 9 can be checked on one document, with two exceptions in rule 4: that a unit is counted once, and that its id is the same in every run. Those two and rule 8 need the inputs or a second run. They bind the assessor, and a reader cannot check them.
 
-A measurement of the plan reads the results whose `output`, `scope`, `boundary`, and `aggregation` are its own. A requirement that reads an incomplete result returns insufficient evidence with the cause of the result, unless a lower bound proves a fail (§ 5, U6).
+A measurement of the plan reads the results whose `output`, `scope`, `boundary`, and `aggregation` are its own, and of one `cell` where the measurement names one: without `cell` it reads one value per item and cell (design § 3, “Scope and aggregation”). A requirement that reads an incomplete result returns insufficient evidence with the cause of the result, unless a lower bound proves a fail (§ 5, U6).
 
 ## 5. Decisions for the consumer’s gaps
 
@@ -292,6 +296,8 @@ The first two hold for every result of the run. `coverage_below_plan` comes befo
 - A result has no bound when the value does not exist on this target. A journey with a step on a missing node cannot be followed on the document. It has no number of actions there, so its result has no value, whichever cause it names.
 
 An incomplete identity set is a bound of the same kind: it holds the items that were found, and more may exist.
+
+**A coverage count.** A count named under `at_least` of `evidence.coverage` is a lower bound of the same kind: `"executed": 472, "at_least": ["executed"]` says that 472 units or more were executed, as an imported report states it that gives no other count (§ 6, example 6). A count that the record leaves out is not known, and the assessor writes no 0 it did not observe (rule 4). A coverage bound of a plan reads both as design § 3 "Evidence coverage" says: a `min` bound that the lower bound reaches is met; any other bound over a lower bound, and every bound over a count that is not known, gives insufficient evidence with the cause `coverage_below_plan`, naming the count.
 
 ### E1. Which target kind is a design variant or a document? (U2)
 
@@ -545,6 +551,69 @@ A run on a pull request under `selection: merge_result`: the plan `regenerated-s
 }
 ```
 
+An imported run whose report states a lower bound: a JUnit file that a CI job wrote, imported for the plan `unit-tests`. The report states that at least 472 tests ran and that none failed, and gives no count of skipped or not run tests. So the coverage holds `executed` as a lower bound, named under `at_least`, and `failed` as written, and it leaves the other four counts out: they are not known, and no 0 stands for them (rule 4, § 5 U6). A coverage bound of the plan over `skipped` gives insufficient evidence for this run, and `executed: {min: 400}` is met. The names, the ids, and the path are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "model-server",
+    "assessment": "unit-tests",
+    "assessor": "junit-report@1",
+    "candidate": "9e2d4c6b8a0f1e3d5c7b9a8f6e4d2c0b1a3f5e7d",
+    "target": {
+      "kind": "revision",
+      "class": "ci",
+      "selection": "candidate",
+      "revision": "9e2d4c6b8a0f1e3d5c7b9a8f6e4d2c0b1a3f5e7d"
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"test","executed":472,"failed":0,"at_least":["executed"]},
+    "results": [
+      {"output":"suite_passed","kind":"exact","scope":"run","value_type":"assertion","holds":true}
+    ],
+    "source": {"kind":"junit","location":"target/nextest/ci/junit.xml"}
+  }
+}
+```
+
+An imported file of the tree: the results of a run made by hand, committed as a results file and imported for the plan `manual-cases`. `source.kind` is `tree_file` and `location` the path of the file relative to the root (§ 1). `target.revision` is the commit the file was read at, which a record of this kind holds (§ 3, `evidence.source`); here it is the candidate too. The names, the ids, the path, and the counts are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "model-server",
+    "assessment": "manual-cases",
+    "assessor": "results-file@1",
+    "candidate": "3c5e7a9b1d2f4e6a8c0b2d4f6e8a0c1b3d5f7e9a",
+    "target": {
+      "kind": "revision",
+      "class": "local",
+      "selection": "candidate",
+      "revision": "3c5e7a9b1d2f4e6a8c0b2d4f6e8a0c1b3d5f7e9a"
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"case","executed":40,"skipped":0,"not_run":0,"unsupported":0,"passed":38,"failed":2},
+    "results": [
+      {"output":"cases_passed","kind":"exact","scope":"run","value_type":"number","value":"38","unit":"cases"}
+    ],
+    "source": {"kind":"tree_file","location":"quality/results/manual-cases.json"}
+  }
+}
+```
+
+Two results of one output and one scope item in two condition cells: the output `actions` declares `cells: [viewport]` (§ 10), and the journey `checkout` is walked once per viewport. Each result names its cell beside its item, so neither part is joined into the item name, and the two are two results under rule 3. A measurement with `cell: {viewport: narrow}` reads the first; one without `cell` reads one value per item and cell (design § 3, “Scope and aggregation”). The values are illustrations.
+
+```json
+[
+  {"output":"actions","kind":"exact","scope":"journey","item":"checkout","cell":{"viewport":"narrow"},"value_type":"number","value":"7","unit":"actions"},
+  {"output":"actions","kind":"exact","scope":"journey","item":"checkout","cell":{"viewport":"wide"},"value_type":"number","value":"5","unit":"actions"}
+]
+```
+
 ## 7. Mapping from the uxui draft
 
 The draft is `ratchet-evidence/draft` as `docs/ux-static.md` and `engine/static/src/record.rs` define it on the consumer’s branch `ux-static`. The branch is not pushed, so nothing here links to it. `results[]` is short for `evidence.results[]`.
@@ -615,7 +684,7 @@ In [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main
 1. **Two parts.** `AssessmentRun` holds `evidence` and an optional `run`, each a struct: `started_at`, `ended_at`, `queue_wait`, `run_time`, `artifacts`, and the new `local_inputs` in the second, every other field in the first. The projection then writes the two members, and the evidence digest has one subtree. **Done:** `AssessmentRun` holds `format`, `evidence` (the struct `ratchet.evidence.Evidence`), and an optional `run` (the struct `ratchet.evidence.RunDetails`). The record id is its identity, written `run_id`, because `run` is now a member.
 2. **`candidate`.** Optional, and a candidate identity that is a commit id or a digest, where it is a required `Revision`. An invariant: present exactly when `target.selection` is. **Done:** `Evidence.candidate` is `Optional<ratchet.evidence.CandidateIdentity>`, with two invariants on `Evidence` for rule 1.
 3. **`inputs`.** A map from an input name to `{value, digest, digest_form}`, and `local_inputs` as a map from an input name to text. **Done:** `Evidence.inputs` is `Optional<Map<String, ratchet.evidence.ResolvedInput>>`, and `RunDetails.local_inputs` is `Optional<Map<String, String>>`.
-4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, boundary, and aggregation. **Done in part:** `Evidence.results` is `List<ratchet.evidence.MeasurementResult>`. **Left out of 0.1.0:** the invariant, rule 3. An ESS `distinct` takes one member as its key and not five, so the reader checks the rule.
+4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, cell, boundary, and aggregation. **Done in part:** `Evidence.results` is `List<ratchet.evidence.MeasurementResult>`. **Left out of 0.1.0:** the invariant, rule 3. An ESS `distinct` takes one member as its key and not six, so the reader checks the rule.
 5. **`MeasurementResult`.** `scope_item` is written `item`. New fields `incomplete` (`{cause, detail}`) and `details` (`Json`). The cause is one of the 13 causes of insufficient evidence, which are part of `ratchet.gate.VerdictCause` today: the list is split into the causes of a fail and the causes of insufficient evidence, so that the evidence domain can name the second. **Done:** `MeasurementResult.item`, `incomplete` (the struct `ratchet.evidence.Incomplete`), and `details`. The list is split into `ratchet.gate.FailCause`, with 7 values, and `ratchet.gate.InsufficientEvidenceCause`, with 14: the 13 and `evidence_missing`, which only a gate names. `VerdictCause` keeps both lists for a row that holds either.
 6. **`MeasuredValue`.** Its members are written in the result, beside `value_type`, and not one level down under `value`. **Done:** `MeasuredValue` and its four structs are gone. `MeasurementResult` holds `value_type` and every value member as an optional field, and invariants say which members a value type has. An ESS union would write its payload one level down.
 7. **`NumberValue`.** `value` is optional, for an incomplete result. `at_least` is optional and absent means false. `samples` moves here from `AssessmentRun`. A new optional `aggregation`, of the type the plan uses. **Done:** `MeasurementResult.value` (`Optional<Decimal>`), `unit`, `at_least` (`Optional<Boolean>`), `samples`, and `aggregation` (`Optional<ratchet.specification.Aggregation>`), with the invariants of rules 5 and 6, and two for `samples` as § 3 has it: present with `aggregation`, and present on a number whose `kind` is `sampled`.
@@ -656,7 +725,7 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 | --- | --- | --- |
 | § 3 | `target.window` is present exactly for a time-window plan | The kind of the observation is in the plan, which the document does not hold. The rule joins a run and its plan. |
 | § 3 | `items[].identity` holds exactly the fields that the `key` of its result names | Both are members of one result, but `identity` is free JSON, and no invariant reads the names of the members of a JSON value |
-| 3 | At most one result per `output`, `scope`, `item`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
+| 3 | At most one result for each `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
 | 4 | `passed` plus `failed` is at most `executed` | A comparison reads no sum of two facts (item 10) |
 | 4 | `not_executed`, where present, has one entry per unit of `skipped`, `not_run`, and `unsupported` | The rule counts the entries of a list by the value of a member and compares the count with a field |
 | 4 | A unit is counted once and has the same id in every run | It needs the inputs or a second run (§ 4) |
@@ -668,7 +737,6 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 
 - **A paired run** (design § 3). Its evidence is two values of one run, and the specification has no field for the second.
 - **Raw samples.** A result is one value. An assessor that aggregates names the aggregation and the number of samples.
-- **A result per condition cell**, such as a viewport and a theme. A finding carries its environment in its identity (design § 3). A number has no field for it, and the first assessor runs under no conditions.
 - **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
 - **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
 - **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision` or `document` and the selection `candidate`. It does not say how an assessor learns the observation of a plan (`scenarios`, `workload`, `command`, `runs`, `min_samples`), a `merge_result` selection, a plan without a selection, or a target of another kind. The first assessor needs none of these.
@@ -741,7 +809,7 @@ One YAML document per assessor and version (E8). `ratchet validate` checks a pla
 | `inputs` | map from an input name to an input | no | Each input: `type` (`string`, `integer`, `decimal`, `boolean`, or `path`), `list`, `required`, `default`, and `local` (design § 4) | changed: `Assessor.configuration_inputs` is a list |
 | `conditions` | list of text | no | The conditions it declares beside `host_load_per_cpu`, `tools`, and `runner`. Absent or empty: it declares none (§ 3, Q13). | spec: `Assessor.conditions` |
 | `coverage_unit` | text | yes | The one unit its coverage counts count | spec: `Assessor.coverage_unit` |
-| `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. A count it does not report is 0 in its documents. | spec: `Assessor.coverage` |
+| `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. It leaves a count it does not report out of its documents, where that count is not known (rule 4); a count it reports may be a lower bound under `at_least` (§ 5, U6). | spec: `Assessor.coverage` |
 | `outputs` | map from an output name to an output | yes | The outputs a measurement can read | changed: `Assessor.outputs` is a list |
 | `population_fields` | list of text | no | The fields a time-window plan’s `population: {filter}` may name | spec: `Assessor.population_fields` |
 
@@ -754,6 +822,7 @@ An output, `outputs.<name>`:
 | `scopes` | list of text | yes | The scopes its results can have, beside `run`, which every assessor has (design § 3). The scope items are not declared: they come from the inputs of a run. The list may be empty: `scopes: []` declares an output whose results have the scope `run` alone, and the member stays required. | spec: `AssessorOutput.scopes` |
 | `unit` | text | no | The unit of its values. Absent: the output has no unit, as the number of items of a set has none. | spec: `AssessorOutput.unit` |
 | `boundaries` | list of text | no | For a duration, the parts it reports | spec: `AssessorOutput.boundaries` |
+| `cells` | list of text | no | The conditions its results are split by, such as `[viewport, theme]`. A result of the output has a `cell` exactly when the output declares `cells`, with those names. | spec: `AssessorOutput.cells` |
 | `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |
 | `item_fields` | list of text | no | The names an item may have under `fields`, which a `filter` may read | spec: `AssessorOutput.item_fields` |
 | `item_values` | map from an item field to its values | no | The closed list of values of a field of `item_fields`, such as `{class: [equal, allowed, different]}`. A `filter` on that field names only these values, and an item has one of them under it. A field without a list is open: any value is read. | spec: `AssessorOutput.item_values` |

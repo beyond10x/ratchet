@@ -71,17 +71,21 @@ types:
       - name: unit
         type: ratchet.assessor.CoverageUnit
       - name: executed
-        type: Integer
+        type: Optional<Integer>
       - name: skipped
-        type: Integer
+        type: Optional<Integer>
       - name: not_run
-        type: Integer
+        type: Optional<Integer>
       - name: unsupported
-        type: Integer
+        type: Optional<Integer>
       - name: passed
-        type: Integer
+        type: Optional<Integer>
       - name: failed
-        type: Integer
+        type: Optional<Integer>
+      - name: at_least
+        type: Optional<List<ratchet.assessor.CoverageCount>>
+        summary: >-
+          The counts whose value is a lower bound. A count that is absent above is not known.
       - name: executed_ids
         type: Optional<List<String>>
         summary: The ids of the executed units, where the plan declares `executed_ids`.

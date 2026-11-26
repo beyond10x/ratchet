@@ -11,7 +11,7 @@
 # A field table is a table whose header starts `| Field | Type | Required |`. Its label is the
 # nearest heading, or line ending in a colon, above it. A new table needs a line in `map` below
 # and its type in the specification; without the line this script fails. A `map` line states the
-# number of rows of its table: 78 in the 13 tables of § 3 and 20 in the 2 tables of § 10. A
+# number of rows of its table: 80 in the 13 tables of § 3 and 21 in the 2 tables of § 10. A
 # section that moves to another number, a header that changes, or a row that is added, deleted
 # or written without its backticks changes a count, and the script fails until the line here
 # says the new number.
@@ -35,7 +35,7 @@ awk '
   function nested(label, prefix, type) { nested_of[label SUBSEP prefix] = type; prefixes[prefix] = 1 }
 
   BEGIN {
-    # docs/evidence-format.md § 3: 78 rows in 13 tables
+    # docs/evidence-format.md § 3: 80 rows in 13 tables
     map(3, "### Top level", "ratchet.evidence.AssessmentRun", 3)
     map(3, "### `evidence`", "ratchet.evidence.Evidence", 12)
     map(3, "### `evidence.target`", "ratchet.evidence.ResolvedTarget", 6)
@@ -43,9 +43,9 @@ awk '
     map(3, "### `evidence.inputs.<name>`", "ratchet.evidence.ResolvedInput", 3)
     map(3, "### `evidence.conditions`", "ratchet.evidence.ObservedConditions", 8)
     nested("### `evidence.conditions`", "host_load_per_cpu.", "ratchet.evidence.HostLoad")
-    map(3, "### `evidence.coverage`", "ratchet.evidence.EvidenceCoverage", 12)
+    map(3, "### `evidence.coverage`", "ratchet.evidence.EvidenceCoverage", 13)
     nested("### `evidence.coverage`", "not_executed[].", "ratchet.evidence.NotExecutedUnit")
-    map(3, "### `evidence.results[]`", "ratchet.evidence.MeasurementResult", 10)
+    map(3, "### `evidence.results[]`", "ratchet.evidence.MeasurementResult", 11)
     nested("### `evidence.results[]`", "incomplete.", "ratchet.evidence.Incomplete")
     map(3, "A result of the value type `number`:", "ratchet.evidence.MeasurementResult", 5)
     map(3, "A result of the value type `identity_set`:", "ratchet.evidence.MeasurementResult", 4)
@@ -53,9 +53,9 @@ awk '
     map(3, "A result of the value type `digest` or `assertion`:", "ratchet.evidence.MeasurementResult", 2)
     map(3, "### `evidence.source`", "ratchet.evidence.ImportSource", 2)
     map(3, "### `run`", "ratchet.evidence.RunDetails", 6)
-    # docs/evidence-format.md § 10: 20 rows in 2 tables
+    # docs/evidence-format.md § 10: 21 rows in 2 tables
     map(10, "### Declaration `ratchet-assessor/1`", "ratchet.assessor.Assessor", 12)
-    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 8)
+    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 9)
     section = 0; rows = 0; missing = 0; broken = 0; stated = -1; counted3 = 0
   }
 

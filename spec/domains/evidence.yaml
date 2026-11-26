@@ -235,28 +235,42 @@ types:
         unit is one piece of work and is counted once, in one of the four counts, however often
         the inputs name it. `passed` plus `failed` is at most `executed`: a unit that is
         counted and not judged, such as a step, is executed and neither (format § 4 rule 4).
+        A count that a record leaves out is not known; a count it holds is read as written, 0
+        included. A count named under `at_least` is a lower bound (format § 5, U6).
     fields:
       - name: unit
         type: ratchet.assessor.CoverageUnit
         summary: The assessor's coverage unit, such as `walk`, `test` or `check` (§ 3, § 6).
       - name: executed
-        type: Integer
-        summary: Units that ran and gave a result.
+        type: Optional<Integer>
+        summary: >-
+          Units that ran and gave a result. Absent: not known.
       - name: skipped
-        type: Integer
-        summary: Units that the run left out on purpose.
+        type: Optional<Integer>
+        summary: >-
+          Units that the run left out on purpose. Absent: not known.
       - name: not_run
-        type: Integer
-        summary: Units that should have run and did not.
+        type: Optional<Integer>
+        summary: >-
+          Units that should have run and did not. Absent: not known.
       - name: unsupported
-        type: Integer
-        summary: Units that the assessor cannot evaluate.
+        type: Optional<Integer>
+        summary: >-
+          Units that the assessor cannot evaluate. Absent: not known.
       - name: passed
-        type: Integer
-        summary: Executed units whose own outcome is a pass.
+        type: Optional<Integer>
+        summary: >-
+          Executed units whose own outcome is a pass. Absent: not known.
       - name: failed
-        type: Integer
-        summary: Executed units whose own outcome is a fail.
+        type: Optional<Integer>
+        summary: >-
+          Executed units whose own outcome is a fail. Absent: not known.
+      - name: at_least
+        type: Optional<List<ratchet.assessor.CoverageCount>>
+        summary: >-
+          The counts whose value is a lower bound: at least that many units, and more may
+          exist (format § 5, U6). A count named here is present. Absent: every count that is
+          present is exact.
       - name: executed_ids
         type: Optional<List<String>>
         summary: >-
@@ -269,8 +283,22 @@ types:
           `not_run` and `unsupported`. No id is twice in `executed_ids` and `not_executed`
           taken together.
     invariants:
-      - "passed <= executed"
-      - "failed <= executed"
+      - any: ["not defined(passed)", "not defined(executed)", "passed <= executed"]
+      - any: ["not defined(failed)", "not defined(executed)", "failed <= executed"]
+      - any:
+          - "not defined(at_least)"
+          - not:
+              exists:
+                in: at_least
+                as: c
+                that:
+                  any:
+                    - all: ["c == executed", "not defined(executed)"]
+                    - all: ["c == skipped", "not defined(skipped)"]
+                    - all: ["c == not_run", "not defined(not_run)"]
+                    - all: ["c == unsupported", "not defined(unsupported)"]
+                    - all: ["c == passed", "not defined(passed)"]
+                    - all: ["c == failed", "not defined(failed)"]
       - any:
           - "not defined(not_executed)"
           - distinct: {in: not_executed, as: u, by: u.id}
@@ -347,6 +375,12 @@ types:
         summary: >-
           The scope item: the page, journey, test, scenario or variant the result belongs to,
           in the same spelling in every run. Absent exactly when `scope` is `run`.
+      - name: cell
+        type: Optional<Map<String, String>>
+        summary: >-
+          The condition cell the result was observed under, a map from a condition name to its
+          value, such as `{viewport: narrow}`, beside the scope item. Present exactly when the
+          output declares `cells`, with those names (format § 3, § 10).
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
       - name: value_type
@@ -450,7 +484,7 @@ types:
   # The sources § 5 "Proposed CLI" names for `ratchet import`.
   - name: ratchet.evidence.ImportSourceKind
     kind: enum
-    variants: [forge_runs, build_pool_log, junit]
+    variants: [forge_runs, build_pool_log, junit, tree_file]
 
   - name: ratchet.evidence.ImportSource
     kind: struct
@@ -461,7 +495,10 @@ types:
         type: ratchet.evidence.ImportSourceKind
       - name: location
         type: String
-        summary: The forge run, the job log or the JUnit file read.
+        summary: >-
+          The forge run, the job log or the JUnit file read. For `tree_file`, a path relative
+          to the root: the file of the tree that was read, such as a committed results file or
+          the results of a run made by hand (format § 1, no absolute path).
 
   - name: ratchet.evidence.Evidence
     kind: struct
@@ -512,10 +549,10 @@ types:
       - name: results
         type: List<ratchet.evidence.MeasurementResult>
         summary: >-
-          One result per output, scope item, boundary and aggregation; at most one for each
-          (format § 4 rule 3). Empty when nothing ran. A measurement of the plan reads the
-          results whose `output`, `scope`, `boundary` and `aggregation` are its own; the CLI
-          binds them when it judges (E3).
+          One result per output, scope item, cell, boundary and aggregation; at most one for
+          each (format § 4 rule 3). Empty when nothing ran. A measurement of the plan reads the
+          results whose `output`, `scope`, `boundary` and `aggregation` are its own, and the
+          `cell` it names where it names one; the CLI binds them when it judges (E3).
       - name: source
         type: Optional<ratchet.evidence.ImportSource>
         summary: Present exactly on an imported run, which is an assessment run record (§ 6).
@@ -523,6 +560,9 @@ types:
       # format § 4 rule 1.
       - any: ["not defined(candidate)", "defined(target.selection)"]
       - any: ["defined(candidate)", "not defined(target.selection)"]
+      # An imported file of the tree names the revision it was read at (format § 3
+      # `evidence.source`).
+      - any: ["not defined(source)", "source.kind != tree_file", "defined(target.revision)"]
       # format § 4 rule 7: a run that did not complete has incomplete results only, each with
       # the cause of its completion.
       - any:

@@ -109,6 +109,12 @@ types:
         summary: >-
           For a duration, the parts it reports, such as `run_time`, `queue_wait` or
           `request_start_to_response_complete` (§ 3).
+      - name: cells
+        type: Optional<List<String>>
+        summary: >-
+          The conditions its results are split by, such as `[viewport, theme]`. A result of
+          this output has a `cell` exactly when the output declares `cells`, with those names
+          (format § 3, § 10).
       - name: identity_key
         type: Optional<List<String>>
         summary: >-
@@ -195,8 +201,9 @@ entities:
         type: List<ratchet.assessor.CoverageCount>
         summary: >-
           The coverage counts it reports, for the assessor as a whole: a run has one set of
-          counts, whichever outputs a plan reads (§ 4 "Coverage"). A count it does not report
-          is 0 in its documents.
+          counts, whichever outputs a plan reads (§ 4 "Coverage"). The assessor leaves a count
+          it does not report out of its documents, where the count is not known (format § 4
+          rule 4).
       - name: outputs
         type: Map<String, ratchet.assessor.AssessorOutput>
         summary: >-

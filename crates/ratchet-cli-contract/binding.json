@@ -69,8 +69,28 @@
                   "coverage": {
                     "kind": "struct",
                     "fields": {
+                      "at_least": {
+                        "kind": "optional",
+                        "of": {
+                          "kind": "list",
+                          "of": {
+                            "kind": "enum",
+                            "variants": [
+                              "executed",
+                              "skipped",
+                              "not_run",
+                              "unsupported",
+                              "passed",
+                              "failed"
+                            ]
+                          }
+                        }
+                      },
                       "executed": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       },
                       "executed_ids": {
                         "kind": "optional",
@@ -82,7 +102,10 @@
                         }
                       },
                       "failed": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       },
                       "not_executed": {
                         "kind": "optional",
@@ -113,19 +136,31 @@
                         }
                       },
                       "not_run": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       },
                       "passed": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       },
                       "skipped": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       },
                       "unit": {
                         "kind": "string"
                       },
                       "unsupported": {
-                        "kind": "integer"
+                        "kind": "optional",
+                        "of": {
+                          "kind": "integer"
+                        }
                       }
                     }
                   },
@@ -662,8 +697,28 @@
                     "of": {
                       "kind": "struct",
                       "fields": {
+                        "at_least": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "list",
+                            "of": {
+                              "kind": "enum",
+                              "variants": [
+                                "executed",
+                                "skipped",
+                                "not_run",
+                                "unsupported",
+                                "passed",
+                                "failed"
+                              ]
+                            }
+                          }
+                        },
                         "executed": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         },
                         "executed_ids": {
                           "kind": "optional",
@@ -675,7 +730,10 @@
                           }
                         },
                         "failed": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         },
                         "not_executed": {
                           "kind": "optional",
@@ -706,19 +764,31 @@
                           }
                         },
                         "not_run": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         },
                         "passed": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         },
                         "skipped": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         },
                         "unit": {
                           "kind": "string"
                         },
                         "unsupported": {
-                          "kind": "integer"
+                          "kind": "optional",
+                          "of": {
+                            "kind": "integer"
+                          }
                         }
                       }
                     }
@@ -1099,8 +1169,28 @@
                       "of": {
                         "kind": "struct",
                         "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "enum",
+                                "variants": [
+                                  "executed",
+                                  "skipped",
+                                  "not_run",
+                                  "unsupported",
+                                  "passed",
+                                  "failed"
+                                ]
+                              }
+                            }
+                          },
                           "executed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "executed_ids": {
                             "kind": "optional",
@@ -1112,7 +1202,10 @@
                             }
                           },
                           "failed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "not_executed": {
                             "kind": "optional",
@@ -1143,19 +1236,31 @@
                             }
                           },
                           "not_run": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "passed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "skipped": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "unit": {
                             "kind": "string"
                           },
                           "unsupported": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           }
                         }
                       }
@@ -1535,8 +1640,28 @@
                       "of": {
                         "kind": "struct",
                         "fields": {
+                          "at_least": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "list",
+                              "of": {
+                                "kind": "enum",
+                                "variants": [
+                                  "executed",
+                                  "skipped",
+                                  "not_run",
+                                  "unsupported",
+                                  "passed",
+                                  "failed"
+                                ]
+                              }
+                            }
+                          },
                           "executed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "executed_ids": {
                             "kind": "optional",
@@ -1548,7 +1673,10 @@
                             }
                           },
                           "failed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "not_executed": {
                             "kind": "optional",
@@ -1579,19 +1707,31 @@
                             }
                           },
                           "not_run": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "passed": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "skipped": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           },
                           "unit": {
                             "kind": "string"
                           },
                           "unsupported": {
-                            "kind": "integer"
+                            "kind": "optional",
+                            "of": {
+                              "kind": "integer"
+                            }
                           }
                         }
                       }
@@ -2369,7 +2509,8 @@
               "variants": [
                 "forge_runs",
                 "build_pool_log",
-                "junit"
+                "junit",
+                "tree_file"
               ]
             }
           }
@@ -2391,7 +2532,8 @@
               "variants": [
                 "forge_runs",
                 "build_pool_log",
-                "junit"
+                "junit",
+                "tree_file"
               ]
             }
           }

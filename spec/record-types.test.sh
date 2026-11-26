@@ -24,7 +24,7 @@
 # Exit 1: each row or field that fails is named; a table or a Type cell this script has no rule
 # for fails too, and is never counted as checked. So does a section that is not found, and a
 # table that is not found or holds another number of rows than `expect` below states for it:
-# 78 rows in the 13 tables of § 3 and 20 in the 2 tables of § 10. A section that moves to
+# 80 rows in the 13 tables of § 3 and 21 in the 2 tables of § 10. A section that moves to
 # another number, a header that changes, or a row that is added or deleted changes a count.
 set -eu
 
@@ -52,15 +52,15 @@ awk '
     expect(3, "### `evidence.target.window`", 5)
     expect(3, "### `evidence.inputs.<name>`", 3)
     expect(3, "### `evidence.conditions`", 8)
-    expect(3, "### `evidence.coverage`", 12)
-    expect(3, "### `evidence.results[]`", 10)
+    expect(3, "### `evidence.coverage`", 13)
+    expect(3, "### `evidence.results[]`", 11)
     expect(3, "A result of the value type `number`:", 5)
     expect(3, "A result of the value type `identity_set`:", 4)
     expect(3, "A result of the value type `digest` or `assertion`:", 2)
     expect(3, "### `evidence.source`", 2)
     expect(3, "### `run`", 6)
     expect(10, "### Declaration `ratchet-assessor/1`", 12)
-    expect(10, "An output, `outputs.<name>`:", 8)
+    expect(10, "An output, `outputs.<name>`:", 9)
   }
 
   # The declared type of the member a path names, from the type `t`; "" when a step does not
