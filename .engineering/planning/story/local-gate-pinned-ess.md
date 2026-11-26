@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:local-gate-pinned-ess
 kind: story
-status: active
+status: implemented
 title: The local gate runs the ess release the specification requires
 relations:
 - informed_by: story:workspace-cli-contract
@@ -15,10 +15,11 @@ scope:
   path: CHANGELOG.md
 - confidence: cited
   path: Taskfile.yml
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T03:55:04Z", actor: "human:operator", revision: 10}
 - {from: "proposed", to: "active", at: "2026-11-26T03:55:04Z", actor: "human:operator", revision: 11}
+- {from: "active", to: "implemented", at: "2026-11-26T04:19:56Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Context
 

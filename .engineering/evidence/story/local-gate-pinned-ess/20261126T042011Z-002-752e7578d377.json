@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T04:20:11Z",
+  "actor": "human:operator",
+  "artifact": "story:local-gate-pinned-ess",
+  "kind": "story",
+  "revision": 12,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-local-gate-pinned-ess-attack-1",
+    "reference": "AGENTS.md:129",
+    "review": "review-result:adversary-local-gate-pinned-ess-attack-1",
+    "outcome": "fixed"
+  }
+}

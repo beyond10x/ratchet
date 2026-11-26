@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T04:19:31Z",
+  "actor": "human:operator",
+  "artifact": "story:local-gate-pinned-ess",
+  "kind": "story",
+  "revision": 11,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check on the build node (ess 0.99.2 in PATH, no ESS_TOOLCHAIN in the caller), whole gate by the coordinator on commit 4546e58: exit 0; delegating to ess 0.98.0 3 times, no --strict-requires refusal; ess-pin: 13 of 13 cases pass; 11 tests passed",
+    "reference": ".github/scripts/ess-pin.test.sh"
+  }
+}
