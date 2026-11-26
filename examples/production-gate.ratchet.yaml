@@ -1,0 +1,88 @@
+format: ratchet/1
+project: orders-service
+
+subjects:
+  orders-api:
+    kind: service
+    audiences: [api-consumer, operator]
+  orders-image:
+    kind: container-image
+    audiences: [operator]
+
+# Checks 1 to 5 and 7 bind presets of presets/; the digest of each binding is the SHA-256 of
+# the preset file.
+presets:
+  served-operations:
+    use: conformance-cases@1
+    digest: sha256:bd989dd5c30071f51e3dfc678463980ddbb74ae315762166a38d14e801617054
+    with:
+      subject: orders-api
+      report: target/production/served-operations.json
+      environments: [staging]
+  replays:
+    use: conformance-cases@1
+    digest: sha256:bd989dd5c30071f51e3dfc678463980ddbb74ae315762166a38d14e801617054
+    with:
+      subject: orders-api
+      report: target/production/replays.json
+      environments: [staging]
+  replay-known-failures:
+    use: known-failures@1
+    digest: sha256:b043ba8c3e3ccf066e3e4455c120230611fc4d684cff5050257977687b99b251
+    with:
+      subject: orders-api
+      list: conformance/replay-known-failures.txt
+      environments: [staging]
+  probes:
+    use: exposure-probes@1
+    digest: sha256:2e12f8c20841c2f3511b5638041404cd2e675d59114d60b9b38857019dd4bfcd
+    with:
+      subject: orders-api
+      report: target/production/probes.json
+      environments: [staging]
+  signatures:
+    use: artifact-signatures@1
+    digest: sha256:1f6b75e025d4b46de6038c70d7afbba8aa01854e656d3b4ebdffedd9e5574579
+    with:
+      subject: orders-image
+      report: target/production/verification.json
+      environments: [staging]
+
+# Check 6 is a plan of this file: dependency-advisories@1 takes no filter input.
+assessments:
+  image-advisories:
+    subject: orders-image
+    assessor: advisory-report@1
+    inputs: {report: target/production/advisories.json}
+    target: {kind: revision, environments: [staging], selection: candidate}
+    observation:
+      kind: snapshot
+      coverage: {unsupported: {max: 0}}
+    measurements:
+      critical-advisories:
+        kind: exact
+        output: advisories
+        scope: run
+        identity: [advisory, package]
+        filter: {severity: [critical]}
+
+requirements:
+  no-new-critical-advisory:
+    assessment: image-advisories
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+
+gates:
+  production:
+    kind: candidate
+    stage: pre-production
+    qualifying_environments: [staging]
+    requires:
+      - served-operations.no-case-lost
+      - replays.no-case-lost
+      - replay-known-failures.no-new-known-failure
+      - probes.requests-without-valid-credential-refused
+      - probes.console-not-reachable-through-public-proxy
+      - probes.tls-on-every-public-listener
+      - no-new-critical-advisory
+      - signatures.every-signature-verifies

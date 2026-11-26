@@ -82,8 +82,9 @@ types:
         One output an assessor declares (§ 4 "Outputs"), an entry of `outputs` under the
         output's name, such as `findings` or `duration`: the value type, the kind, the scopes,
         the unit or that the output has none, the boundaries of a duration, and the identity
-        key of a set and the fields of its items. `ratchet validate` checks a measurement's
-        output, kind, scope, unit, boundary, identity key and filter fields against it, and the
+        key of a set, the fields of its items and the values of those fields that are a closed
+        list. `ratchet validate` checks a measurement's output, kind, scope, unit, boundary,
+        identity key, filter fields and filter values against it, and the
         CLI checks each result of an evidence document against it. Coverage is declared once for
         the assessor, not per output (§ 4 "Coverage").
     fields:
@@ -118,6 +119,13 @@ types:
         summary: >-
           The names an item of a set may have under `fields`, which a measurement's `filter`
           may read, such as `severity` (§ 3, § 4).
+      - name: item_values
+        type: Optional<Map<String, List<String>>>
+        summary: >-
+          The closed list of values of an item field, keyed by a name of `item_fields`, such as
+          `{class: [equal, allowed, different]}`. A measurement's `filter` on that field names
+          only these values, and an item of a result has one of them under that field. A field
+          without a list stays open: any value is read (format § 10).
     invariants:
       - any: ["value_type != identity_set", "defined(identity_key)"]
       - any: ["value_type == identity_set", "not defined(identity_key)"]

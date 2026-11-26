@@ -142,7 +142,11 @@ types:
     naming:
       summary: >-
         An aggregation as a map, `{kind: percentile, parameter: 95}` or `{kind: median}` (§ 3
-        value lists). Declared where a sampled plan has more than one run or sample.
+        value lists). Declared where a sampled plan has more than one run or sample. A sampled
+        measurement of a plan with `runs` above 1 states an aggregation or
+        `Measurement.over_all_runs`, a value its assessor computes over all runs of the plan,
+        such as the share of tests that passed in one run and failed in another; one that
+        states neither is an error (§ 3 "One run per candidate is valid").
     fields:
       - name: kind
         type: ratchet.specification.AggregationKind
@@ -193,7 +197,18 @@ types:
           of its output: the repeats are samples of that run (evidence format § 1). On a
           time-window plan, the aggregation across the runs in the window: one
           value at the scope `run`, one value per item at any other scope; a window aggregates
-          numbers, and assertions with `pass_rate`.
+          numbers, and assertions with `pass_rate`. Absent where the measurement states
+          `over_all_runs`.
+      - name: over_all_runs
+        type: Optional<Boolean>
+        summary: >-
+          `true`: the assessor computes one value over all runs of the plan, which is no
+          aggregation of a value per run, such as the share of tests that passed in one run and
+          failed in another (§ 3 "One run per candidate is valid"). A sampled measurement of a
+          plan with `runs` above 1 states it or an `aggregation`. It is valid for every value of
+          `runs` and is no aggregation, so a measurement that states it declares no
+          `aggregation`, also at `runs: 1`. The result carries the number of runs in `samples`
+          and no `aggregation` (format § 3). Absent means `false`.
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
       - name: better

@@ -30,6 +30,8 @@ Pages:
   binary, the number of dependencies, the advisories that apply to them.
 - [code.md](code.md): generated and hand-written lines of code, the obligations a generator
   leaves, the findings of a linter.
+- [production.md](production.md): HTTP probes of a deployed service that fail closed, the
+  signatures of an image and of its provenance.
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name
@@ -125,7 +127,9 @@ A file in another form is refused, also where a YAML reader would accept it:
   comment.
 - **A measurement as its assessor declares it.** A measurement has the kind of the output it
   names, the unit of that output or none where the output has none, and a boundary and an
-  identity key that the output declares. `run_time` and `queue_wait` are boundaries of Ratchet
+  identity key that the output declares. A `filter` names fields the output declares for its
+  items, and for a field whose values the output lists under `item_values` only those values;
+  a field without such a list is open. `run_time` and `queue_wait` are boundaries of Ratchet
   itself and stand also on an output that declares no boundaries. `pass_rate` aggregates an
   assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
   as a number. An assessment passes every input its assessor requires, with the declared type,
@@ -149,7 +153,10 @@ A file in another form is refused, also where a YAML reader would accept it:
   `ratchet validate` reports, the script refuses. The plan of a sampled measurement declares at
   least one condition under `observation.conditions`, unless it is a window over `runs_of`,
   which declares none. A requirement that compares a sampled measurement with an accepted value
-  has a tolerance, with `percent` or `absolute`, and an `adoption`.
+  has a tolerance, with `percent` or `absolute`, and an `adoption`. A sampled measurement of a
+  plan whose `runs` is a number above 1 states an `aggregation` or `over_all_runs: true`, a
+  value its assessor computes over all runs of the plan, and never both; a `runs` that an input
+  gives is not read.
 - **No text that is empty.** A member without a value is left out, not written as `""`.
 - **No comment in a preset or a declaration.** A binding carries the digest of the preset file,
   so a reworded comment would be a new digest. What a file means is on the page. The script

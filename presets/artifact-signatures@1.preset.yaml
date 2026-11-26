@@ -1,0 +1,35 @@
+format: ratchet/1
+
+preset:
+  name: artifact-signatures
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  verification:
+    subject: ${inputs.subject}
+    assessor: artifact-verification-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: build
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+      coverage: {not_run: {max: 0}}
+    measurements:
+      signature-verifies:
+        kind: exact
+        output: verified
+        scope: artifact
+
+requirements:
+  every-signature-verifies:
+    meaning: The signature of every artifact of the report, the image and its provenance, verifies.
+    assessment: verification
+    measurement: signature-verifies
+    condition: {operator: holds}

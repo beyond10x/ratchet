@@ -1,0 +1,12 @@
+format: ratchet-assessor/1
+name: artifact-verification-report
+version: "1"
+command: artifact-verification-report
+targets: [build]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: artifact
+coverage: [executed, not_run, passed, failed]
+outputs:
+  verified: {value_type: assertion, kind: exact, scopes: [artifact]}

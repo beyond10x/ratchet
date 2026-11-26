@@ -65,7 +65,9 @@
 #             boundary the output declares (`run_time` and `queue_wait`, which are Ratchet's,
 #             also where the output declares no boundaries), the identity key the output
 #             declares where it states one, and in a `filter` only fields the output declares
-#             for its items. `pass_rate` aggregates an assertion and nothing else, and the
+#             for its items and, for a field whose values the output lists under
+#             `item_values`, only those values; a field without such a list is open. A key of
+#             `item_values` is a field of `item_fields` of its output. `pass_rate` aggregates an assertion and nothing else, and the
 #             measurement of such a rate may be `sampled`. A condition of the observation
 #             is `host_load_per_cpu`, `tools`, `runner` or one the declaration lists, and
 #             a field of a population filter is one of its `population_fields`
@@ -97,7 +99,12 @@
 #             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
 #             without a declaration, so also on a plan of `record-series@1`. A measurement of
 #             the kind `exact` aggregates with `sum` or not at all, as the table of the two
-#             kinds in docs/design.md § 3 says ("None, or a sum"). A plan may hold
+#             kinds in docs/design.md § 3 says ("None, or a sum"). A sampled measurement of a
+#             plan whose `runs` is a literal above 1 states an `aggregation` or
+#             `over_all_runs: true`, the value its assessor computes over all runs of the plan,
+#             and no measurement states both: that value is no aggregation (docs/design.md
+#             § 3, "One run per candidate is valid"). A `runs` that an input gives is not read,
+#             so the rule does not reach `flake-rate@1`. A plan may hold
 #             exact and sampled measurements of its one run, in every observation kind, and
 #             its conditions then qualify every measurement of it (docs/design.md § 3, "Exact
 #             and sampled measurements of one run"). The design refuses no mix, so no rule
@@ -148,8 +155,9 @@
 #     and the plan declares those that qualify (docs/design.md § 3)
 #   - `min_samples` above `runs`, both literals: a run can collect many samples
 #     (docs/design.md § 3, "Controlled run"), so the two count different things
-#   - a sampled measurement with a literal `runs` above 1 and no aggregation:
-#     `story:value-over-all-runs` decides it
+#   - `over_all_runs: true` on an exact measurement: docs/design.md § 3 states the form for a
+#     sampled measurement of a plan with more than one run and forbids it nowhere else, and an
+#     exact value is the same in every run
 #   - `runs: 1` with an aggregation. docs/design.md § 3, "One run per candidate is valid":
 #     "With `runs: 1` a measurement may declare one of the existing aggregation kinds when the
 #     command repeats its measurement itself within the one run, such as a command that times
@@ -164,9 +172,10 @@
 #     are the assessor of an assessment, and with it every rule that reads its declaration;
 #     the output of a measurement, and with it the rules on that measurement and on the
 #     requirements that compare it; the kind, the unit, the scope, the boundary and the
-#     identity key of a measurement, also where one item of the key is a reference; the kind
-#     of an aggregation over an assertion; an operator; the unit of a condition; and the kind
-#     of a reference. Only the kind of a target is read from the default of its input
+#     identity key of a measurement, also where one item of the key is a reference; a value of
+#     a `filter`; the kind of an aggregation over an assertion; the `runs` of a plan and the
+#     `over_all_runs` of a measurement; an operator; the unit of a condition; and the kind of a
+#     reference. Only the kind of a target is read from the default of its input
 #   - a measurement of a plan of `record-series@1` against the measurement of the source plan
 #     it reads (the output, the kind, the unit, the scope, the boundary, the identity key,
 #     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
@@ -178,7 +187,6 @@
 #     holds `runs` as an optional member without an invariant
 #   - the class a condition is declared for (`all`, `ci`, ...): the key of an open map
 #   - the value of a `Json` other than a passed input and a default: no type is declared
-#   - the values of a `filter`: no declaration lists the values of an item field
 #   - the text of the four cells of a row against the preset: the cells are prose
 #   - whether an input of a preset is referred to: an input may be there for a later version
 #   - a code fence, a code span and a comment as a Markdown reader takes them inside a list
@@ -1033,6 +1041,10 @@ check_catalog() {
       # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
       if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
         fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
+      # The values of an item field are listed under a field of `item_fields`
+      # (docs/evidence-format.md § 10).
+      if (fk == "assessor" && n == 4 && s[1] == "outputs" && s[3] == "item_values" && !holds(F, "outputs" SEP s[2] SEP "item_fields", s[4]))
+        fail(F, n_line[i], named(path) "lists the values of the field `" s[4] "`, which the output `" s[2] "` does not name under `item_fields` " items(F, "outputs" SEP s[2] SEP "item_fields"))
       if (fk != "preset") continue
 
       if (n == 4 && s[1] == "preset" && s[2] == "inputs" && s[4] == "local" && n_text[i] == "true")
@@ -1112,6 +1124,17 @@ check_catalog() {
         plan = "assessments" SEP s[2]
         if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
           fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
+        # A sampled measurement of a plan with more than one run states an aggregation, or
+        # `over_all_runs: true`, a value the assessor computes over all runs of the plan, which
+        # is no aggregation: a measurement states one of the two (docs/design.md § 3, "One run
+        # per candidate is valid"). A `runs` and an `over_all_runs` that an input gives are not
+        # read.
+        rn = text(F, plan SEP "observation" SEP "runs")
+        ov = text(F, path SEP "over_all_runs"); oar = (ov == "true")
+        if (text(F, path SEP "kind") == "sampled" && rn ~ /^[0-9]+$/ && rn + 0 > 1 && !has(F, path SEP "aggregation") && !oar && !given(ov))
+          fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` has `runs: " rn "` and the measurement states neither an `aggregation` nor `over_all_runs: true`, the value its assessor computes over all runs of the plan")
+        if (oar && has(F, path SEP "aggregation"))
+          fail(F, n_line[i], named(path) "states `over_all_runs: true` and an `aggregation`; a value the assessor computes over all runs of the plan is no aggregation, and a measurement states one of the two")
         # An exact measurement aggregates with `sum` or not at all (docs/design.md § 3, the
         # table of the two kinds: "None, or a sum within the declared scope").
         ek = text(F, path SEP "kind"); ea = text(F, path SEP "aggregation" SEP "kind")
@@ -1161,6 +1184,14 @@ check_catalog() {
         if (op == "") continue
         if (!holds(D, op SEP "item_fields", s[6]))
           fail(F, n_line[i], named(path) "filters by the field `" s[6] "`, which the output `" O "` of `" A "` does not declare for its items")
+        # A field whose values the output lists under `item_values` is filtered by those
+        # values; a field without such a list is open (docs/evidence-format.md § 10).
+        if (holds(D, op SEP "item_fields", s[6]) && has(D, op SEP "item_values" SEP s[6]))
+          for (j = 1; has(F, path SEP "[" j "]"); j++) {
+            fv = text(F, path SEP "[" j "]")
+            if (!given(fv) && !holds(D, op SEP "item_values" SEP s[6], fv))
+              fail(F, n_line[i], named(path) "filters the field `" s[6] "` by the value `" fv "`, which is none of the values `" items(D, op SEP "item_values" SEP s[6]) "` that the output `" O "` of `" A "` declares for it")
+          }
       }
 
       # A condition of the observation, under its class: one of the three that have a field
@@ -1357,6 +1388,9 @@ differ_d='comparison-report@1.assessor.yaml'
 known='known-failures@1.preset.yaml'
 known_d='case-list@1.assessor.yaml'
 page='functional.md'
+# The second version of the comparison: no case edits it, and its rows stand on the page.
+differ2='differential-equality@2.preset.yaml'
+differ2_d='comparison-report@2.assessor.yaml'
 
 # The set: the files a copy holds. They are `README.md`, which every directory of the catalog
 # holds, and the functional family: its presets, the declarations they name and its page. A
@@ -1364,7 +1398,7 @@ page='functional.md'
 # one check of presets/ above and to no copy. The set is a directory of its own,
 # target/presets/set, which is valid alone: the case `harness-unchanged` below fails where it
 # is not. A file of the set that presets/ does not hold stops the run.
-set_files="README.md $page $conf $conf_d $differ $differ_d $known $known_d"
+set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $known $known_d"
 set_dir=$work/set
 mkdir "$set_dir"
 for set_file in $set_files; do
@@ -1613,6 +1647,23 @@ add_rate() {
 rate_copy() {
   copy "$1"
   add_rate
+}
+
+# add_runs: the plan of conformance-cases@1 of the copy becomes a controlled run of three runs
+# under a condition, and gets a sampled measurement without an aggregation, the time of the
+# step, with its row. conformance-report@1 declares the output at the end of its file, which is
+# the map `outputs` until a case writes there.
+add_runs() {
+  printf '  duration: {value_type: number, kind: sampled, scopes: [], unit: s}\n' >> "$c/$conf_d"
+  swap "$conf" '      kind: snapshot' '      kind: controlled_run\n      command: task test\n      runs: 3\n      conditions: {all: {runner: ci-standard}}'
+  swap "$conf" '        better: lower' '        better: lower\n      step-time:\n        kind: sampled\n        output: duration\n        scope: run\n        unit: s\n        better: lower' 3
+  add_row '| `conformance-cases@1/conformance/step-time` | Lower | `s` | None | `conformance-report@1`, output `duration` |'
+}
+
+# runs_copy <case>: a copy with that plan.
+runs_copy() {
+  copy "$1"
+  add_runs
 }
 
 # -- the harness of the copies ------------------------------------------------------------------
@@ -1998,7 +2049,7 @@ mv "$c.new" "$c/$conf"
 refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
 
 again file-last-line-of-one-file-alone
-refused 'presets: 6 of 7 file(s) valid, 10 of 10 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
+refused 'presets: 8 of 9 file(s) valid, 13 of 13 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -2539,6 +2590,21 @@ copy declaration-reserved-input
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  out: {type: path, required: false}'
 refused '`inputs.out` has the name of a reserved argument, which Ratchet passes itself' "a declaration has the input out"
 
+# A `filter` names values that the declaration lists for its field under `item_values`
+# (docs/evidence-format.md § 10). A field without such a list stays open: any value is read.
+copy assessor-filter-value
+swap "$differ_d" '    item_fields: [class]' '    item_fields: [class]\n    item_values: {class: [equal, allowed, different]}'
+swap "$differ" '        filter: {class: [different]}' '        filter: {class: [diferent]}'
+refused '`assessments.comparison.measurements.different-cases.filter.class` filters the field `class` by the value `diferent`, which is none of the values `[equal, allowed, different]` that the output `cases` of `comparison-report@1` declares for it' "a filter names the value diferent of a field whose values the declaration lists"
+
+again declaration-item-values-field
+swap "$differ_d" '    item_values: {class: [equal, allowed, different]}' '    item_values: {class: [equal, allowed, different], severity: [low, high]}'
+refused '`outputs.cases.item_values.severity` lists the values of the field `severity`, which the output `cases` does not name under `item_fields` [class]' "a declaration lists the values of a field that is none of its item fields"
+
+copy valid-filter-open-field
+swap "$differ" '        filter: {class: [different]}' '        filter: {class: [diferent]}'
+accepts "a filter names the value diferent of a field that the declaration declares without a list of values"
+
 copy assessor-input-local
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, local: true}'
 refused 'passes the input `report`, which `conformance-report@1` declares local' "an assessment passes an input its assessor declares local"
@@ -2656,6 +2722,21 @@ refused '`requirements.median-size-does-not-rise` compares the sampled measureme
 again sampled-window-without-adoption
 drop "$known" '      adoption: {from: trusted_revision, runs: 4, aggregation: {kind: median}}'
 refused '`requirements.median-size-does-not-rise` compares the sampled measurement `median` with an accepted value and has no `reference.adoption`' "a requirement on a window over runs has an accepted value and no adoption"
+
+# A sampled measurement of a plan whose `runs` is a literal above 1 states an aggregation, or
+# `over_all_runs: true`, a value the assessor computes over all runs of the plan
+# (docs/design.md § 3, the row "Aggregation" and "One run per candidate is valid").
+runs_copy sampled-runs-without-aggregation
+refused '`assessments.conformance.measurements.step-time` is sampled, and the plan `conformance` has `runs: 3` and the measurement states neither an `aggregation` nor `over_all_runs: true`' "a sampled measurement of a plan with runs: 3 states no aggregation"
+
+# A value over all runs is no aggregation: a measurement states one of the two.
+runs_copy sampled-over-all-runs-and-aggregation
+swap "$conf" '        unit: s' '        unit: s\n        over_all_runs: true\n        aggregation: {kind: median}'
+refused '`assessments.conformance.measurements.step-time` states `over_all_runs: true` and an `aggregation`' "a sampled measurement states over_all_runs and an aggregation"
+
+runs_copy valid-over-all-runs
+swap "$conf" '        unit: s' '        unit: s\n        over_all_runs: true'
+accepts "a sampled measurement of a plan with runs: 3 that states over_all_runs: true and no aggregation"
 
 # -- a requirement against the value type of its output -----------------------------------------
 #

@@ -728,7 +728,7 @@ An assessor writes one line per problem to the standard error, and the CLI shows
 
 ### Declaration `ratchet-assessor/1`
 
-One YAML document per assessor and version (E8). `ratchet validate` checks a plan against it: the target kind, the names and types of the inputs, and for each measurement the output, the kind, the scope, the unit, the boundary, the identity key, and the fields of a `filter` (design § 4). The CLI checks an evidence document against it: `assessor`, `coverage.unit`, and for each result `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields`.
+One YAML document per assessor and version (E8). `ratchet validate` checks a plan against it: the target kind, the names and types of the inputs, and for each measurement the output, the kind, the scope, the unit, the boundary, the identity key, and the fields of a `filter` and the values of a field that the output lists under `item_values` (design § 4). The CLI checks an evidence document against it: `assessor`, `coverage.unit`, and for each result `output`, `kind`, `scope`, `value_type`, `unit`, `boundary`, `key`, and the names under `fields`.
 
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
@@ -756,6 +756,7 @@ An output, `outputs.<name>`:
 | `boundaries` | list of text | no | For a duration, the parts it reports | spec: `AssessorOutput.boundaries` |
 | `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |
 | `item_fields` | list of text | no | The names an item may have under `fields`, which a `filter` may read | spec: `AssessorOutput.item_fields` |
+| `item_values` | map from an item field to its values | no | The closed list of values of a field of `item_fields`, such as `{class: [equal, allowed, different]}`. A `filter` on that field names only these values, and an item has one of them under it. A field without a list is open: any value is read. | spec: `AssessorOutput.item_values` |
 
 The declaration of the first assessor, written from the documents it writes at `edbbc27`. The consumer has no such file yet. Files to copy: `examples/quality/assessors/` of this repository holds nine declarations, one for each of the ten assessor ids the examples name but the built-in `record-series@1`, such as `command-timing@1.assessor.yaml` with its local input `job_log`, and `presets/` holds those its presets name. `task check:spec` checks that every output, unit and scope a measurement of an example reads is declared there.
 

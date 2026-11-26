@@ -377,7 +377,9 @@ types:
         type: Optional<Integer>
         summary: >-
           The number of samples or runs behind the value; present with `aggregation`, and on
-          every number whose `kind` is `sampled` (format § 3).
+          every number whose `kind` is `sampled` (format § 3). For a measurement that states
+          `over_all_runs`, the number of runs the assessor computed the one value over; such a
+          result has no `aggregation`.
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: The aggregation the value already is, in the plan's shape.

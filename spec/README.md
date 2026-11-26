@@ -10,7 +10,7 @@ marks a question the design does not answer yet.
 | File | Declares |
 |---|---|
 | `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, unit, boundary, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window` as `{length, last}`, `population` as `{runs_of, from}` or `{filter}`, `min_samples`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, input declarations with `local`, preset (its block, the three maps it holds, the reference to an input) and preset binding |
-| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
+| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields and the closed list of values of an item field), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
 | `domains/evidence.yaml` | the assessment run `ratchet-evidence/1` in two parts. `evidence`: project, assessment, assessor, candidate, resolved target with the window (bounds, items, newest item, runs left out), resolved inputs, completion, observed conditions (host load as mean, min and max; tools), coverage with its unit and the units not executed, the list of results (complete or incomplete, the value members beside `value_type`), import source. `run`: start and end, queue wait and run time, resolved local inputs, artifacts. Proof record with the defect ids refused and accepted |
 | `domains/reference.yaml` | reference record (generated or accepted value; `values`, or `items` as `{identity, reason, owner}`), reference change, trade-off with `gains` and `loosens` |
 | `domains/gate.yaml` | gate decision (a candidate, or for an operational gate none) and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause from the list of its verdict (`FailCause`, `InsufficientEvidenceCause`), its next step (`candidate`, `assessment`, `system`) and in an operational gate its window |
@@ -105,8 +105,9 @@ runs twelve steps, and `task check` calls it:
     does not declare, on a unit the output does not declare (`unit_missing`, `unit_mismatch`,
     `unit_not_declared`), on a scope other than `run` that the output does not list, on a
     measurement of a plan over `runs_of` that does not keep the unit or the scope of the
-    measurement of its source plan that it names as `output`, and on a directory without an
-    example. It states no number of examples, and it does not check a declaration's own keys
+    measurement of its source plan that it names as `output`, on a directory without an
+    example, and on a binding under `presets:` whose `use:` names no file of `presets/` or
+    whose `digest` is not the SHA-256 that `sha256sum` gives over that file. It states no number of examples, and it does not check a declaration's own keys
     and types: `presets.test.sh` does that for `presets/` alone. It then writes one defect per
     rule into copies of a fixed set of three examples and the four declarations they name, in
     the ignored `target/example-declarations/`, and fails when a copy is accepted or is refused
@@ -119,7 +120,7 @@ runs twelve steps, and `task check` calls it:
 
 Each script states how much it reads and fails on another number, so that a section, a table
 or an example which an edit moves out of the form the script looks for is not skipped: 78 field
-rows in 13 tables of § 3 and 19 in 2 tables of § 10 (`record-fields`, `record-types`, a number
+rows in 13 tables of § 3 and 20 in 2 tables of § 10 (`record-fields`, `record-types`, a number
 per table), 5 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.

@@ -1,0 +1,53 @@
+format: ratchet/1
+
+preset:
+  name: exposure-probes
+  version: "1"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  probes:
+    subject: ${inputs.subject}
+    assessor: http-probe-report@1
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: deployment
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+      coverage: {not_run: {max: 0}}
+    measurements:
+      credential-refused:
+        kind: exact
+        output: credential_refused
+        scope: probe
+      console-unreachable:
+        kind: exact
+        output: console_unreachable
+        scope: probe
+      tls-enforced:
+        kind: exact
+        output: tls_enforced
+        scope: probe
+
+requirements:
+  requests-without-valid-credential-refused:
+    meaning: Every request of the report without a credential, with an expired one or with one of another tenant is refused.
+    assessment: probes
+    measurement: credential-refused
+    condition: {operator: holds}
+  console-not-reachable-through-public-proxy:
+    meaning: No console route of the report answers a request that comes through the public proxy.
+    assessment: probes
+    measurement: console-unreachable
+    condition: {operator: holds}
+  tls-on-every-public-listener:
+    meaning: Every public listener of the report accepts TLS and nothing without it.
+    assessment: probes
+    measurement: tls-enforced
+    condition: {operator: holds}

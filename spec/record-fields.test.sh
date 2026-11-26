@@ -11,7 +11,7 @@
 # A field table is a table whose header starts `| Field | Type | Required |`. Its label is the
 # nearest heading, or line ending in a colon, above it. A new table needs a line in `map` below
 # and its type in the specification; without the line this script fails. A `map` line states the
-# number of rows of its table: 78 in the 13 tables of § 3 and 19 in the 2 tables of § 10. A
+# number of rows of its table: 78 in the 13 tables of § 3 and 20 in the 2 tables of § 10. A
 # section that moves to another number, a header that changes, or a row that is added, deleted
 # or written without its backticks changes a count, and the script fails until the line here
 # says the new number.
@@ -53,9 +53,9 @@ awk '
     map(3, "A result of the value type `digest` or `assertion`:", "ratchet.evidence.MeasurementResult", 2)
     map(3, "### `evidence.source`", "ratchet.evidence.ImportSource", 2)
     map(3, "### `run`", "ratchet.evidence.RunDetails", 6)
-    # docs/evidence-format.md § 10: 19 rows in 2 tables
+    # docs/evidence-format.md § 10: 20 rows in 2 tables
     map(10, "### Declaration `ratchet-assessor/1`", "ratchet.assessor.Assessor", 12)
-    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 7)
+    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 8)
     section = 0; rows = 0; missing = 0; broken = 0; stated = -1; counted3 = 0
   }
 
