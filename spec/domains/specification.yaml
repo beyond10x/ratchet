@@ -240,6 +240,52 @@ types:
           On an identity set, keeps the items whose field has one of the listed values, such as
           `{severity: [serious, critical]}`, before the comparison. The fields are those the
           assessor declares for the items; a changed filter starts a new evidence series (§ 3).
+      - name: min_items
+        type: Optional<Integer>
+        summary: >-
+          The fewest items of its scope that the result holds, at least 1, on a measurement at a
+          scope other than `run` (§ 3 "Evidence coverage"). A bound of the measurement, where
+          `ratchet.specification.CoverageBounds` counts the coverage units of the whole plan. A
+          result with fewer items is insufficient evidence with the cause `coverage_below_plan`,
+          naming the count, and no fail: what is missing was not checked. For every value type
+          with items; for an assertion, `holds` over no item is then no pass (§ 3 "Comparisons").
+      - name: required_items
+        type: Optional<List<String>>
+        summary: >-
+          A least set of item names of its scope that the result holds and may exceed, such as
+          `[ready-after-start]`, on a measurement at a scope other than `run` (§ 3 "Evidence
+          coverage"). A result without one of them is insufficient evidence with the cause
+          `coverage_below_plan`, naming the missing items, as for an item of a reference that
+          the run lacks.
+      - name: meanings
+        type: Optional<Map<String, String>>
+        summary: >-
+          What each scope item stands for, by item name, such as `{case-1: "the default
+          timeout"}`, on a measurement at a scope other than `run` (§ 3 "Scope and
+          aggregation"). `ratchet explain` and the gate report print each statement, shown
+          beside the result of the item. The items of a scope are known from a run, so an item
+          that no result holds is named by the command and refused by no decoder.
+      - name: min_samples_per_item
+        type: Optional<Integer>
+        summary: >-
+          The fewest samples behind the value of one scope item, at least 1, on a measurement
+          at a scope other than `run` (§ 3 "Scope and aggregation"). Ratchet reads it against
+          the `samples` of each result: an item whose result carries fewer is insufficient
+          evidence, with the cause `too_few_samples` for that item alone, and the other items
+          are judged (§ 5 "Verdicts"). A bound of the measurement, not of the plan:
+          `ObservationPlan.min_samples` counts the population items of a window, and an item in
+          2 of its 20 runs has a value from 2 samples. The assessor needs not learn it.
+    invariants:
+      # § 3 "Evidence coverage": `min_items` and `required_items` bound the items of a scope, so
+      # neither stands on the scope `run`, and `min_items` is at least 1.
+      - any: ["not defined(min_items)", "min_items >= 1"]
+      - any: ["not defined(min_items)", "scope != \"run\""]
+      - any: ["not defined(required_items)", "scope != \"run\""]
+      # § 3 "Scope and aggregation": a statement belongs to a scope item, and `run` has none.
+      - any: ["not defined(meanings)", "scope != \"run\""]
+      # § 3 "Scope and aggregation": a bound of the samples behind the value of one scope item.
+      - any: ["not defined(min_samples_per_item)", "min_samples_per_item >= 1"]
+      - any: ["not defined(min_samples_per_item)", "scope != \"run\""]
 
   # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.ObservationKind
@@ -396,9 +442,12 @@ types:
         class"). They qualify the run, and so every measurement of the plan: in a plan with
         exact and sampled measurements, a condition that its sampled measurements need, such as
         `host_load_per_cpu` or `runner`, qualifies its exact measurements too (§ 3 "Exact and
-        sampled measurements of one run"). Three have a defined meaning; an assessor declares
+        sampled measurements of one run"). Seven have a defined meaning; an assessor declares
         others, such as `cache_profile: warm`, which this open struct admits. A plan and a declaration write the
         cache condition as `cache_profile`, the member of the record, and under no other name.
+        The four of the machine and the build, `cpu_model`, `memory`, `accelerator` and
+        `build_profile`, are texts compared byte for byte as `runner` is, and a record holds
+        them under `other` by the same name (format § 3).
     fields:
       - name: host_load_per_cpu
         type: Optional<ratchet.specification.LoadBound>
@@ -410,6 +459,20 @@ types:
       - name: runner
         type: Optional<String>
         summary: The label of the runner or runner class.
+      - name: cpu_model
+        type: Optional<String>
+        summary: The model of the CPU as the machine reports it.
+      - name: memory
+        type: Optional<String>
+        summary: The memory of the machine, in the words of the assessor, such as `64 GiB`.
+      - name: accelerator
+        type: Optional<String>
+        summary: >-
+          The accelerator the machine holds, `none` where it holds none. Whether a run uses it
+          is a condition the assessor declares, such as `execution: cpu`.
+      - name: build_profile
+        type: Optional<String>
+        summary: The build profile of the measured binary, such as `release`.
 
   - name: ratchet.specification.PairedRun
     kind: struct

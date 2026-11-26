@@ -225,8 +225,10 @@ entities:
       - name: conditions
         type: Optional<List<String>>
         summary: >-
-          The observation conditions it declares beyond `host_load_per_cpu`, `tools` and
-          `runner`, such as `cache_profile` (§ 3). Absent or empty: it declares none. A plan
+          The observation conditions it declares beyond the seven of Ratchet,
+          `host_load_per_cpu`, `tools`, `runner`, `cpu_model`, `memory`, `accelerator` and
+          `build_profile`, such as `cache_profile` (§ 3). Absent or empty: it declares none. A
+          declaration that lists one of the seven stays valid. A plan
           and a declaration write the cache condition as `cache_profile`, the member of the
           record, and under no other name.
       - name: coverage_unit

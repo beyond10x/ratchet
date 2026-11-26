@@ -136,7 +136,8 @@ A file in another form is refused, also where a YAML reader would accept it:
   assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
   as a number. An assessment passes every input its assessor requires, with the declared type,
   also for each item of a list, and names a target kind the assessor takes. A condition of an
-  observation is `host_load_per_cpu`, `tools`, `runner` or one the assessor declares, and a
+  observation is one of the seven of Ratchet, `host_load_per_cpu`, `tools`, `runner`,
+  `cpu_model`, `memory`, `accelerator` and `build_profile`, or one the assessor declares, and a
   field of a population filter is one of its `population_fields`. The cache condition is
   `cache_profile`, and a plan that states `cache` and a declaration that lists `cache` are
   refused, also where the two agree. A value that an input gives is not checked against the

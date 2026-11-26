@@ -216,7 +216,10 @@ types:
         type: Optional<String>
       - name: other
         type: Optional<Map<String, String>>
-        summary: Every further condition by name, such as the C library or the CPU model.
+        summary: >-
+          Every further condition by name, such as the C library or the CPU model. The four
+          conditions of the machine and the build that a plan declares, `cpu_model`, `memory`,
+          `accelerator` and `build_profile`, stand here by those names (§ 3).
 
   # format § 3: the three states of a unit that did not execute.
   - name: ratchet.evidence.NotExecutedState

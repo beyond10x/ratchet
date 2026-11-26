@@ -43,7 +43,8 @@ types:
       - generated_reference_differs
       - stale_reference_not_adopted
 
-  # `too_few_samples` covers a window with fewer items than `min_samples` (§ 3).
+  # `too_few_samples` covers a window with fewer items than `min_samples` (§ 3),
+  # and a scope item whose result carries fewer samples than `min_samples_per_item` (§ 5).
   # `incompatible_target` also covers a run whose assessor refused its inputs
   # (docs/evidence-format.md E9). `reference_missing` also covers a scope item the evidence
   # holds and the reference does not, and `coverage_below_plan` a scope item the reference holds

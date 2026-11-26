@@ -76,17 +76,19 @@
 #             `item_values`, only those values; a field without such a list is open. A key of
 #             `item_values` is a field of `item_fields` of its output. `pass_rate` aggregates
 #             an assertion and nothing else, and the measurement of such a rate may be
-#             `sampled`. A condition of the observation is `host_load_per_cpu`, `tools`,
-#             `runner` or one the declaration lists, and a field of a population filter is one
-#             of its `population_fields` (`population_field_mismatch`). The cache condition is
-#             `cache_profile`, the member of the record: a condition `cache` of a plan and an
-#             item `cache` of the `conditions` of a declaration are refused, also where the two
-#             agree. The output `coverage.<count>` is Ratchet's where the declaration declares
-#             no output of that name: it reads a count of the coverage of the run, so the count
-#             is a value of `ratchet.assessor.CoverageCount` that the declaration lists under
-#             `coverage`, and the measurement is `exact`, at the scope `run` and without a
-#             unit, and is compared as a number without a unit (docs/design.md § 3 "Evidence
-#             coverage")
+#             `sampled`. A condition of the observation is one of the seven that have a field
+#             in ratchet.specification.ObservationConditions (`host_load_per_cpu`, `tools`,
+#             `runner`, `cpu_model`, `memory`, `accelerator` and `build_profile`, read from
+#             the specification) or one the declaration lists, and a field of a population
+#             filter is one of its `population_fields` (`population_field_mismatch`). The
+#             cache condition is `cache_profile`, the member of the record: a condition
+#             `cache` of a plan and an item `cache` of the `conditions` of a declaration are
+#             refused, also where the two agree. The output `coverage.<count>` is Ratchet's
+#             where the declaration declares no output of that name: it reads a count of the
+#             coverage of the run, so the count is a value of `ratchet.assessor.CoverageCount`
+#             that the declaration lists under `coverage`, and the measurement is `exact`, at
+#             the scope `run` and without a unit, and is compared as a number without a unit
+#             (docs/design.md § 3 "Evidence coverage")
 #   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
 #             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
 #             the directory declares it, and a plan that names it needs no declaration. As
@@ -1280,9 +1282,11 @@ check_catalog() {
           }
       }
 
-      # A condition of the observation, under its class: one of the three that have a field
-      # in ratchet.specification.ObservationConditions, or one the declaration lists. The
-      # cache condition is `cache_profile` and never `cache`, also where a declaration lists it.
+      # A condition of the observation, under its class: one of the seven that have a field
+      # in ratchet.specification.ObservationConditions (`host_load_per_cpu`, `tools`,
+      # `runner`, `cpu_model`, `memory`, `accelerator`, `build_profile`), or one the
+      # declaration lists. The cache condition is `cache_profile` and never `cache`, also
+      # where a declaration lists it.
       if (n == 6 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
         if (s[6] == "cache")
@@ -2040,11 +2044,12 @@ swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
 # a measurement with the boundary queue_wait on an output that declares no boundaries
 swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
 # A condition and a field of a population filter that the declaration lists, beside a
-# condition of Ratchet itself.
+# condition of Ratchet itself, and two conditions of the machine and the build that the
+# declaration does not list: the rule reads the members of ObservationConditions.
 swap "$conf_d" 'conditions: []' 'conditions: [cache_profile]'
 printf 'population_fields: [service]\n' >> "$c/$conf_d"
-swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard}}'
-accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the condition runner and a declared field of a population filter"
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard, build_profile: release, cpu_model: \"AMD EPYC 7763\"}}'
+accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the conditions runner, build_profile and cpu_model of Ratchet and a declared field of a population filter"
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
@@ -2484,6 +2489,26 @@ refused '`preset.inputs.report.required` is not `true` or `false`' "an input is 
 again type-decimal
 swap "$conf" "$of_failed" '    measurement: failed\n    condition: {operator: lte, value: 1e3, unit: cases}'
 refused '`requirements.failed-does-not-rise.condition.value` is not a decimal without exponent' "the limit of a condition is 1e3"
+
+# add_case_holds <meanings>: the preset conformance-cases@1 of the copy reads an assertion per
+# case that conformance-report@1 declares at the scope `case`, with the map `meanings` and its
+# row. It writes to the end of the declaration, which is the map `outputs`, and after the third
+# `better: lower`, that of `refused`, the last measurement of the plan.
+add_case_holds() {
+  printf '  case_holds: {value_type: assertion, kind: exact, scopes: [case]}\n' >> "$c/$conf_d"
+  swap "$conf" '        better: lower' '        better: lower\n      case-holds:\n        kind: exact\n        output: case_holds\n        scope: case\n        meanings: '"$1" 3
+  add_row '| `conformance-cases@1/conformance/case-holds` | Holds for every case | None: an assertion | 0, no input | `conformance-report@1`, output `case_holds` |'
+}
+
+# A statement per scope item of a measurement at the scope `case` (docs/design.md § 3 "Scope and
+# aggregation").
+copy measurement-meanings
+add_case_holds '{case-1: "the default timeout"}'
+accepts "a measurement at the scope case whose meanings state what the item case-1 stands for"
+
+copy type-meanings-number
+add_case_holds '{case-1: 1.5}'
+refused '`assessments.conformance.measurements.case-holds.meanings.case-1` is a YAML number where text is declared' "a statement of meanings is a number"
 
 copy type-without-rule
 own_spec

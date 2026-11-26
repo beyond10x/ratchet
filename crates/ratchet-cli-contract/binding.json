@@ -843,6 +843,24 @@
                       "kind": "string"
                     }
                   },
+                  "meanings": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "map",
+                      "value": {
+                        "kind": "string"
+                      }
+                    }
+                  },
+                  "meanings_without_result": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    }
+                  },
                   "mode": {
                     "kind": "enum",
                     "variants": [
@@ -1346,6 +1364,24 @@
                         "kind": "string"
                       }
                     },
+                    "meanings": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "map",
+                        "value": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "meanings_without_result": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "list",
+                        "of": {
+                          "kind": "string"
+                        }
+                      }
+                    },
                     "mode": {
                       "kind": "enum",
                       "variants": [
@@ -1846,6 +1882,24 @@
                       "kind": "list",
                       "of": {
                         "kind": "string"
+                      }
+                    },
+                    "meanings": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "map",
+                        "value": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "meanings_without_result": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "list",
+                        "of": {
+                          "kind": "string"
+                        }
                       }
                     },
                     "mode": {
@@ -2356,6 +2410,15 @@
               "kind": "optional",
               "of": {
                 "kind": "string"
+              }
+            },
+            "meanings": {
+              "kind": "optional",
+              "of": {
+                "kind": "map",
+                "value": {
+                  "kind": "string"
+                }
               }
             },
             "measurement": {

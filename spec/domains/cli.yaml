@@ -344,6 +344,17 @@ types:
           candidate (§ 5, § 6).
       - name: observed
         type: Optional<ratchet.cli.ValueRow>
+      - name: meanings
+        type: Optional<Map<String, String>>
+        summary: >-
+          The statements of the scope items of the requirement's measurement, by item name, as
+          its `meanings` states them; each is shown beside the result of its item (§ 3 "Scope
+          and aggregation").
+      - name: meanings_without_result
+        type: Optional<List<String>>
+        summary: >-
+          The items of `meanings` that no result of the run holds. A statement whose item the
+          run lacks says nothing about the run, and the report names it.
       - name: allowed
         type: Optional<ratchet.cli.LimitRow>
         summary: The absolute limit.
@@ -697,6 +708,11 @@ types:
         type: ratchet.specification.MeasurementKind
       - name: scope
         type: ratchet.specification.Scope
+      - name: meanings
+        type: Optional<Map<String, String>>
+        summary: >-
+          The statements of the scope items of the measurement, by item name, as its
+          `meanings` states them (§ 3 "Scope and aggregation").
       - name: unit
         type: Optional<ratchet.specification.Unit>
       - name: condition

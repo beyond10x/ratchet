@@ -121,6 +121,8 @@ There are 82 fields: 48 `spec`, 7 `changed`, 27 `new`. The fields of an assessor
 
 **The cache condition.** A plan and a declaration write the cache condition as `cache_profile`, the key of its row above, and under no other name; a record holds it in `cache_profile` and not under `other`.
 
+**The machine and the build.** The four conditions of a plan that describe the machine and the build of the measured binary, `cpu_model`, `memory`, `accelerator` and `build_profile` (design § 3), have no row of their own: a record holds each under `other` by its name, as `"other": {"cpu_model": "AMD EPYC 7763", "memory": "64 GiB", "accelerator": "none", "build_profile": "release"}`, and the fields above do not change.
+
 **Unknown, or not applicable** (Q13). A condition is read only where it is declared: by the plan, for the class of the run, or by the assessor in its declaration (§ 10). A declared condition that the document does not hold is unknown, and the evidence does not qualify for a gate (design § 6). A condition that neither declares does not apply to the run, and its absence says nothing. `ux-static@1` declares no condition and reads no viewport, so its documents hold `tools` alone and no viewport is unknown. The format has no value for “does not apply”: the declaration says it once, for every run.
 
 ### `evidence.coverage`
