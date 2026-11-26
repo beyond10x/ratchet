@@ -12,13 +12,20 @@
 #     `<major>.<minor>.<patch>`: a task that sets it again overrides the pin;
 #   - it is the one `ESS_VERSION` of pages.yml;
 #   - its major and minor are the requirement of spec/ess-inputs.yaml;
-#   - `task check:spec` and `task check:generated` start `ess` with that value, read from the
-#     file a stand-in `ess` first in PATH writes; the caller's own `ESS_TOOLCHAIN`, which `task`
-#     would put before the Taskfile's, is unset for these runs.
+#   - every call of `ess` that `task check:spec` and `task check:generated` make is started with
+#     that value. Each task runs in the copy to its end with a stand-in `ess` first in PATH that
+#     writes the value and the command of each call into a file it names itself, so a call that
+#     empties its environment (`env -i`) is recorded too, and succeeds: it makes the directory of
+#     `--out` and prints the line of `ess generate synthesize` that `check:spec` reads. A copy
+#     holds a stand-in that exits 0 for each `sh spec/<name>.test.sh` of Taskfile.yml and an empty
+#     directory for each generated crate, so a task fails only where an `ess` call of it is no
+#     longer reached. The caller's own `ESS_TOOLCHAIN`, which `task` would put before the
+#     Taskfile's, is unset for these runs.
 #
-# The copies are under a directory the script creates with `mktemp -d` inside the ignored
-# target/ and removes. Each broken copy has to be refused with the message of its rule, and a
-# change that no longer applies to the file is a `FAIL` line.
+# The pin is read with or without its double or single quotes. The copies are under a
+# directory the script creates with `mktemp -d` inside the ignored target/ and removes. Each
+# broken copy has to be refused with the message of its rule, and a change that no longer
+# applies to the file is a `FAIL` line.
 #
 # Exit 0: one `ok` line per case, the last line is `ess-pin: <n> of <n> cases pass`.
 # Exit 1: each case that went the other way is a `FAIL` line with the output it read.
@@ -40,15 +47,29 @@ top=$(mktemp -d "$root/target/ess-pin-test.XXXXXX") || { echo "ess-pin: mktemp -
 trap 'rm -rf "$top"' EXIT
 trap 'exit 1' HUP INT TERM
 
-# A stand-in for `ess`: it writes the value of ESS_TOOLCHAIN it was started with into the file
-# ESS_PIN_RECORD names, and fails, so the task ends at its first call.
+# A stand-in for `ess`: it appends `<ESS_TOOLCHAIN>|<first two words>` of each call to the
+# file whose path it holds, makes the directory of `--out`, prints the line of a synthesis
+# without a refusal, and exits 0.
+record=$top/record
+case $record in
+  *"'"*) echo "ess-pin: the path of the tree holds a single quote: $record" >&2; exit 1 ;;
+esac
 mkdir -p "$top/bin"
-printf '%s\n' '#!/bin/sh' 'printf "%s\n" "${ESS_TOOLCHAIN-(unset)}" >> "$ESS_PIN_RECORD"' 'exit 1' > "$top/bin/ess"
+printf '%s\n' \
+  '#!/bin/sh' \
+  "printf '%s|%s %s\\n' \"\${ESS_TOOLCHAIN-(unset)}\" \"\${1-}\" \"\${2-}\" >> '$record'" \
+  'case "${1-} ${2-}" in "generate synthesize") echo "0 capabilities: 0 generated, 0 obligation(s), 0 refused" ;; esac' \
+  'while [ "$#" -gt 1 ]; do' \
+  '  [ "$1" != --out ] || mkdir -p "$2"' \
+  '  shift' \
+  'done' \
+  'exit 0' > "$top/bin/ess"
 chmod +x "$top/bin/ess"
 
-# toolchain <dir>: the value of ESS_TOOLCHAIN in the root `env:` of its Taskfile.yml.
+# toolchain <dir>: the value of ESS_TOOLCHAIN in the root `env:` of its Taskfile.yml, without
+# its quotes.
 toolchain() {
-  awk '
+  awk -v q="'" '
     /^env:[ \t]*$/ { inside = 1; next }
     /^[^ \t#]/ { inside = 0 }
     inside && /^  ESS_TOOLCHAIN:/ {
@@ -56,21 +77,23 @@ toolchain() {
       sub(/^  ESS_TOOLCHAIN:[ \t]*/, "", value)
       sub(/[ \t]*$/, "", value)
       gsub(/"/, "", value)
+      gsub(q, "", value)
       print value
     }' "$1/$taskfile"
 }
 
-# started <dir> <task>: the values of ESS_TOOLCHAIN the stand-in `ess` was started with when
-# the task ran in the directory.
+# started <dir> <task>: run the task in the directory with the stand-in `ess` and print the
+# calls it recorded, `<ESS_TOOLCHAIN>|<command>`; non-zero when the task failed.
 started() {
-  record=$top/record
   : > "$record"
   (
     cd "$1" || exit 1
     unset ESS_TOOLCHAIN
-    PATH=$top/bin:$PATH ESS_PIN_RECORD=$record task "$2"
+    PATH=$top/bin:$PATH task "$2"
   ) > "$top/task-out" 2>&1 < /dev/null
+  status=$?
   LC_ALL=C sort -u "$record"
+  return "$status"
 }
 
 # pin <dir>: 0 when the pin of the local gate holds in the directory, else 1 with the defect.
@@ -88,7 +111,7 @@ pin() {
   }
   printf '%s\n' "$value" | grep -q -x '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' \
     || { echo "ess-pin: ESS_TOOLCHAIN of $taskfile is $value, not a release <major>.<minor>.<patch>"; return 1; }
-  forge=$(sed -n 's/^ *ESS_VERSION: *"\{0,1\}\([^" ]*\)"\{0,1\} *$/\1/p' "$d/$pages" | LC_ALL=C sort -u)
+  forge=$(sed -n "s/^ *ESS_VERSION: *[\"']\{0,1\}\([^\"' ]*\)[\"']\{0,1\} *\$/\1/p" "$d/$pages" | LC_ALL=C sort -u)
   [ -n "$forge" ] || { echo "ess-pin: $pages sets no ESS_VERSION"; return 1; }
   [ "$(printf '%s\n' "$forge" | grep -c .)" = 1 ] || { echo "ess-pin: $pages sets more than one ESS_VERSION:" $forge; return 1; }
   [ "$value" = "$forge" ] || {
@@ -102,12 +125,18 @@ pin() {
     return 1
   }
   for task in check:spec check:generated; do
-    got=$(started "$d" "$task")
-    [ "$got" = "$value" ] || {
-      echo "ess-pin: task $task started ess with ESS_TOOLCHAIN ${got:-(no call of ess)}, not $value of $taskfile:"
+    if ! started "$d" "$task" > "$top/calls"; then
+      echo "ess-pin: task $task failed with a stand-in ess that succeeds, so not every call of ess was seen:"
       sed 's/^/  /' "$top/task-out"
       return 1
-    }
+    fi
+    [ -s "$top/calls" ] || { echo "ess-pin: task $task started no ess"; return 1; }
+    awk -F '|' -v want="$value" -v task="$task" -v file="$taskfile" '
+      $1 != want {
+        printf "ess-pin: task %s started `ess %s` with ESS_TOOLCHAIN %s, not %s of %s\n", task, $2, $1, want, file
+        wrong = 1
+      }
+      END { exit wrong + 0 }' "$top/calls" || return 1
   done
 }
 
@@ -134,12 +163,20 @@ expect() {
   fi
 }
 
-# copy <name>: a copy of the files the check reads, in a directory of its own; prints its path.
+# copy <name>: a copy of the files the check reads, in a directory of its own, with a script
+# that exits 0 for each `sh spec/<name>.test.sh` of Taskfile.yml and an empty directory for each
+# generated crate; prints its path.
 copy() {
   c=$top/copy-$1
   mkdir -p "$c/.github/workflows" "$c/.github/scripts" "$c/spec"
   for file in "$taskfile" "$pages" "$inputs" "$generated"; do
     cp "$root/$file" "$c/$file"
+  done
+  sed -n 's/^ *- sh \(spec\/[A-Za-z0-9_.-]*\.test\.sh\) *$/\1/p' "$root/$taskfile" | while IFS= read -r script; do
+    printf '%s\n' '#!/bin/sh' 'exit 0' > "$c/$script"
+  done
+  sh "$root/$generated" --list | while IFS='|' read -r dir line; do
+    [ -z "$dir" ] || mkdir -p "$c/$dir"
   done
   printf '%s\n' "$c"
 }
@@ -150,11 +187,11 @@ change() {
   ! cmp -s "$1/$2" "$root/$2"
 }
 
-# broken <case> <text> <dir> <file> <sed script> [<file> <sed script>]...: a copy with each
-# change, refused with the text.
-broken() {
-  label=$1 text=$2 c=$3
-  shift 3
+# variant <case> <pass|refuse> <text> <dir> <file> <sed script> [<file> <sed script>]...: a
+# copy with each change, answered as wanted, a refusal with the text.
+variant() {
+  label=$1 want=$2 text=$3 c=$4
+  shift 4
   while [ "$#" -ge 2 ]; do
     change "$c" "$1" "$2" || {
       cases=$((cases + 1)) failed=$((failed + 1))
@@ -163,7 +200,15 @@ broken() {
     }
     shift 2
   done
-  expect "$label" refuse "$text" "$c"
+  expect "$label" "$want" "$text" "$c"
+}
+
+# broken <case> <text> <dir> <file> <sed script>...: a copy with each change, refused with the
+# text.
+broken() {
+  label=$1 text=$2
+  shift 2
+  variant "$label" refuse "$text" "$@"
 }
 
 # The tree is judged on an unchanged copy: `task check:generated` writes under target/.
@@ -200,8 +245,30 @@ broken "a copy whose pages.yml installs no ess by version" \
   "$pages sets no ESS_VERSION" "$(copy unpinned)" \
   "$pages" "/^ *ESS_VERSION:/d"
 
+broken "a copy whose pages.yml sets two values of ESS_VERSION" \
+  "$pages sets more than one ESS_VERSION" "$(copy forges)" \
+  "$pages" "/^ *ESS_VERSION:/{p;s/\"[^\"]*\"/\"$other\"/;}"
+
+broken "a copy whose ESS_TOOLCHAIN and ESS_VERSION are no release" \
+  "ESS_TOOLCHAIN of $taskfile is ${pinned%.*}.x, not a release" "$(copy form)" \
+  "$taskfile" "s/^\(  ESS_TOOLCHAIN:\).*/\1 \"${pinned%.*}.x\"/" \
+  "$pages" "s/^\( *ESS_VERSION:\).*/\1 \"${pinned%.*}.x\"/"
+
+# The pin in the quotes the tree does not use: single quotes, or double where the tree has single.
+if grep -q "^  ESS_TOOLCHAIN: *'" "$root/$taskfile"; then quoted="\"$pinned\""; else quoted="'$pinned'"; fi
+variant "a copy whose ESS_TOOLCHAIN is in the other quotes, $quoted" pass "" "$(copy quotes)" \
+  "$taskfile" "s/^\(  ESS_TOOLCHAIN:\).*/\1 $quoted/"
+
+broken "a copy whose call ess specify cli of check:spec empties its environment" \
+  "task check:spec started \`ess specify cli\` with ESS_TOOLCHAIN (unset)" "$(copy spec-cli)" \
+  "$taskfile" 's/^      - ess specify cli /      - env -i PATH="$PATH" HOME="$HOME" ess specify cli /'
+
+broken "a copy whose call ess generate synthesize of check:spec empties its environment" \
+  "task check:spec started \`ess generate synthesize\` with ESS_TOOLCHAIN (unset)" "$(copy synthesize)" \
+  "$taskfile" 's/if ! ess generate synthesize /if ! env -i PATH="$PATH" HOME="$HOME" ess generate synthesize /'
+
 broken "a copy whose check-generated.sh starts ess without ESS_TOOLCHAIN" \
-  "task check:generated started ess with ESS_TOOLCHAIN (unset)" "$(copy dropped)" \
+  "task check:generated started \`ess generate cli\` with ESS_TOOLCHAIN (unset)" "$(copy dropped)" \
   "$generated" "s/|ess generate/|env -u ESS_TOOLCHAIN ess generate/"
 
 if [ "$failed" = 0 ]; then

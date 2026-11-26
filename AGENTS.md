@@ -70,7 +70,7 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `crates/ratchet/` | the `ratchet` binary. `src/commands/mod.rs` selects the handler by the callable of the binding from the table `BUILT`; a command that is built has its file there with one function `call` and its row in the table, and every other command shares `unbuilt`, the unavailable answer. A unit test beside the table fails when a key is no callable of the binding. `src/main.rs` answers `ratchet --version` itself (`ratchet <version of the workspace>`, exit 0; the generated parser declares no version, so `ratchet --help` does not name it) and writes the two streams: a reader of standard output that is gone ends the binary without a panic and with the exit status of the command, any other failure to write is one line on standard error and exit 1. `tests/main.rs` is the one integration-test binary: a module and a file per command, so a story that builds a command edits `src/commands/<command>.rs` and `tests/<command>.rs` and neither `mod.rs` nor `main.rs`; `tests/version.rs` and `tests/closed_pipe.rs` test what `main.rs` answers. `tests/commands.rs` lists the commands no story builds and fails when the binding declares a command it does not list |
 | `.github/scripts/` | `check-generated.sh`: one line per generated crate, the drift check and the regeneration. `*.test.sh`: script tests, each run by `task check:scripts`; a new one needs no entry anywhere |
 | `.github/scripts/release-*.sh`, `release.test.sh` | the scripts of a release (§ "Release"): `release-check.sh` (the tag, the workspace version, the changelog section), `release-package.sh` (targets, archive, `SHA256SUMS`, notes), `release-verify.sh` (a published release), and `release.test.sh`, their script test |
-| `.github/scripts/ess-pin.test.sh` | the script test of the pin of `ess` (§ "Gate"): `ESS_TOOLCHAIN` is named once in `Taskfile.yml`, in its root `env:`, it is the `ESS_VERSION` of `pages.yml`, its major and minor are the requirement of `spec/ess-inputs.yaml`, and `task check:spec` and `task check:generated` start `ess` with it, as a stand-in `ess` first in `PATH` records. Each rule refuses a broken copy under `target/` with its message |
+| `.github/scripts/ess-pin.test.sh` | the script test of the pin of `ess` (§ "Gate"): `ESS_TOOLCHAIN` is named once in `Taskfile.yml`, in its root `env:`, it is the `ESS_VERSION` of `pages.yml`, its major and minor are the requirement of `spec/ess-inputs.yaml`, and every call of `ess` that `task check:spec` and `task check:generated` make is started with it. The two tasks run to their end in a copy, with a stand-in `ess` first in `PATH` that records each call and succeeds, a stand-in for each `spec/*.test.sh` and an empty directory for each generated crate. Each rule refuses a broken copy under `target/` with its message; a call of `check:spec` or `check:generated` that loses the pin is refused with the task and the call |
 | `CHANGELOG.md` | what each release holds, in the Keep a Changelog form; `## [Unreleased]` takes the lines of a wave when it closes (§ "Release", "Changelog lines") |
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`): the epics and stories of the first milestone |
 | `ROADMAP.md` | the trajectory: first consumer and its first gap, the next waves by story id, what the next release holds |
@@ -122,10 +122,12 @@ written with; a new version of one of them is a change of that job.
 `ESS_TOOLCHAIN` in the root `env:` of `Taskfile.yml` pins `ess` to that release: the `ess` in
 `PATH` reads it, so on a host whose `ess` is newer every call delegates to the pinned release it
 holds beside it (the note `delegating to ess <version>`), and where the pinned release is the
-`ess` in `PATH`, as on the forge, it runs itself. Run the scripts that run `ess`,
-`check-generated.sh` and its test, through `task` (`task check:generated`, `task check:scripts`,
-`task generate`), not as `sh .github/scripts/...`, which gets no pin; an `ESS_TOOLCHAIN` of the
-caller's environment wins over the Taskfile's. A new release of `ess` is a change of
+`ess` in `PATH`, as on the forge, it runs itself. Run `.github/scripts/check-generated.sh`
+through `task` (`task check:generated`, `task generate`): started as
+`sh .github/scripts/check-generated.sh` it gets no pin. Its test, `check-generated.test.sh`,
+runs `task check:generated` in a copy of the tree and gets the pin from the copy's
+`Taskfile.yml`, also when started directly. An `ESS_TOOLCHAIN` of the caller's environment wins
+over the Taskfile's. A new release of `ess` is a change of
 `ESS_TOOLCHAIN` and of `ESS_VERSION` in both workflows, and `ess-pin.test.sh` fails when the
 Taskfile's value is not that of `pages.yml` or not within the requirement of
 `spec/ess-inputs.yaml`.
