@@ -143,6 +143,8 @@ There are 82 fields: 48 `spec`, 7 `changed`, 27 `new`. The fields of an assessor
 
 The design names the four counts and does not say what tells `skipped` from `not_run`. The meanings above are a proposal.
 
+A count of the plan's run is also a value: a measurement may read a count from here as `coverage.<count>`; it is no entry of `results`. Such a measurement names a count that its assessor lists under `coverage` and reads it as an exact number at the scope `run`, without a unit (design § 3 "Evidence coverage").
+
 A unit is one piece of work, and it is counted once, however often the inputs name it (Q1). Where the unit is a check, one rule applied to one node for one scope item is one check: a node that a journey lists among its required nodes and as its signal is checked once for that journey. The same node under two scope items is two checks.
 
 ### `evidence.results[]`

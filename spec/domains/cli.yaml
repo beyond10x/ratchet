@@ -67,6 +67,11 @@ types:
         summary: The upper bound of a range with the operator `within`, as `min`.
       - name: unit
         type: Optional<ratchet.specification.Unit>
+      - name: source
+        type: Optional<ratchet.specification.NumberSource>
+        summary: >-
+          The source of the limit as the condition states it, printed beside the allowed value;
+          absent where the condition states none.
 
   - name: ratchet.cli.CoverageRow
     kind: struct

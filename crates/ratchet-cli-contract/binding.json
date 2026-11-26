@@ -653,6 +653,23 @@
                             "subset_of"
                           ]
                         },
+                        "source": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "struct",
+                            "fields": {
+                              "cites": {
+                                "kind": "string"
+                              },
+                              "since": {
+                                "kind": "optional",
+                                "of": {
+                                  "kind": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
                         "unit": {
                           "kind": "optional",
                           "of": {
@@ -1139,6 +1156,23 @@
                               "subset_of"
                             ]
                           },
+                          "source": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "struct",
+                              "fields": {
+                                "cites": {
+                                  "kind": "string"
+                                },
+                                "since": {
+                                  "kind": "optional",
+                                  "of": {
+                                    "kind": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
                           "unit": {
                             "kind": "optional",
                             "of": {
@@ -1623,6 +1657,23 @@
                               "within",
                               "subset_of"
                             ]
+                          },
+                          "source": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "struct",
+                              "fields": {
+                                "cites": {
+                                  "kind": "string"
+                                },
+                                "since": {
+                                  "kind": "optional",
+                                  "of": {
+                                    "kind": "string"
+                                  }
+                                }
+                              }
+                            }
                           },
                           "unit": {
                             "kind": "optional",
@@ -2244,6 +2295,23 @@
                       "within",
                       "subset_of"
                     ]
+                  },
+                  "source": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "cites": {
+                          "kind": "string"
+                        },
+                        "since": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        }
+                      }
+                    }
                   },
                   "unit": {
                     "kind": "optional",
@@ -3623,6 +3691,23 @@
                             "within",
                             "subset_of"
                           ]
+                        },
+                        "source": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "struct",
+                            "fields": {
+                              "cites": {
+                                "kind": "string"
+                              },
+                              "since": {
+                                "kind": "optional",
+                                "of": {
+                                  "kind": "string"
+                                }
+                              }
+                            }
+                          }
                         },
                         "unit": {
                           "kind": "optional",

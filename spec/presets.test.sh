@@ -81,7 +81,12 @@
 #             of its `population_fields` (`population_field_mismatch`). The cache condition is
 #             `cache_profile`, the member of the record: a condition `cache` of a plan and an
 #             item `cache` of the `conditions` of a declaration are refused, also where the two
-#             agree
+#             agree. The output `coverage.<count>` is Ratchet's where the declaration declares
+#             no output of that name: it reads a count of the coverage of the run, so the count
+#             is a value of `ratchet.assessor.CoverageCount` that the declaration lists under
+#             `coverage`, and the measurement is `exact`, at the scope `run` and without a
+#             unit, and is compared as a number without a unit (docs/design.md § 3 "Evidence
+#             coverage")
 #   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
 #             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
 #             the directory declares it, and a plan that names it needs no declaration. As
@@ -713,13 +718,23 @@ check_catalog() {
 
   # The path of the output a measurement reads, in the declaration of its assessor; "" where
   # the output is not declared. Sets A (the assessor), D (its declaration, "" without one)
-  # and O (the name of the output).
+  # and O (the name of the output). An output `coverage.<count>` that the declaration does
+  # not declare reads a count of the coverage of the run (docs/design.md § 3 "Evidence
+  # coverage"): CC is then the count, a variant of ratchet.assessor.CoverageCount or not,
+  # and "" for every other output, and counted is 1 where the declaration lists the count
+  # under `coverage`.
   function output_of(F, mp,    s) {
     split(mp, s, SEP)
     A = text(F, "assessments" SEP s[2] SEP "assessor"); D = ""; O = text(F, mp SEP "output")
+    CC = ""; counted = 0
     if (!(A in declaration)) return ""
     D = declaration[A]
-    return has(D, "outputs" SEP O) ? "outputs" SEP O : ""
+    if (has(D, "outputs" SEP O)) return "outputs" SEP O
+    if (substr(O, 1, 9) == "coverage.") {
+      CC = substr(O, 10)
+      counted = (("ratchet.assessor.CoverageCount", CC) in variant) && holds(D, "coverage", CC)
+    }
+    return ""
   }
 
   # The path of the measurement a requirement compares: the one it names, or the one its
@@ -1193,6 +1208,28 @@ check_catalog() {
         # Nothing is joined without a declaration (`record-series@1`, an assessor that an
         # input gives, an assessor that is named as absent) and where an input gives the output.
         if (D == "" || !has(F, path SEP "output") || given(O)) continue
+        # A count of the coverage of the run, `coverage.<count>`, is an output of Ratchet itself:
+        # a count the declaration lists under `coverage`, read as an exact number at the scope
+        # `run` without a unit (docs/design.md § 3 "Evidence coverage").
+        if (op == "" && CC != "") {
+          what = "the coverage count `" O "`"
+          if (!(("ratchet.assessor.CoverageCount", CC) in variant)) {
+            fail(F, n_line[i], named(path) "names the output `" O "`, and `" CC "` is no count of the coverage: `coverage.<count>` takes one of " variants("ratchet.assessor.CoverageCount")); continue
+          }
+          if (!counted) {
+            fail(F, n_line[i], named(path) "names the output `" O "`, and `" A "` lists the counts `" items(D, "coverage") "` under `coverage`, not `" CC "`"); continue
+          }
+          mk = text(F, path SEP "kind")
+          if (has(F, path SEP "kind") && !given(mk) && mk != "exact")
+            fail(F, n_line[i], named(path) "has the kind `" mk "`, and " what " is `exact` (`kind_mismatch`)")
+          mu = text(F, path SEP "unit")
+          if (has(F, path SEP "unit") && !given(mu))
+            fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " has none (`unit_not_declared`)")
+          sc = text(F, path SEP "scope")
+          if (has(F, path SEP "scope") && sc != "run" && !given(sc))
+            fail(F, n_line[i], named(path) "has the scope `" sc "`, and " what " has the scope `run` alone")
+          continue
+        }
         if (op == "") { fail(F, n_line[i], named(path) "names the output `" O "`, which `" A "` does not declare"); continue }
         what = "the output `" O "` of `" A "`"
         vt = text(D, op SEP "value_type")
@@ -1292,9 +1329,10 @@ check_catalog() {
             fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no `reference.adoption`, which says from which runs the value is adopted")
         }
         op = output_of(F, mp)
-        if (op == "") continue
-        vt = text(D, op SEP "value_type")
-        what = "the output `" O "` of `" A "`"
+        if (op == "" && !counted) continue
+        # A coverage count is a number without a unit.
+        vt = counted ? "number" : text(D, op SEP "value_type")
+        what = counted ? "the coverage count `" O "` of `" A "`" : "the output `" O "` of `" A "`"
         is = what " has the value type `" vt "`"
         # An assertion that the measurement aggregates with `pass_rate` is compared as a
         # number (docs/design.md § 3, "A series of runs as a population"). Where an input
@@ -1381,8 +1419,8 @@ check_catalog() {
             continue
           }
           aop = output_of(F, amp)
-          if (aop == "") continue
-          avt = text(D, aop SEP "value_type")
+          if (aop == "" && !counted) continue
+          avt = counted ? "number" : text(D, aop SEP "value_type")
           if (avt == "assertion" && text(F, amp SEP "aggregation" SEP "kind") == "pass_rate") avt = "number"
           if (avt != vt) {
             fail(F, n_line[i], named(path) "has `against` `" shown(amp) "` of the value type `" avt "`, and " is " (`against_value_type_mismatch`)"); continue
@@ -2463,6 +2501,11 @@ again required-field-of-declaration
 drop "$conf_d" 'coverage_unit: case'
 refused '`(root)` has no `coverage_unit`, which ratchet.assessor.Assessor requires' "a declaration states no coverage unit"
 
+# the third is the reference of `failed-does-not-rise`
+again required-source-cites
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: cases, source: {since: 2026-03-01}}\n'"$accepted_value" 3
+refused '`requirements.failed-does-not-rise.condition.source` has no `cites`, which ratchet.specification.NumberSource requires' "a source without cites"
+
 # `scopes` stays required where an output has the scope `run` alone: that output writes
 # `scopes: []` (spec/domains/assessor.yaml, AssessorOutput), as every output of the set does.
 copy required-scopes
@@ -2770,6 +2813,46 @@ swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path
 swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
 refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
 
+# -- a count of the coverage as a measurement ----------------------------------------------------
+#
+# `coverage.<count>` is an output of Ratchet itself: the count of the run's coverage, for a
+# count that the declaration lists under `coverage`, an exact number at the scope `run` without
+# a unit (docs/design.md § 3 "Evidence coverage"). conformance-report@1 lists all six counts,
+# comparison-report@1 four, without `passed`.
+
+# add_count <file> <preset> <assessment> <measurement> <kind> <output> <scope> [<line>]: a
+# measurement of the plan, before the map `requirements` of the file, with its row; <line> is
+# a further key of the measurement, such as `unit: cases`.
+add_count() {
+  swap "$1" 'requirements:' "      $4:\n        kind: $5\n        output: $6\n        scope: $7${8:+\n        $8}\n\nrequirements:"
+  add_row "| \`$2/$3/$4\` | Higher | None | 0 | Ratchet, the count \`${6#coverage.}\` of the coverage |"
+}
+
+copy coverage-count-measurement
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-does-not-fall:\n    meaning: The number of executed cases is not below the accepted number.\n    assessment: conformance\n    measurement: executed\n    reference: {kind: accepted_value}\n' >> "$c/$conf"
+accepts "a requirement executed-does-not-fall on the count executed of the coverage, with better: higher and an accepted value"
+
+copy coverage-count-not-listed
+add_count "$differ" differential-equality@1 comparison passed-cases exact coverage.passed run
+refused '`assessments.comparison.measurements.passed-cases` names the output `coverage.passed`, and `comparison-report@1` lists the counts `[executed, skipped, not_run, unsupported]` under `coverage`, not `passed`' "a coverage count the declaration does not list"
+
+again coverage-count-with-unit
+add_count "$conf" conformance-cases@1 conformance executed-in-cases exact coverage.executed run 'unit: cases'
+refused '`assessments.conformance.measurements.executed-in-cases` states the unit `cases`, and the coverage count `coverage.executed` has none (`unit_not_declared`)' "a coverage count with a unit"
+
+again coverage-count-sampled
+add_count "$conf" conformance-cases@1 conformance sampled-skipped sampled coverage.skipped run
+refused '`assessments.conformance.measurements.sampled-skipped` has the kind `sampled`, and the coverage count `coverage.skipped` is `exact` (`kind_mismatch`)' "a coverage count that is sampled"
+
+again coverage-count-no-count
+add_count "$conf" conformance-cases@1 conformance passed-ids exact coverage.passed_ids run
+refused '`assessments.conformance.measurements.passed-ids` names the output `coverage.passed_ids`, and `passed_ids` is no count of the coverage' "a coverage name that is no count"
+
+again coverage-count-scope
+add_count "$conf" conformance-cases@1 conformance not-run-per-case exact coverage.not_run case
+refused '`assessments.conformance.measurements.not-run-per-case` has the scope `case`, and the coverage count `coverage.not_run` has the scope `run` alone' "a coverage count at another scope than run"
+
 # -- the inputs that hold the observation --------------------------------------------------------
 #
 # A declaration names under `observation_inputs` the input that Ratchet passes the value of a
@@ -2983,6 +3066,18 @@ refused '`requirements.no-new-known-failure` has the operator `no_new_items`, wh
 copy compare-set-without-condition
 drop "$conf" "$set_rule"
 refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has a reference and no operator"
+
+# A limit on the items of a filtered set: `eq` with the value 0 and no reference, at the end of
+# differential-equality@1, where the map `requirements` ends.
+copy compare-eq-zero-on-filtered-set
+printf '  no-different-case:\n    meaning: No case is different.\n    assessment: comparison\n    measurement: different-cases\n    condition: {operator: eq, value: 0}\n' >> "$c/$differ"
+accepts "a requirement with eq and the value 0 on a set filtered by a field of its items, without a reference"
+
+# The source of a limit and of a band: prose for a reader, which no rule reads. The third
+# reference is that of `failed-does-not-rise`.
+copy condition-and-tolerance-with-source
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: cases, source: {cites: decision:x}}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 1, source: {cites: decision:x, since: 2026-03-01}}' 3
+accepts "a condition and a tolerance that each state their source"
 
 # A digest is compared with `eq` and a `digest`. The copies make the output `refused` of
 # `conformance-report@1` a digest without a unit, and `refused-does-not-rise`, the fifth

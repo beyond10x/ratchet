@@ -89,7 +89,12 @@ types:
     naming:
       summary: >-
         An output an assessor declares and a measurement reads, such as `findings` or
-        `duration` (§ 3 value lists: the assessor declares it).
+        `duration` (§ 3 value lists: the assessor declares it). The form `coverage.<count>` is
+        Ratchet's, as `run`, `run_time` and `queue_wait` are: it reads the count of the run's
+        `evidence.coverage` named by a value of `ratchet.assessor.CoverageCount`, such as
+        `coverage.executed`, for a count the assessor lists under `coverage` (§ 3 "Evidence
+        coverage"). Such a measurement is `exact`, at the scope `run` and without `unit`, and
+        takes `better` and a reference as any number does.
 
   - name: ratchet.specification.Unit
     kind: newtype
@@ -310,8 +315,8 @@ types:
     kind: struct
     naming:
       summary: >-
-        The coverage bound on `skipped`, `not_run` and `unsupported`, `{max: 0}`: `max` is
-        required and `{min, max}` states both (§ 3 "Evidence coverage").
+        The coverage bound on `skipped`, `not_run`, `unsupported` and `failed`, `{max: 0}`:
+        `max` is required and `{min, max}` states both (§ 3 "Evidence coverage").
     fields:
       - name: max
         type: Integer
@@ -337,7 +342,10 @@ types:
       summary: >-
         The coverage that qualifies, as bounds on the counts or as an exact set of executed item
         ids (§ 3 "Evidence coverage"). A run below it is insufficient evidence with the cause
-        `coverage_below_plan`. A plan whose `scenarios` hold a pattern declares it.
+        `coverage_below_plan`. A plan whose `scenarios` hold a pattern declares it. `failed`
+        is a maximum of failed units, a number and not a share, and a run over `failed` is
+        insufficient evidence with the cause `coverage_below_plan`: the failures say nothing
+        about the values of the run, and a requirement of their own judges them.
     fields:
       - name: executed
         type: Optional<ratchet.specification.MinimumBound>
@@ -346,6 +354,8 @@ types:
       - name: not_run
         type: Optional<ratchet.specification.MaximumBound>
       - name: unsupported
+        type: Optional<ratchet.specification.MaximumBound>
+      - name: failed
         type: Optional<ratchet.specification.MaximumBound>
       - name: executed_ids
         type: Optional<ratchet.specification.ExecutedIds>
@@ -590,6 +600,11 @@ types:
         summary: >-
           Present exactly when the assessor declares a unit for the measurement's output
           (`unit_missing`, `unit_mismatch`, `unit_not_declared`).
+      - name: source
+        type: Optional<ratchet.specification.NumberSource>
+        summary: >-
+          Where the limit comes from and since when it holds (§ 3 "Comparisons"). A condition
+          without it is valid.
     invariants:
       # § 3 "Comparisons": a digest is compared with `eq`, and a condition with a `digest` has
       # no `value`.
@@ -652,6 +667,29 @@ types:
         type: Optional<Decimal>
         summary: >-
           In the unit of the measurement; a bare number on an output without a unit.
+      - name: source
+        type: Optional<ratchet.specification.NumberSource>
+        summary: >-
+          Where the band comes from and since when it holds (§ 3 "Comparisons"). A tolerance
+          without it is valid.
+
+  - name: ratchet.specification.NumberSource
+    kind: struct
+    naming:
+      summary: >-
+        The source of a number of a `ratchet/1` file, a limit of a `condition` or a band of a
+        `tolerance`: what it cites, such as a decision, a commitment to someone or an earlier
+        measurement, and since when it holds, `{cites: decision:2026-03-quality-review, since:
+        2026-03-01}` (§ 3 "Comparisons"). It is prose for a reader, printed beside the allowed
+        value and judged by nothing: no rule reads it and no verdict depends on it. A file
+        without it stays valid.
+    fields:
+      - name: cites
+        type: String
+        summary: >-
+          A path, a URL, or an id such as `decision:<id>`.
+      - name: since
+        type: Optional<ratchet.specification.CalendarDate>
 
   - name: ratchet.specification.AdoptionSource
     kind: enum

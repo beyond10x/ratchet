@@ -464,12 +464,14 @@ the digest of the preset file:
 | 3. A request without a credential, with an expired one and with one of another tenant is refused | `probes`, `exposure-probes@1`: `requests-without-valid-credential-refused` |
 | 4. Console routes cannot be reached through the public proxy | `probes`: `console-not-reachable-through-public-proxy` |
 | 5. TLS is on for every public listener | `probes`: `tls-on-every-public-listener` |
-| 6. The image has no critical advisory | the plan `image-advisories` of the file, over `advisory-report@1` with `filter: {severity: [critical]}`, and `no-new-critical-advisory` (`no_new_items` against the accepted set) |
+| 6. The image has no critical advisory | the plan `image-advisories` of the file, over `advisory-report@1` with `filter: {severity: [critical]}`, and `no-critical-advisory` (`eq 0` on the filtered set, no reference) |
 | 7. The signatures of the image and of its provenance verify | `signatures`, `artifact-signatures@1`: `every-signature-verifies` |
 
 - Check 6 is a plan of the file because `dependency-advisories@1` takes no filter input. It says
-  "no critical advisory that the accepted set does not hold"; a limit of no critical advisory
-  at all waits for a severity limit on an identity set.
+  "no critical advisory at all": the limit is stated with the operators an identity set has,
+  `condition: {operator: eq, value: 0}` on the number of items of the set filtered to
+  `severity: [critical]`, with no reference and no new key. `no_new_items` on the same set
+  would admit a critical advisory once the accepted set holds it.
 - The gate is `kind: candidate`. A production gate is evaluated on a deployed environment, and
   an operational gate takes only time-window plans without a `selection`, while the bound
   presets' plans carry `selection: candidate` (§ 5; [`presets/production.md`](https://github.com/beyond10x/ratchet/blob/main/presets/production.md),

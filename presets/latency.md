@@ -6,7 +6,7 @@ suite, and it is no load test. Three presets judge the timing from the report of
 
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
-| [`operation-time@1`](operation-time@1.preset.yaml) | The time of each operation from the request to the answer: p50, p95 and p99 | An imported timing report, [`timing-report@1`](timing-report@1.assessor.yaml) |
+| [`operation-time@1`](operation-time@1.preset.yaml) and [`operation-time@2`](operation-time@2.preset.yaml) | The time of each operation from the request to the answer: p50, p95 and p99; `@2` of a run with at most a bound of failed requests | An imported timing report, [`timing-report@1`](timing-report@1.assessor.yaml) |
 | [`event-time@1`](event-time@1.preset.yaml) and [`event-time@2`](event-time@2.preset.yaml) | The time from a request to the event it causes, per operation: p95 | The same report; `@2` names [`timing-report@2`](timing-report@2.assessor.yaml), which is passed the workload, the runs and the fewest samples of the plan |
 | [`workload-throughput@1`](workload-throughput@1.preset.yaml) | The requests answered per second | The same report |
 
@@ -145,6 +145,29 @@ presets:
 ```
 
 The numbers of this binding are illustrations and no recommendation.
+
+## `operation-time@2`
+
+`operation-time@1` with a bound on the failed requests of a run: the plan's `coverage` holds
+`failed: {max: "${inputs.failed_requests_max}"}` beside `not_run: {max: 0}`. A run with more
+failed requests than the binding allows is insufficient evidence for every requirement of the
+preset, with the cause `coverage_below_plan`: a failed request is often the fast or the slow
+one, so the timing of the others says nothing
+([`docs/design.md`](../docs/design.md) § 3, "Evidence coverage"). The bound is a number of
+requests, `timing-report@1` counts them as `failed`, and the failures themselves are judged
+by [`conformance-cases@1`](functional.md) in a plan of their own. The other inputs, the
+requirements and the binding are those of `operation-time@1`, with `use: operation-time@2`
+and the input below. The file `@1` stays as it was released.
+
+| Input | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `failed_requests_max` | integer | yes | The most failed requests of a run that qualifies. It has no default: `0` says that a run with one failed request decides nothing |
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `operation-time@2/operations/p50` | Lower | `ms` | The input `p50_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, boundary `request_start_to_response_complete`, the 50th percentile per operation, of a run with at most `failed_requests_max` failed requests |
+| `operation-time@2/operations/p95` | Lower | `ms` | The input `p95_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, the same boundary, the 95th percentile per operation, of such a run |
+| `operation-time@2/operations/p99` | Lower | `ms` | The input `p99_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, the same boundary, the 99th percentile per operation, of such a run |
 
 ## `event-time@1`
 
@@ -287,10 +310,13 @@ key to a format; each point names the place in the specification
    a preset cannot leave a member out when the binding passes `runs: 1`.
    `workload-throughput@1` therefore always declares the median of the runs.
 5. **A coverage bound on failed units.** A run in which requests fail should not qualify for a
-   timing. `ratchet.specification.CoverageBounds` bounds `executed`, `skipped`, `not_run` and
-   `unsupported` and has no bound for `failed`. The presets leave a failed request out of the
-   samples, and a project judges the failures with
-   [`conformance-cases@1`](functional.md).
+   timing. Up to `operation-time@1`, `ratchet.specification.CoverageBounds` bounded
+   `executed`, `skipped`, `not_run` and `unsupported` and had no bound for `failed`: the
+   presets leave a failed request out of the samples, and a project judges the failures with
+   [`conformance-cases@1`](functional.md). Answered from `operation-time@2` on:
+   `CoverageBounds.failed` is a maximum of failed units, and a run over it is insufficient
+   evidence with the cause `coverage_below_plan`. `event-time@1`, `event-time@2` and
+   `workload-throughput@1` keep no bound on `failed`; a share of failed units is not a bound.
 6. **The inputs that hold the observation.** Up to `timing-report@1`, Ratchet passes an
    assessor its declared inputs and nothing of the `observation` of the plan. So a plan of
    `operation-time@1`, `event-time@1` and `workload-throughput@1` names the workload twice, as
@@ -302,4 +328,4 @@ key to a format; each point names the place in the specification
    keys `workload`, `runs` and `min_samples` of the plan to its inputs, the plan writes the
    workload once, and a result carries `runs`
    ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation").
-   `operation-time@1` and `workload-throughput@1` keep `timing-report@1`.
+   `operation-time@1`, `operation-time@2` and `workload-throughput@1` keep `timing-report@1`.
