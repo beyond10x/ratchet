@@ -6,6 +6,8 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-11-26
+
 ### Added
 
 - `examples/quality/assessors/` holds the `ratchet-assessor/1` declarations of nine assessors, one for each of the ten assessor ids the examples name but the built-in `record-series@1`, with the outputs, units, scopes, inputs and coverage units the examples use, as files a project can copy into its own catalog; no program of these assessors ships with them
