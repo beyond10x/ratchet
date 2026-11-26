@@ -46,8 +46,10 @@
 #             `${inputs.a.b}` refers to the input `a.b`: the specification gives the name of
 #             an input no type but text. In a declaration `${` is text, and only a scalar
 #             that is `${inputs.<name>}` alone is refused there: a declaration has no
-#             inputs to refer to
-#   names     a requirement names an assessment of its preset and a measurement of that
+#             inputs to refer to. An input of a declaration has no name of
+#             `ratchet.assessor.ReservedArgument`, such as `out`: Ratchet passes those
+#             arguments itself (docs/evidence-format.md § 10, "Reserved names")
+#   names    a requirement names an assessment of its preset and a measurement of that
 #             assessment, and the statements it serves are statements of the preset. These
 #             three names are written out: a reference there is refused, because no row
 #             `<name>@<version>/<assessment>/<measurement>` could be checked against it
@@ -93,8 +95,15 @@
 #             which declares none. A requirement that compares such a measurement with a
 #             reference of the kind `accepted_value` has a `reference.tolerance` with a
 #             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
-#             without a declaration, so also on a plan of `record-series@1`
-#   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
+#             without a declaration, so also on a plan of `record-series@1`. A measurement of
+#             the kind `exact` aggregates with `sum` or not at all, as the table of the two
+#             kinds in docs/design.md § 3 says ("None, or a sum"). A plan may hold
+#             exact and sampled measurements of its one run, in every observation kind, and
+#             its conditions then qualify every measurement of it (docs/design.md § 3, "Exact
+#             and sampled measurements of one run"). The design refuses no mix, so no rule
+#             reads it: the copy `valid-plans` holds a sampled pass rate beside the exact
+#             counts of a snapshot plan, and it is accepted
+#   row      a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
 #             is found by its header line `| Measurement | Direction | Unit | Tolerance |
@@ -106,7 +115,48 @@
 #             but spaces and tabs after it. `\|` in a cell is a bar of the text and no
 #             border of a cell, and `<!--` inside a code span that closes on its line opens
 #             no comment
-# Not checked, each with its reason:
+# Not checked: every form that the rules above could read and that the script accepts without a
+# word stands here, each with its reason. A form that docs/design.md or
+# docs/evidence-format.md forbids is refused by a rule above, and a form that no sentence of
+# the two forbids outright stays accepted: the catalog adds no rule to the format.
+#   - a percentile without `parameter`, and a percentile with a rank above 100, such as
+#     `{kind: percentile, parameter: 250}`: `ratchet.specification.Aggregation` holds
+#     `parameter` as an optional integer without a range or an invariant, and no sentence of
+#     the design requires a rank or bounds it
+#   - a measurement of a duration without `boundary`: docs/design.md § 3 says which part a
+#     boundary names where the evidence records the parts, and requires none;
+#     `ratchet.specification.Measurement.boundary` is optional
+#   - a measurement of a set without `identity`: the key is the one the declaration states
+#     (`identity_key`), and the copy `valid-forms` holds that form as valid
+#   - `tolerance: {}`, a `reference.tolerance` with neither `percent` nor `absolute`
+#     (`ratchet.specification.Tolerance`, both members optional and no invariant), on an
+#     exact measurement with a reference `accepted_value`, as `presets/image-size@1.preset.yaml`
+#     writes a tolerance there, and with a reference `generated`: docs/design.md § 3 gives an
+#     exact measurement the band 0 by default and a digest the tolerance 0, and an empty band
+#     states no other. On a sampled measurement and on a window over runs the rule `sampled`
+#     refuses it
+#   - an input, of a preset or of a declaration, that is required and has a default, and one
+#     that is neither required nor has a default: `ratchet.specification.InputDeclaration`
+#     holds `required` and an optional `default` without an invariant, and docs/design.md § 4
+#     names neither form as an error
+#   - the one row of a preset with one measurement on the page of another family:
+#     presets/README.md says that a measurement has its row on the page of its family, and no
+#     file names the family of a preset. The script checks that the rows of one preset stand
+#     on one page
+#   - a plan without a condition that the declaration of its assessor lists: the declaration
+#     lists the conditions the assessor can observe (`ratchet.assessor.Assessor.conditions`),
+#     and the plan declares those that qualify (docs/design.md § 3)
+#   - `min_samples` above `runs`, both literals: a run can collect many samples
+#     (docs/design.md § 3, "Controlled run"), so the two count different things
+#   - a sampled measurement with a literal `runs` above 1 and no aggregation:
+#     `story:value-over-all-runs` decides it
+#   - `runs: 1` with an aggregation. docs/design.md § 3, "One run per candidate is valid":
+#     "With `runs: 1` a measurement may declare one of the existing aggregation kinds when the
+#     command repeats its measurement itself within the one run, such as a command that times
+#     its work three times and prints the median, or one that prints a value per segment of
+#     its output: the repeats are samples of that run (evidence format § 1), and the result
+#     carries their number in `samples`." The script cannot see whether a command repeats its
+#     measurement itself
 #   - the invariants of the types, beside the four of an assessment plan under `series`: they
 #     are written in the expression language of ESS, and `ess generate synthesize` writes
 #     them as Rust
@@ -979,6 +1029,10 @@ check_catalog() {
       # `cache_profile`, the member of ratchet.evidence.ObservedConditions.
       if (fk == "assessor" && n == 2 && s[1] == "conditions" && s[2] ~ /^\[[0-9]+\]$/ && n_text[i] == "cache")
         fail(F, n_line[i], named(path) "is the condition `cache`; a declaration writes the cache condition as `cache_profile` and under no other name")
+      # An input of a declaration takes no name of ratchet.assessor.ReservedArgument: Ratchet
+      # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
+      if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
+        fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
       if (fk != "preset") continue
 
       if (n == 4 && s[1] == "preset" && s[2] == "inputs" && s[4] == "local" && n_text[i] == "true")
@@ -1058,6 +1112,11 @@ check_catalog() {
         plan = "assessments" SEP s[2]
         if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
           fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
+        # An exact measurement aggregates with `sum` or not at all (docs/design.md § 3, the
+        # table of the two kinds: "None, or a sum within the declared scope").
+        ek = text(F, path SEP "kind"); ea = text(F, path SEP "aggregation" SEP "kind")
+        if (ek == "exact" && has(F, path SEP "aggregation" SEP "kind") && !given(ea) && ea != "sum")
+          fail(F, n_line[i], named(path) "is exact and aggregates with `" ea "`; an exact measurement aggregates with `sum` or not at all")
         op = output_of(F, path)
         # Nothing is joined without a declaration (`record-series@1`, an assessor that an
         # input gives, an assessor that is named as absent) and where an input gives the output.
@@ -1657,6 +1716,31 @@ grep -F -q "presets: presets/ holds no $page, a file of the set that every copy 
   stop "the run in a tree whose presets/ lacks a file of the set does not name the file"
 }
 
+# The case `harness-unchanged` compares the line printed with --catalog and --spec with the
+# line of the check in process. A case cannot take out its own line, so this one runs a copy of
+# this script in a tree of its own, target/presets/harness-compare, whose presets/ is the set.
+# The copy prints another line with --catalog and stops with exit 0 at the line `mkdir` of the
+# case after `harness-unchanged`, before it would run this case again. The copy exits 1 with the
+# message of the comparison; a script without the comparison gives a copy that exits 0.
+compare_tree=$work/harness-compare
+mkdir -p "$compare_tree/spec"
+cp -R "$root/spec/domains" "$compare_tree/spec/domains"
+cp -R "$set_dir" "$compare_tree/presets"
+awk '
+  $0 == "  tables \"$spec\" | check_catalog \"$catalog\" -" { print "  tables \"$spec\" | check_catalog \"$catalog\" - | sed \"s/\\$/, and a word more/\""; edited++; next }
+  $0 == "mkdir \"$work/harness-spec\"" { print "exit 0"; edited++ }
+  { print }
+  END { exit (edited != 2) }
+' "$self" > "$compare_tree/spec/presets.test.sh" || stop "the case harness-compare finds no line of --catalog or no line mkdir of the case harness-spec in this script to edit"
+if sh "$compare_tree/spec/presets.test.sh" > "$compare_tree.out" 2>&1; then
+  cat "$compare_tree.out"
+  stop "a copy of this script that prints another line with --catalog and --spec than its check in process exits 0: the comparison of the case harness-unchanged is gone"
+fi
+grep -F -q "presets: the unchanged copy of the set fails with --catalog and --spec, or prints another line than: " "$compare_tree.out" || {
+  cat "$compare_tree.out"
+  stop "a copy of this script that prints another line with --catalog and --spec than its check in process exits 1 without the message of the comparison"
+}
+
 # A refusal counts only with the message of the rule of its case.
 copy harness-message
 printf 'A note.\n' > "$c/notes.txt"
@@ -1773,7 +1857,9 @@ accepts "an input named report.file, a text input as an item of a list, a target
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
 # first, with its requirement and its row. The rate is sampled: its plan declares a condition
 # and its reference a tolerance and an adoption, the window declares no conditions, and a
-# requirement that compares the rate with a limit alone needs no reference.
+# requirement that compares the rate with a limit alone needs no reference. The plan then holds
+# the sampled rate beside its exact counts, which docs/design.md § 3 allows ("Exact and sampled
+# measurements of one run"), and its condition qualifies both.
 copy valid-plans
 add_rate
 add_window
@@ -2222,6 +2308,12 @@ again required-field-of-declaration
 drop "$conf_d" 'coverage_unit: case'
 refused '`(root)` has no `coverage_unit`, which ratchet.assessor.Assessor requires' "a declaration states no coverage unit"
 
+# `scopes` stays required where an output has the scope `run` alone: that output writes
+# `scopes: []` (spec/domains/assessor.yaml, AssessorOutput), as every output of the set does.
+copy required-scopes
+swap "$conf_d" "$number_output" '  failed: {value_type: number, kind: exact, unit: cases}'
+refused '`outputs.failed` has no `scopes`, which ratchet.assessor.AssessorOutput requires' "an output of a declaration leaves scopes out"
+
 # -- what a preset does not hold ---------------------------------------------------------------
 
 copy preset-gate
@@ -2434,6 +2526,18 @@ swap "$conf_d" 'conditions: []' 'conditions: [cache]'
 swap "$conf" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {cache: warm}}'
 refused '`conditions[1]` is the condition `cache`; a declaration writes the cache condition as `cache_profile` and under no other name' "a declaration lists the condition cache"
 refused '`assessments.conformance.observation.conditions.all.cache` is the condition `cache`; a plan writes the cache condition as `cache_profile` and under no other name' "a plan states the condition cache that its assessor declares"
+
+# An exact measurement aggregates with `sum` or not at all (docs/design.md § 3, the table of the
+# two kinds). The set is exact, an identity set, and declares the median.
+copy exact-aggregation
+swap "$differ" '        filter: {class: [different]}' '        filter: {class: [different]}\n        aggregation: {kind: median}'
+refused '`assessments.comparison.measurements.different-cases` is exact and aggregates with `median`; an exact measurement aggregates with `sum` or not at all' "an exact identity set aggregates with median"
+
+# An input of a declaration takes no name that Ratchet passes itself
+# (docs/evidence-format.md § 10, "Reserved names").
+copy declaration-reserved-input
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  out: {type: path, required: false}'
+refused '`inputs.out` has the name of a reserved argument, which Ratchet passes itself' "a declaration has the input out"
 
 copy assessor-input-local
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true, local: true}'

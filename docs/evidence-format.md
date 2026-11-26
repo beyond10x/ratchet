@@ -9,7 +9,7 @@ An assessment run is an entity of the specification and a row of the records tab
 ## 1. Name, version, and file
 
 - **Name.** `ratchet-evidence/1`, in the member `format`, as `ratchet-reference/1` and `ratchet-trade-off/1` are (design § 3, § 5).
-- **One document per assessment run.** A run is one execution of one assessment plan by its assessor, and every measurement of the plan reads that run (design § 3). The document holds all results of the run and one set of coverage counts. A document per measurement or per scope item is not this format.
+- **One document per assessment run.** A run is one execution of one assessment plan by its assessor, and every measurement of the plan reads that run (design § 3). A command that repeats its measurement itself within the run, by an option of its own or with one value per segment of its output, gives samples of that one run: under a plan with `runs: 1` the result is one value with the aggregation of its measurement and the number of repeats in `samples` (design § 3, “One run per candidate is valid”). The document holds all results of the run and one set of coverage counts. A document per measurement or per scope item is not this format.
 - **File.** One JSON object, UTF-8 without a byte order mark. The file name ends in `.evidence.json`; `<assessment>.evidence.json` is the proposed name. A reader takes nothing from the name. Where the record store keeps the file is not decided here: design § 6 names the hand-over and the ref and not their layout.
 - **Types.** A count is a JSON integer. A decimal is text, so no value changes in a conversion (design § 3). A time is text in UTC, `2026-11-24T02:49:16Z`. A duration is decimal text in seconds, `94.3`. A digest is `sha256:` and 64 lowercase hex digits. A path in `evidence` is relative to the root of the repository, with `/`. A file outside that root has no path in `evidence`: the member that would hold the path is left out, and the digest of the file identifies it (Q8). Where a file lay on one machine is not evidence.
 - **Spelling.** Members and the values Ratchet defines are snake_case (design § 3, value lists).
@@ -31,6 +31,14 @@ A document with a sampled result has `run.started_at` and `run.ended_at`, so two
 | File digest | The bytes of a file that the document names: the target document, an input file | `sha256:<hex>`, with `digest_form: bytes` beside it | Which file was read? |
 
 Every digest is SHA-256 over bytes as they were written (U9). The format fixes no key order and no white space. It asks one thing of a writer: the same inputs give the same bytes of `evidence`. Neither the evidence digest nor the record id is stored in the document; whoever needs one computes it.
+
+**The evidence digest by hand.** The record id is `sha256sum` of the file. The evidence digest is over a span of it, found without parsing and writing the JSON again, which would give other bytes:
+
+1. Read the file as bytes and find the member `evidence` of the top-level object.
+2. From the `{` that opens its value, count each `{` up and each `}` down until the count is back at 0. A brace inside a JSON string is not counted: a string runs from a `"` to the next `"` that no `\` escapes.
+3. The bytes from that `{` to that `}`, both included, are the span. `sha256:` and the 64 lowercase hex digits of their SHA-256 are the evidence digest.
+
+§ 6 states the evidence digest of its first example, and `spec/record-examples.test.sh` applies this recipe to that example as the block stands in this document.
 
 **When ESS has a canonical form.** ESS defines no canonical form of a document today, and the consumer has filed that gap with ESS.
 
@@ -384,6 +392,8 @@ One run of `ux-static@1` over the consumer’s own UI document, its journeys, an
 - The list of every node with its name, 53 entries under `details.items` of the results of `a11y.accessible_names@1`, is left out here. `details` is optional, so the document below is complete.
 - The white space. The format fixes none (§ 2), and the assessor writes the part before `results` on one line.
 
+So the evidence digest stated after the example is over its bytes as printed here, and not over those of the file the assessor wrote.
+
 `project` and `assessment` are the arguments the run was given, and the names are illustrations.
 
 The run is exact and has no `run` member. Coverage counts 95 checks: 20 declared nodes, 22 steps, and 53 nodes that need a name. The 73 checks on nodes have an outcome, and all passed; a step is counted and has none. Two journeys name their signal among their required nodes as well. Each of those nodes is one check (rule 4), where revision 1 counted it twice and showed 97 and 75 (Q1).
@@ -451,6 +461,8 @@ The run is exact and has no `run` member. Coverage counts 95 checks: 20 declared
   }
 }
 ```
+
+The evidence digest of the example above is `sha256:a3b6301af6bbd4f089a8094634a592f26b7aa07f08d9478836aaee2a2c4fdd10`.
 
 The sample has no finding and no incomplete result. The results below come from the same assessor over a copy of the inputs with four edits taken from its own tests: a chart replaced by a component the assessor does not know, a label emptied, a step with an unknown keyword added, and the declarations of one journey removed. They are the five incomplete results of that run, whose coverage is `executed: 93`, `unsupported: 2`, `passed: 70`, and `failed: 1`. The fourth is new in revision 2: the journey with nothing declared has an empty set that is incomplete, and not no result (rule 8, Q4).
 
@@ -739,7 +751,7 @@ An output, `outputs.<name>`:
 | --- | --- | --- | --- | --- |
 | `value_type` | text | yes | `number`, `identity_set`, `digest`, or `assertion` | spec: `AssessorOutput.value_type` |
 | `kind` | text | yes | `exact` or `sampled` | spec: `AssessorOutput.kind` |
-| `scopes` | list of text | yes | The scopes its results can have, beside `run`, which every assessor has (design § 3). The scope items are not declared: they come from the inputs of a run. | spec: `AssessorOutput.scopes` |
+| `scopes` | list of text | yes | The scopes its results can have, beside `run`, which every assessor has (design § 3). The scope items are not declared: they come from the inputs of a run. The list may be empty: `scopes: []` declares an output whose results have the scope `run` alone, and the member stays required. | spec: `AssessorOutput.scopes` |
 | `unit` | text | no | The unit of its values. Absent: the output has no unit, as the number of items of a set has none. | spec: `AssessorOutput.unit` |
 | `boundaries` | list of text | no | For a duration, the parts it reports | spec: `AssessorOutput.boundaries` |
 | `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |

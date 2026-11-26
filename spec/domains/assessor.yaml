@@ -95,7 +95,9 @@ types:
         type: List<ratchet.specification.Scope>
         summary: >-
           The scopes a result of this output can belong to, beside `run`, which every assessor
-          has. The scope items are not declared: they come from the inputs of a run.
+          has. The scope items are not declared: they come from the inputs of a run. The list
+          may be empty: `scopes: []` declares an output whose results have the scope `run`
+          alone. The field stays required, so such an output writes the empty list.
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-

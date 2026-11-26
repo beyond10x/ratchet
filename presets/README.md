@@ -159,10 +159,14 @@ A file in another form is refused, also where a YAML reader would accept it:
 
 `sh spec/presets.test.sh`, a step of `task check:spec`, checks every file of this directory
 against the specification, against the declaration of its assessor and against the pages. Its
-header says what it checks and what it does not: among the latter the invariants of the types
-beside the four of a plan over `runs_of`, a value that an input gives where a rule reads the
-value, a measurement of a plan of `record-series@1` against the source plan, the number of runs
-of an adoption from the trusted revision, and the prose of a row. No script
+header says what it checks, and under "Not checked" it lists, each with its reason, every form
+it accepts without a word: among them the invariants of the types beside the four of a plan
+over `runs_of`, a value that an input gives where a rule reads the value, a measurement of a
+plan of `record-series@1` against the source plan, the number of runs of an adoption from the
+trusted revision, the prose of a row, and the forms that no sentence of the design forbids
+outright, such as a percentile without its rank or `tolerance: {}` on an exact measurement. A
+form the design forbids is refused, such as an exact measurement that aggregates with `median`
+or an input of a declaration named `out`. No script
 checks the rules "Tolerance", "A value against a reference implementation", "Names",
 "Evidence" and "Generic examples".
 
