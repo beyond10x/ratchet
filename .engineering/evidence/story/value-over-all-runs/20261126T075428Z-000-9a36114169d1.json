@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T07:54:28Z",
+  "actor": "human:operator",
+  "artifact": "story:value-over-all-runs",
+  "kind": "story",
+  "revision": 10,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-wave-ahead-1-attack-1",
+    "reference": "spec/presets.test.sh",
+    "review": "review-result:adversary-wave-ahead-1-attack-1",
+    "outcome": "fixed"
+  }
+}

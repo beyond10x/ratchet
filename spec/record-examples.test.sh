@@ -24,28 +24,42 @@
 # `ratchet.evidence.MeasurementResult`; an array of objects with `state` is a list of
 # `ratchet.evidence.NotExecutedUnit`. An example of another shape fails.
 #
-# § 6 holds 3 examples, each a block fenced `json`; `want_examples` below states the number.
+# § 6 holds 5 examples, each a block fenced `json`; `want_examples` below states the number.
 # Another number fails, and so does a fenced block of § 6 that is not fenced `json`, because
 # this script does not read it, and a document without a section "## 6. ".
+#
+# The evidence digest of the first example: § 6 states it in one line, between the first and
+# the second example, of the form
+#   The evidence digest of the example above is `sha256:<64 lowercase hex digits>`.
+# The script applies the recipe of § 2 to the first example as the block stands in the
+# document: the bytes from the `{` of the value of `evidence` to its matching `}`, where a brace
+# inside a JSON string is no brace. It fails when the line is missing, stands elsewhere, is
+# there twice, or states another digest than `sha256sum` gives for those bytes.
 #
 # Usage:
 #   sh spec/record-examples.test.sh                       the examples of § 6
 #   sh spec/record-examples.test.sh --json <type> <file>  one JSON file against one type
-# Needs `jq`. Work files go to the ignored target/record-examples.
+# Needs `jq` and `sha256sum`. Work files go to the ignored target/record-examples.
 #
 # Exit 0: the last line is
-#   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`.
+#   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`,
+# and the line before it, without `--json`,
+#   `record-examples: the evidence digest of § 6 example 1 is sha256:<hex>, as § 6 states`.
 # Exit 1: each member that does not decode is named with its example and path; or § 6 is not
-# found, holds another number of examples than stated, or holds a fenced block that is not read.
+# found, holds another number of examples than stated, or holds a fenced block that is not read;
+# or the line of the evidence digest is missing or states another digest.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 doc=$root/docs/evidence-format.md
 work=$root/target/record-examples
 # The number of examples of docs/evidence-format.md § 6.
-want_examples=3
+want_examples=5
+# The line of the evidence digest, once it is checked; none with `--json`.
+digest_ok=
 
 command -v jq > /dev/null 2>&1 || { echo "record-examples: jq is not installed" >&2; exit 1; }
+command -v sha256sum > /dev/null 2>&1 || { echo "record-examples: sha256sum is not installed" >&2; exit 1; }
 
 rm -rf "$work"
 mkdir -p "$work"
@@ -79,6 +93,7 @@ else
   # otherwise, and per block that does not close.
   : > "$work/unread.txt"
   : > "$work/section.txt"
+  : > "$work/digest.txt"
   awk -v dir="$work" '
     /^## / {
       if (inside) { printf "the block that opens at line %d does not close inside § 6\n", opened >> (dir "/unread.txt"); close(out); inside = 0 }
@@ -96,7 +111,8 @@ else
       skipping = 1
       next
     }
-    inside { print > out }
+    inside { print > out; next }
+    !skipping && index($0, "The evidence digest of the example above is ") == 1 { printf "%d\t%d\t%s\n", NR, n, $0 >> (dir "/digest.txt") }
     END { if (inside) printf "the block that opens at line %d does not close\n", opened >> (dir "/unread.txt") }
   ' "$doc"
   [ -s "$work/section.txt" ] || { echo "record-examples: docs/evidence-format.md has no section \"## 6. \", which holds the examples"; exit 1; }
@@ -126,7 +142,65 @@ else
     [ -n "$type" ] || { echo "record-examples: $label has a shape with no root type in spec/record-examples.test.sh"; exit 1; }
     nodes "$label" "$type" "$f"
   done
+
+  # The evidence digest of the first example (§ 2): its line, then the bytes of the value of
+  # `evidence` in the block as it stands, and their SHA-256.
+  digest_line='The evidence digest of the example above is `sha256:<64 lowercase hex digits>`.'
+  lines=$(wc -l < "$work/digest.txt")
+  if [ "$lines" -eq 0 ]; then
+    echo "record-examples: § 6 of docs/evidence-format.md has no line \"$digest_line\" after its first example"
+    exit 1
+  fi
+  if [ "$lines" -gt 1 ]; then
+    cut -f 1 "$work/digest.txt" | sed 's/^/line /'
+    echo "record-examples: § 6 of docs/evidence-format.md states the evidence digest of the example above $lines times; it states it once, after its first example"
+    exit 1
+  fi
+  IFS="$(printf '\t')" read -r digest_at digest_after digest_text < "$work/digest.txt"
+  if [ "$digest_after" -ne 1 ]; then
+    echo "record-examples: line $digest_at of docs/evidence-format.md states the evidence digest after example $digest_after of § 6; it stands between the first example and the second"
+    exit 1
+  fi
+  stated=$(printf '%s\n' "$digest_text" | sed -n 's/^The evidence digest of the example above is `\(sha256:[0-9a-f]\{64\}\)`\.$/\1/p')
+  if [ -z "$stated" ]; then
+    echo "record-examples: line $digest_at of docs/evidence-format.md is not \"$digest_line\""
+    exit 1
+  fi
+  LC_ALL=C awk -v out="$work/evidence-1.bytes" '
+    { text = text $0 "\n" }
+    END {
+      n = length(text); depth = 0; instr = 0; esc = 0; last = ""; key = ""; start = 0; stop = 0
+      for (i = 1; i <= n && !stop; i++) {
+        ch = substr(text, i, 1)
+        if (instr) {
+          if (esc) esc = 0
+          else if (ch == "\\") esc = 1
+          else if (ch == "\"") { instr = 0; if (depth == 1) last = substr(text, from, i - from) }
+          continue
+        }
+        if (ch == "\"") { instr = 1; from = i + 1 }
+        else if (ch == ":" && depth == 1) key = last
+        else if (ch == "," && depth == 1) key = ""
+        else if (ch == "{" || ch == "[") {
+          if (ch == "{" && depth == 1 && key == "evidence" && !start) start = i
+          depth++
+        } else if (ch == "}" || ch == "]") {
+          depth--
+          if (depth == 1 && start) stop = i
+        }
+      }
+      if (!start || !stop) exit 1
+      printf "%s", substr(text, start, stop - start + 1) > out
+    }
+  ' "$work/example-1.json" || { echo "record-examples: § 6 example 1 has no object as the value of a member \`evidence\`"; exit 1; }
+  computed=sha256:$(sha256sum "$work/evidence-1.bytes" | cut -c 1-64)
+  if [ "$computed" != "$stated" ]; then
+    echo "record-examples: line $digest_at of docs/evidence-format.md states the evidence digest $stated, and the bytes of \`evidence\` of § 6 example 1 give $computed"
+    exit 1
+  fi
+  digest_ok="record-examples: the evidence digest of § 6 example 1 is $computed, as § 6 states"
 fi
+[ -z "$digest_ok" ] || echo "$digest_ok"
 
 awk -F '\t' -v examples="$examples" '
   function unopt(t) { return (t ~ /^Optional</) ? substr(t, 10, length(t) - 10) : t }

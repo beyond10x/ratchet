@@ -6,7 +6,7 @@ implementation does? Three presets judge it from reports a project already produ
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`conformance-cases@1`](conformance-cases@1.preset.yaml) | The result of each case of a conformance or contract suite | An imported conformance report, [`conformance-report@1`](conformance-report@1.assessor.yaml) |
-| [`differential-equality@1`](differential-equality@1.preset.yaml) | The answers of a candidate compared with those of a reference implementation, case by case | An imported comparison report, [`comparison-report@1`](comparison-report@1.assessor.yaml) |
+| [`differential-equality@1`](differential-equality@1.preset.yaml) and [`differential-equality@2`](differential-equality@2.preset.yaml) | The answers of a candidate compared with those of a reference implementation, case by case | An imported comparison report, [`comparison-report@1`](comparison-report@1.assessor.yaml); `@2` names [`comparison-report@2`](comparison-report@2.assessor.yaml), which lists the values of `class` |
 | [`known-failures@1`](known-failures@1.preset.yaml) | The list of cases that are known to fail | An imported list of case ids, [`case-list@1`](case-list@1.assessor.yaml) |
 
 Every measurement of the family is exact: a count or a set of case ids. Its tolerance is 0, and
@@ -140,6 +140,21 @@ presets:
       different_limit: 0
 ```
 
+## `differential-equality@2`
+
+`differential-equality@1` that names `comparison-report@2`. That declaration lists the values
+of the item field `class`, `item_values: {class: [equal, allowed, different]}`, so a `filter`
+on a class that is none of the three is refused (`spec/presets.test.sh`, rule `assessor`) and
+does not select an empty set. The inputs, the plan, the requirements and what the program
+returns are those of `differential-equality@1`, and a project binds it with
+`use: differential-equality@2`. The files `@1` stay as they were released.
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `differential-equality@2/comparison/equal-cases` | Higher: the set loses no case | None: a set of case ids | 0, no input | `comparison-report@2`, output `cases`, the items of the class `equal` |
+| `differential-equality@2/comparison/allowed-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `comparison-report@2`, output `cases`, the items of the class `allowed` |
+| `differential-equality@2/comparison/different-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input; the limit is the input `different_limit` | `comparison-report@2`, output `cases`, the items of the class `different` |
+
 ## `known-failures@1`
 
 A project that keeps a list of cases known to fail, in a file of its tree, binds this preset
@@ -224,4 +239,8 @@ point names the place in the specification
 3. **The values of an item field.** The classes `equal`, `allowed` and `different` are a closed
    list, and no declaration can say so: `ratchet.assessor.AssessorOutput.item_fields` is a list
    of field names without their values. A `filter` on a class that no program returns selects no
-   item, the set is empty, and nothing refuses it.
+   item, the set is empty, and nothing refuses it. Answered from `comparison-report@2` on:
+   `ratchet.assessor.AssessorOutput.item_values` lists the values of an item field, that
+   declaration lists the three classes, and `differential-equality@2` names it, so a `filter` on
+   another class is refused. `differential-equality@1` and `comparison-report@1` stay as they
+   were released.

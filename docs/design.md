@@ -73,7 +73,7 @@ A requirement describes **what must hold**. An assessment plan describes **how w
 
 Record both the **expected target** in the plan and the **resolved target** in the evidence. For source checks, this may be a commit and lockfile. For a deployed benchmark, it may be an ephemeral environment ID, the candidate’s artifact digest, and the workload version. For production telemetry, it may be a service, region, traffic filter, deployment or cohort identifier where available, and exact window bounds. Local, CI, ephemeral, staging, and production are explicit target classes. A pre-release gate can use an ephemeral environment with declared production-like conditions. A production window with mixed revisions describes that population and can support an operational gate, such as pausing a rollout. Candidate-specific verdicts require evidence attributable to that candidate.
 
-A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references). A time-window plan declares a `selection` only when its population is the candidate’s alone, such as a cohort that only the candidate serves. Without one, its evidence is attributable to no candidate, and the plan serves an operational gate (§ 5).
+A target’s `selection` says which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged into the trusted revision. A comparison that a merge can break without a conflict uses `merge_result` (§ 5, generated references). Under `merge_result` the evidence names two commits apart: its `candidate` is the revision under judgement, such as the head of a pull request, and its `target.revision` the merged tree that was read. A time-window plan declares a `selection` only when its population is the candidate’s alone, such as a cohort that only the candidate serves. Without one, its evidence is attributable to no candidate, and the plan serves an operational gate (§ 5).
 
 The local gate and CI are different targets, even for the same tree. 14 answers report a different check set or a different result between the two (F10). A plan lists the classes it runs in as `environments`, always a list. Evidence records where it was produced: the target class, the runner, and the tools. A gate names the classes whose evidence qualifies. A requirement that a location cannot assess is reported there as not run: its verdict is insufficient evidence with the cause `not_assessable_here`. It is not left out of the list, and the run does not exit 0 as if it had passed (ext-07 D3).
 
@@ -85,11 +85,11 @@ A measurement declares its **kind**. The kind decides how many runs are needed, 
 | --- | --- | --- |
 | Examples | Finding count, bytes, instructions, syscalls, allocations, process starts, a digest, a modelled UI metric | Wall time, a latency percentile, throughput, the pass rate of a subject that answers differently per run |
 | Runs | One, unless the plan says more | N runs or N samples, declared. 1 is valid. The evidence carries the count. |
-| Aggregation | None, or a sum within the declared scope | Declared where N is above 1: median, percentile, best of N, or pass rate |
+| Aggregation | None, or a sum within the declared scope | Declared where N is above 1: median, percentile, best of N, or pass rate. Or `over_all_runs: true`: the assessor computes one value over all runs, which is no aggregation |
 | Tolerance | 0 by default. A small declared band where the tool varies. | A declared band |
 | Conditions that decide comparability | Tools and their versions, loader and libraries, CPU | Host load, runner, cache profile, tools |
 
-Sampled evidence states the conditions it was observed under. The plan declares the conditions that qualify. Evidence observed outside them does not qualify, and the verdict is insufficient evidence. This covers a limit that was crossed: when host load is above the declared bound, the result says nothing about the candidate. In one answer a release gate failed on 194.7 s against a 120 s budget at load 65, and the same steps took 94.3 s at load 34 (swell C2). `ratchet validate` reports a sampled measurement that declares no conditions. A snapshot can declare conditions too.
+Sampled evidence states the conditions it was observed under. The plan declares the conditions that qualify. Evidence observed outside them does not qualify, and the verdict is insufficient evidence. This covers a limit that was crossed: when host load is above the declared bound, the result says nothing about the candidate. In one answer a release gate failed on 194.7 s against a 120 s budget at load 65, and the same steps took 94.3 s at load 34 (swell C2). `ratchet validate` reports a sampled measurement that declares no conditions, and a sampled measurement of a plan with `runs` above 1 that states neither an aggregation nor `over_all_runs: true` (below, “One run per candidate is valid”). A snapshot can declare conditions too.
 
 **Conditions are declared per target class.** `conditions` is keyed by class, with `all` for what holds in every class. One plan can then carry a load bound for a workstation and a runner for CI. Three conditions have a defined meaning. An assessor can declare others.
 
@@ -111,7 +111,7 @@ A wider tolerance does not solve noise. A timing limit set to 2.0x, after an unc
 - **A median of N runs**, with N in the evidence. Repeats are in use in 4 answers (F9; consumer gap 3).
 - **A paired run.** The assessor builds the revision that holds the accepted reference and measures it and the candidate interleaved on the same runner. The plan declares `paired: {pairs: N}`. The comparison is between the two values of that run, so no stored value has to match the present host (entity-runtime B6, ext-04 B6). A paired run is a way to compare with an accepted value and not a third kind of reference: the reference revision stays fixed between adoptions, as a stored value does (§ 5).
 
-**One run per candidate is valid.** A gate that judges a whole test step or a workflow run has one sample per candidate. Three runs of a 120 s step take longer than the budget they measure. A plan with `runs: 1` declares no aggregation, and the value is judged as observed, under the declared conditions and with the declared tolerance. Repeats are needed where the plan aggregates and where a sampled reference is adopted (§ 5). No answer states a run count for a timing check of a whole step. The repeats in use are 3 and 5 (surf B5, runbook B4, entity-runtime B6, ext-04 B6).
+**One run per candidate is valid.** A gate that judges a whole test step or a workflow run has one sample per candidate. Three runs of a 120 s step take longer than the budget they measure. A plan with `runs: 1` whose command measures once declares no aggregation, and the value is judged as observed, under the declared conditions and with the declared tolerance. With `runs: 1` a measurement may declare one of the existing aggregation kinds when the command repeats its measurement itself within the one run, such as a command that times its work three times and prints the median, or one that prints a value per segment of its output: the repeats are samples of that run (evidence format § 1), and the result carries their number in `samples`. Repeated runs are needed where the plan aggregates across runs and where a sampled reference is adopted (§ 5). A sampled measurement of a plan with `runs` above 1 states an aggregation, or states `over_all_runs: true`: its assessor computes one value over all runs of the plan, which is no aggregation of a value per run, such as the share of tests that passed in one run and failed in another (`flake-rate@2` of the catalog). One that states neither is an error. `over_all_runs: true` is valid for every value of `runs`, and it is no aggregation: a measurement that states it declares no aggregation, also at `runs: 1`, and its result carries the number of runs in `samples` and no `aggregation` (evidence format § 3). No answer states a run count for a timing check of a whole step. The repeats in use are 3 and 5 (surf B5, runbook B4, entity-runtime B6, ext-04 B6).
 
 Exact measurements have conditions too. Instruction and syscall counts depend on the C library, the compiler version, and the CPU, so a system update can refuse a merge that changed no code (ext-04 D2). The plan names those conditions and the evidence records them. A mismatch with the reference’s conditions is insufficient evidence, and it starts a new evidence series as § 5 describes for protocol changes. A tool version other than the one `tools` names is handled the same way: 47 tests failed in one answer when a tool at 0.98.0 was first on the path and the pin was 0.97.4 (canon C2).
 
@@ -126,6 +126,24 @@ The same holds for time. A limit per test and a limit for the test step are two 
 The scopes are not a closed list. An assessor declares the scope of each output, and `ratchet validate` checks a measurement’s scope against that declaration. `run` is the whole run, and every assessor has it. The proposed rules of the survey also need a test step, an operation, a scenario, and a case (candidate presets § 6, item 2).
 
 **Several measurements from one run.** A plan holds a map of `measurements`. The assessor runs once per plan, and every measurement reads that run: the 14 metrics of one walk (ux-ui B4), the step time and the time per test of one `task test`, the run time and the queue wait of one workflow run. A requirement names the plan and the measurement. It can leave the measurement out when the plan has one.
+
+**Exact and sampled measurements of one run.** One plan may hold measurements of both kinds when one run yields them. The plan declares the observation kind of that run, and the kinds of its measurements do not change it: a repeatable workload on fixed data is a `controlled_run`, here with `runs: 1` (above, “One run per candidate is valid”). The plan’s conditions qualify the run, and so every measurement that reads it. The conditions that a sampled measurement needs, such as a load bound or a runner, qualify the exact measurements of the plan too, beside those that decide an exact value, such as `tools` (above, “Exact measurements have conditions too”). A run outside one of them is insufficient evidence for every measurement of the plan, and its evidence records one set of conditions (evidence format § 3, `evidence.conditions`). The plan declares at least one condition because it holds a sampled measurement; an exact measurement needs none of its own. Exact values that are to be judged whatever the host load are measured by a plan of their own, at the cost of a second run. The smallest case, one browser run that yields `horizontal-scroll = 0 pages` (exact) and `run-time = 48.0 s` (sampled):
+
+```yaml
+assessments:
+  browser-walk:
+    subject: web-ui
+    assessor: browser-walk@1
+    target: {kind: deployment, environments: [ephemeral]}
+    observation:
+      kind: controlled_run
+      runs: 1
+      conditions:
+        all: {runner: browser-standard, tools: {chromium: {version: "131.0"}}}
+    measurements:
+      horizontal-scroll: {kind: exact, output: horizontal_scroll, scope: run, unit: pages, better: lower}
+      run-time: {kind: sampled, output: duration, boundary: run_time, scope: run, unit: s, better: lower}
+```
 
 **Several scenarios in one plan.** `scenarios` is a list, and an entry can end in `*`. The scope keeps one result per scenario. A pattern can match fewer scenarios than it did before, so a plan with a pattern declares its coverage.
 
@@ -180,7 +198,7 @@ A measurement returns one of four value types: a **number**, an **identity set**
 - `no_new_items` holds when every item of the candidate’s set is in the accepted set. `no_lost_items` holds when every item of the accepted set is in the candidate’s set. A set of passing cases takes `no_lost_items`, so a case that fails or stops running is lost (§ 4). A set of failing cases with `no_new_items` does not see a deleted case.
 - An assertion holds or does not hold for each item of its scope: a scenario passing, an expectation of an imported ESS UI result. `holds` requires it for every item, and the result names the items where it does not hold.
 - A tolerance is `{percent: 10}`, `{absolute: 30}` in the unit of the measurement, or both. With both, the wider band applies. Absolute bands are in use: 0.01 for layout shift in 3 answers (ux-ui B5, spindle B5, slot B5), and the 30 seconds of § 5. `ratchet validate` reports a sampled measurement with an accepted value and no tolerance. Ratchet ships no default band.
-- A number has a `unit` exactly when the assessor declares one for the output. The measurement states that unit, and so does its `condition`. `ratchet/1` converts no units, and a different unit is a validation error. An output without a unit, such as a layout shift, a ratio, or the number of items of a set, takes no `unit` on the measurement, on the `condition`, or in a record, and an absolute tolerance on it is a bare number. A `unit` written for such an output is a validation error, so no stand-in such as `score` is needed.
+- A number has a `unit` exactly when the assessor declares one for the output. The measurement states that unit, and so does its `condition`. `ratchet/1` converts no units, and a different unit is a validation error. An output has one unit, and every value of it, a limit, an absolute tolerance, and a result, is written in that unit: 45 minutes of an output in `s` is `2700`. Two assessors may declare two units for the same kind of value: in `examples/ci-turnaround.ratchet.yaml` the forge’s workflow timing is in `min` and the timing of a command in `s`, and each requirement compares in the unit of its own output. An output without a unit, such as a layout shift, a ratio, or the number of items of a set, takes no `unit` on the measurement, on the `condition`, or in a record, and an absolute tolerance on it is a bare number. A `unit` written for such an output is a validation error, so no stand-in such as `score` is needed.
 - `filter` on a measurement of an identity set keeps the items whose field has one of the listed values, such as `filter: {severity: [serious, critical]}`. It applies before the comparison. The fields are those the assessor declares for the items of the set. A changed filter starts a new evidence series (§ 5).
 
 ### Value lists
@@ -293,7 +311,7 @@ assessments:
       conditions:
         all:
           tools: {rustc: {pin: rust-toolchain.toml}}
-          cache: warm
+          cache_profile: warm
         local: {host_load_per_cpu: {max: 1.0}}
         ci: {runner: ci-standard}
       coverage: {skipped: {max: 0}}
@@ -408,6 +426,8 @@ exceptions:
 
 The sample count illustrates a project choice. A real plan also defines how the assessor selects the request, handles errors and timeouts, and versions the workload. For user-perceived latency, the measurement would instead span the input action to the expected result becoming visible. Both measurements can use the same interaction.
 
+The plan `test-step` declares the cache condition as `cache_profile: warm`, a condition its assessor declares. A plan and a declaration write the cache condition as `cache_profile`, the member that holds it in the evidence record, and under no other name.
+
 Two things are not written in the YAML because the assessor declares them (§ 4). One is the coverage unit: `executed: {min: 3}` of `search-ui` counts the unit of `ux-eval@1`, and `skipped: {max: 0}` of `test-step` counts tests. The other is a local input: `test-step` passes no input for the place of the build pool’s job log, because `command-timing@1` declares `job_log` as local and the local config supplies it (§ 5).
 
 The accepted values are not in this file. They live in reference records that the `ratchet reference` commands write (§ 5, § 6). The specification names the kind of reference, the tolerance, and the adoption rule. One reference record, for `search-steps-do-not-rise`:
@@ -485,6 +505,7 @@ The catalog should grow across product quality and the quality of the software f
 | CI and release | Time to first actionable verdict, total workflow duration, queue wait, release lead time | Workflow stage events, CI runs, release records |
 | Spend | Money and model calls per run or per day | Run logs, provider usage reports |
 | Review | Open findings of an adversarial or independent review at a revision | Review records |
+| Production readiness | Probe assertions on a deployed service (requests without a valid credential refused, console routes unreachable through the public proxy, TLS on every public listener), artifact verification (the signatures of an image and of its provenance) | Reports of the project’s probe runner and of its verifier |
 
 For code quality, an assessor can wrap the project’s existing tool or import a report already generated by CI. Preserve findings with rule IDs, severity, and locations so the agent can act on them. A brownfield project can gate on **new findings** by comparing stable finding identities against an accepted set. A total count alone can let a new violation hide behind the removal of an unrelated one.
 
@@ -1078,3 +1099,9 @@ Four points were taken on 2026-11-25 with the first family of the preset catalog
 | Beside `format` and the `preset` block, a preset holds `statements`, `assessments`, and `requirements` and no other map. An entry states no `project`. | § 4 (“Presets”) | § 4 named the three maps in one sentence and did not say that a subject and a binding are left out |
 | `${inputs.<name>}` is the whole of a value. It stands for a scalar or a list, the type of the input fits the place, and inside a flow collection it is quoted. A name by which a requirement names its assessment, its measurement, or a statement it serves is written out and is no reference. The spelling is the only one, and a scalar that holds `${` or `{inputs.` in another form is an error. | § 4 (“Presets”) | § 4 gave the spelling and not where a reference may stand |
 | A candidate against a reference implementation is expressed in the evidence, as the classes of one identity set, or as the protected reference of the candidate’s requirement. What that cannot say is named on the page of the family, and the catalog adds no key. | § 4 (“Presets”); `presets/functional.md` | The first presets of the catalog compare a candidate with a reference implementation of the same service |
+
+One point was taken on 2026-11-26 with the answers to the first consumer of the formats outside this repository. It is a rule for reading a `ratchet/1` file, written in this table and in the README of the specification alone, and it is reversible before the first release.
+
+| Taken | Where | Cause |
+| --- | --- | --- |
+| A `ratchet/1` file may hold YAML comments, and a reader of the format skips them: no rule, value, or entity is read from a comment. A preset is bound by the digest of its bytes, so a comment changes that digest, and the catalog writes none. | This table; spec README (“How a `ratchet/1` file differs from the declared entities”) | No sentence said whether a `ratchet/1` file may hold a comment |

@@ -5,7 +5,7 @@ command: command-timing
 targets: [revision]
 inputs:
   job_log: {type: path, required: false, local: true}
-conditions: []
+conditions: [cache_profile]
 coverage_unit: test
 coverage: [executed, skipped]
 outputs:

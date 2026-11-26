@@ -16,20 +16,35 @@
 #     section that holds a change passes; one without a section, one whose section has no date,
 #     a date of another form or a date that is none, and one whose section holds no bullet
 #     under a heading fail. A version cut after a tag that was not released passes.
-#   - release-package.sh: the notes cut for a tag equal its section, and a tag without a
-#     section or with a section of headings alone has none; the archive built from a stub
+#   - release-package.sh: `targets` lists the two gnu targets and x86_64-unknown-linux-musl;
+#     the notes cut for a tag equal its section, and a tag without a section or with a
+#     section of headings alone has none; the archive built from a stub
 #     binary holds `ratchet`, `LICENSE` and `README.md` with owner 0 and the modes 755 and 644
 #     and verifies against the `SHA256SUMS` written beside it; a binary that prints anything
 #     but `ratchet <version>` or does not exit 0, another target, a file that is no executable,
 #     a version of another form and a directory that lacks an archive are refused.
+#   - static-check.sh, with a stand-in for `readelf` first in PATH that prints recorded output:
+#     a static binary passes, with a dynamic section and without one; a binary with a `NEEDED`
+#     entry, one with an `INTERP` program header and one with an `INTERP` header that names no
+#     interpreter each fail, named, on standard error; a file `readelf -d` or `readelf -l`
+#     cannot read, a call of either that writes `readelf: Error:` and exits 0 (a truncated
+#     file), a file that is not there and a call without a binary fail.
+#   - The task `check:static` of Taskfile.yml: the task `check` runs it after `check:rust`. Run
+#     by `task` in a directory of its own, with a stand-in for `cargo` and the stand-in for
+#     `readelf`, it builds the musl binary, passes a static stub that prints `ratchet
+#     <version>` only with an empty environment, and fails for one with an `INTERP` header, one
+#     that prints another version and one that exits 3.
 #   - release-verify.sh: a recorded release description with the bot as author beside a
-#     directory of its three assets passes. It fails for another author, a draft, a
+#     directory of its four assets passes. It fails for another author, a draft, a
 #     prerelease, a description that names neither state, is of another release or is no JSON
-#     object, an asset that is not uploaded, not attached or not in the directory, a fourth
+#     object, an asset that is not uploaded, not attached or not in the directory, a fifth
 #     asset, a `SHA256SUMS` that does not name an archive once, a changed archive, an archive
 #     that holds another file, a path outside its directory, a link or a directory in the
-#     place of a file, and a binary that prints anything but `ratchet <version>` or does not
-#     exit 0. It runs no file a link points to and leaves no file behind. With `--description`
+#     place of a file, a binary of the gnu or the musl x86_64 archive that prints anything but
+#     `ratchet <version>` or does not exit 0, and a musl binary that static-check.sh refuses,
+#     which it never starts. It runs no file a link points to and leaves no file behind. Each
+#     refusal of release-package.sh, release-verify.sh and static-check.sh is read on standard
+#     error alone, as their headers promise. With `--description`
 #     and `--assets` it calls no `gh`; without them it reads the release through `gh release
 #     view` and `gh release download`, here a stand-in first in PATH, and fails when either
 #     fails. The stand-in answers only a call with `--repo`, the `--json` fields it is asked
@@ -39,10 +54,15 @@
 #     nothing; the jobs are Gate, Package and Bundle with their `needs` and runners, every
 #     step always runs and no result is discarded; the commands, the matrix, the artifact
 #     names and the upload and download paths fit each other and the scripts; the steps that
-#     install the tools of the gate equal those of .github/workflows/pages.yml.
-#   - Mutants: a copy of the workflow or of a script with one change is refused by the cases
-#     above, one `ok` line per mutant. A mutant that the cases accept is a `FAIL` line, and so
-#     is one whose change no longer applies to the file. The cases stand in groups, each run
+#     install the tools of the gate equal those of .github/workflows/pages.yml, and the
+#     toolchain of the job gate of each names the targets of rust-toolchain.toml. The job
+#     package checks the musl binary with static-check.sh and runs it in Alpine, pinned by
+#     digest, before it packs it; the job gate of pages.yml runs the musl binary `task check`
+#     built in Alpine, by the same pin, for the class code alone.
+#   - Mutants: a copy of the workflow, of a script or of Taskfile.yml with one change is
+#     refused by the cases above, one `ok` line per mutant. A mutant that the cases accept is a
+#     `FAIL` line, and so is one whose change no longer applies to the file. The cases stand in
+#     groups, each run
 #     alone in a directory of its own, on the files and on the copy alike; a mutant names the
 #     group whose cases refuse it.
 #
@@ -51,21 +71,24 @@
 #
 # Exit 0: one `ok` line per case, the last line is `release: <n> of <n> cases pass`.
 # Exit 1: each case that went the other way is a `FAIL` line with the output it read.
-# Needs `jq`, `tar`, `sha256sum` and GNU `date` (`date -d`: the CI runners are Ubuntu, and a
-# workstation that runs the gate has GNU date too).
+# Needs `jq`, `tar`, `sha256sum`, `task` and GNU `date` (`date -d`: the CI runners are Ubuntu,
+# and a workstation that runs the gate has GNU date too).
 set -u
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 scripts=$root/.github/scripts
 workflow=$root/.github/workflows/release.yml
 pages=$root/.github/workflows/pages.yml
+taskfile=$root/Taskfile.yml
 bot='b10x-bot[bot]'
 repository=beyond10x/ratchet
 version=1.2.3
 x86_64=ratchet-$version-x86_64-unknown-linux-gnu
 aarch64=ratchet-$version-aarch64-unknown-linux-gnu
+musl_target=x86_64-unknown-linux-musl
+musl=ratchet-$version-$musl_target
 
-for tool in jq tar sha256sum; do
+for tool in jq tar sha256sum task; do
   command -v "$tool" > /dev/null 2>&1 || { echo "release: $tool is not installed" >&2; exit 1; }
 done
 [ "$(date -u -d 2000-02-29 +%Y-%m-%d 2> /dev/null)" = 2000-02-29 ] \
@@ -104,7 +127,9 @@ bad() {
 }
 
 # check <case> <pass|refuse> [<text>...] -- <command>...: run the command, compare its exit
-# with the wanted one, and look for each text in what it printed.
+# with the wanted one, and look for each text in what it printed. A text that starts with
+# `2> ` is looked for, without those three characters, in what it wrote to standard error
+# alone: the refusal of a script whose header promises standard error is written so.
 check() {
   label=$1 want=$2
   shift 2
@@ -115,16 +140,21 @@ check() {
     shift
   done
   shift
-  if "$@" > "$work/out" 2>&1 < /dev/null; then got=pass; else got=refuse; fi
+  if "$@" > "$work/out" 2> "$work/err" < /dev/null; then got=pass; else got=refuse; fi
   why=
   [ "$got" = "$want" ] || why="answered $got, not $want"
   if [ -z "$why" ] && [ -n "$texts" ]; then
-    printed=$(cat "$work/out")
+    printed=$(cat "$work/out" "$work/err")
+    errors=$(cat "$work/err")
     while IFS= read -r text; do
       [ -n "$text" ] || continue
-      case $printed in
+      case $text in
+        '2> '*) text=${text#'2> '} within=$errors where=' on standard error' ;;
+        *) within=$printed where= ;;
+      esac
+      case $within in
         *"$text"*) ;;
-        *) why="the output lacks: $text"; break ;;
+        *) why="the output lacks$where: $text"; break ;;
       esac
     done << TEXTS
 $texts
@@ -133,7 +163,8 @@ TEXTS
   if [ -z "$why" ]; then
     ok "$label"
   else
-    bad "$label: $why" "$work/out"
+    { cat "$work/out"; sed 's/^/2> /' "$work/err"; } > "$work/printed"
+    bad "$label: $why" "$work/printed"
   fi
 }
 
@@ -236,6 +267,112 @@ GH_REPOSITORY=$repository
 export PATH GH_CALLS GH_REPOSITORY
 unset GH_RELEASE GH_NO_DOWNLOAD
 : > "$GH_CALLS"
+
+# A stand-in for `readelf`, first in PATH too: static-check.sh reads what it prints. It answers
+# `readelf -d <file>` and `readelf -l <file>` with the recorded output READELF_KIND names under
+# READELF_FIXTURES (`<kind>.d`, `<kind>.l`), `static` when unset; for the kind `unreadable` it
+# fails as readelf fails on a file that is no ELF. A file `<kind>.<part>.err` beside one is
+# written to standard error first, as readelf writes its `readelf: Error:` lines, and a file
+# `<kind>.<part>.exit` holds the status the call exits with, 0 without one. Every other call
+# exits 2.
+cat > "$top/bin/readelf" << 'READELF'
+#!/bin/sh
+[ $# = 2 ] || { echo "readelf stand-in: readelf $*" >&2; exit 2; }
+case $1 in
+  -d) part=d ;;
+  -l) part=l ;;
+  *) echo "readelf stand-in: readelf $*" >&2; exit 2 ;;
+esac
+[ -f "$2" ] || { echo "readelf: Error: '$2': No such file" >&2; exit 1; }
+kind=${READELF_KIND:-static}
+[ "$kind" != unreadable ] || { echo "readelf: Error: $2: Failed to read file's magic number" >&2; exit 1; }
+recorded=$READELF_FIXTURES/$kind.$part
+[ ! -f "$recorded.err" ] || cat "$recorded.err" >&2
+[ ! -f "$recorded" ] || cat "$recorded"
+[ ! -f "$recorded.exit" ] || exit "$(cat "$recorded.exit")"
+exit 0
+READELF
+chmod +x "$top/bin/readelf"
+READELF_FIXTURES=$fix/readelf
+export READELF_FIXTURES
+unset READELF_KIND
+mkdir -p "$READELF_FIXTURES"
+
+# What readelf prints for a static-pie binary of the musl target: a dynamic section without a
+# NEEDED entry, and no INTERP program header.
+cat > "$READELF_FIXTURES/static.d" << 'OUTPUT'
+
+Dynamic section at offset 0x4c2e8 contains 13 entries:
+  Tag        Type                         Name/Value
+ 0x000000000000001e (FLAGS)              BIND_NOW
+ 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE
+ 0x0000000000000007 (RELA)               0x5e8
+ 0x0000000000000008 (RELASZ)             19872 (bytes)
+ 0x0000000000000009 (RELAENT)            24 (bytes)
+ 0x000000006ffffff9 (RELACOUNT)          823
+ 0x0000000000000000 (NULL)               0x0
+OUTPUT
+cat > "$READELF_FIXTURES/static.l" << 'OUTPUT'
+
+Elf file type is DYN (Position-Independent Executable file)
+Entry point 0x6a1f
+There are 9 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  PHDR           0x0000000000000040 0x0000000000000040 0x0000000000000040
+                 0x00000000000001f8 0x00000000000001f8  R      0x8
+  LOAD           0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000005484 0x0000000000005484  R      0x1000
+  DYNAMIC        0x000000000004c2e8 0x000000000004d2e8 0x000000000004d2e8
+                 0x0000000000000110 0x0000000000000110  RW     0x8
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+
+ Section to Segment mapping:
+  Segment Sections...
+   00
+   01     .rela.dyn .rodata
+   02     .dynamic
+   03
+OUTPUT
+# A static binary that is no PIE: no dynamic section at all.
+printf '\nThere is no dynamic section in this file.\n' > "$READELF_FIXTURES/nodynamic.d"
+grep -v -e DYNAMIC -e 0x0000000000000110 -e .dynamic "$READELF_FIXTURES/static.l" \
+  | sed 's/^Elf file type is DYN .*$/Elf file type is EXEC (Executable file)/' > "$READELF_FIXTURES/nodynamic.l"
+# A binary linked against glibc: one NEEDED entry. Its INTERP header is in the kind `interp`,
+# so each kind holds one of the two.
+awk '{ print } /^  Tag / { print " 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]" }' \
+  "$READELF_FIXTURES/static.d" > "$READELF_FIXTURES/needed.d"
+cp "$READELF_FIXTURES/static.l" "$READELF_FIXTURES/needed.l"
+cp "$READELF_FIXTURES/static.d" "$READELF_FIXTURES/interp.d"
+awk '
+  { print }
+  /^  PHDR / { phdr = 1; next }
+  phdr {
+    print "  INTERP         0x0000000000000238 0x0000000000000238 0x0000000000000238"
+    print "                 0x000000000000001c 0x000000000000001c  R      0x1"
+    print "      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]"
+    phdr = 0
+  }' "$READELF_FIXTURES/static.l" | sed 's/^   01     \.rela/   01     .interp .rela/' > "$READELF_FIXTURES/interp.l"
+# An INTERP program header after which readelf names no interpreter.
+cp "$READELF_FIXTURES/static.d" "$READELF_FIXTURES/interp-unnamed.d"
+grep -v 'Requesting program interpreter' "$READELF_FIXTURES/interp.l" > "$READELF_FIXTURES/interp-unnamed.l"
+# `readelf -d` reads the file, `readelf -l` fails on it.
+cp "$READELF_FIXTURES/static.d" "$READELF_FIXTURES/l-fails.d"
+echo "readelf: Error: Reading 504 bytes extends past end of file for program headers" > "$READELF_FIXTURES/l-fails.l.err"
+echo 1 > "$READELF_FIXTURES/l-fails.l.exit"
+# A truncated file, as GNU readelf 2.47 reads one: it writes `readelf: Error:` lines, prints
+# what it could read and exits 0. In `d-error` both calls do so, in `l-error` the second alone.
+printf '%s\n' 'readelf: Error: Reading 1856 bytes extends past end of file for section headers' \
+  'readelf: Error: the dynamic segment offset + size exceeds the size of the file' > "$READELF_FIXTURES/d-error.d.err"
+cp "$READELF_FIXTURES/nodynamic.d" "$READELF_FIXTURES/d-error.d"
+echo 'readelf: Error: Reading 1856 bytes extends past end of file for section headers' > "$READELF_FIXTURES/d-error.l.err"
+cp "$READELF_FIXTURES/static.l" "$READELF_FIXTURES/d-error.l"
+cp "$READELF_FIXTURES/static.d" "$READELF_FIXTURES/l-error.d"
+echo 'readelf: Error: Too many program headers - 0x9 - the file is not that big' > "$READELF_FIXTURES/l-error.l.err"
+cp "$READELF_FIXTURES/static.l" "$READELF_FIXTURES/l-error.l"
 
 # --- CHANGELOG.md -------------------------------------------------------------------------
 
@@ -477,7 +614,10 @@ group_agents() {
   check 'AGENTS.md has a section "Release" with the steps, the scripts and the changelog rule' pass -- \
     section_names '## [Unreleased]' 'release/<version>' '.github/workflows/release.yml' \
     'release-check.sh' 'release-package.sh' 'release-verify.sh' 'sha256sum -c SHA256SUMS' \
-    'release create <version> --verify-tag' "$bot"
+    'release create <version> --verify-tag' "$bot" 'static-check.sh' \
+    'target/release-assets/ratchet-<version>-x86_64-unknown-linux-gnu.tar.gz' \
+    'target/release-assets/ratchet-<version>-aarch64-unknown-linux-gnu.tar.gz' \
+    'target/release-assets/ratchet-<version>-x86_64-unknown-linux-musl.tar.gz'
   check 'AGENTS.md § "Release" says what happens to a tag whose run fails' pass -- \
     section_names '### A tag whose run fails' 'run rerun <run>' 'never moved or deleted' \
     'no release is created' 'was tagged and not released'
@@ -608,16 +748,16 @@ notes_equal() {
 group_notes() {
   check "the notes cut for a tag equal that section" pass -- notes_equal 1.2.3 "$changelog" "$fix/notes-wanted"
   check "the notes of a tag without a section are refused" refuse \
-    'release-package: CHANGELOG.md has no notes for 1.2.4' -- \
+    '2> release-package: CHANGELOG.md has no notes for 1.2.4' -- \
     sh "$scripts/release-package.sh" notes 1.2.4 "$changelog"
   check "the notes of a section that holds no line are refused" refuse \
-    'release-package: section-empty has no notes for 1.2.3' -- \
+    '2> release-package: section-empty has no notes for 1.2.3' -- \
     sh "$scripts/release-package.sh" notes 1.2.3 "$fix/section-empty"
   check "the notes of a section that holds headings and no bullet are refused" refuse \
-    'release-package: the section of 1.2.3 in section-of-headings holds no change line under a heading' -- \
+    '2> release-package: the section of 1.2.3 in section-of-headings holds no change line under a heading' -- \
     sh "$scripts/release-package.sh" notes 1.2.3 "$fix/section-of-headings"
   check "the notes of a section that holds bullets under no heading are refused" refuse \
-    'release-package: the section of 1.2.3 in section-of-bullets holds no change line under a heading' -- \
+    '2> release-package: the section of 1.2.3 in section-of-bullets holds no change line under a heading' -- \
     sh "$scripts/release-package.sh" notes 1.2.3 "$fix/section-of-bullets"
   check "the notes of a version cut after a tag that was not released are its section alone" pass -- \
     notes_equal 1.2.4 "$fix/tagged/CHANGELOG.md" "$fix/tagged/notes-wanted"
@@ -702,43 +842,176 @@ refused_archive() {
 # group_binary: what `archive` asks of the binary before it packs it.
 group_binary() {
   check "an archive of a binary that prints the version and exits 3 is refused" refuse \
-    'release-package: `ratchet --version` exits 3' -- \
+    '2> release-package: `ratchet --version` exits 3' -- \
     refused_archive stub-failing
   check "an archive of a binary that prints the version among other text is refused" refuse \
-    'release-package: the binary prints "ratchet 9.9.9 built for 1.2.3", not "ratchet 1.2.3"' -- \
+    '2> release-package: the binary prints "ratchet 9.9.9 built for 1.2.3", not "ratchet 1.2.3"' -- \
     refused_archive stub-among-text
   check "an archive of a binary that prints another version is refused" refuse \
-    'release-package: the binary prints "ratchet 9.9.9", not "ratchet 1.2.3"' -- \
+    '2> release-package: the binary prints "ratchet 9.9.9", not "ratchet 1.2.3"' -- \
     refused_archive stub-other
   check "an archive of a binary that prints the version without its name is refused" refuse \
-    'release-package: the binary prints "1.2.3", not "ratchet 1.2.3"' -- \
+    '2> release-package: the binary prints "1.2.3", not "ratchet 1.2.3"' -- \
     refused_archive stub-bare
   check "an archive of a binary that ends an error line with the version and exits 2 is refused" refuse \
-    'release-package: `ratchet --version` exits 2' -- \
+    '2> release-package: `ratchet --version` exits 2' -- \
     refused_archive stub-error
+}
+
+# targets_are <list>: `release-package.sh targets` prints that list, one target per line.
+targets_are() {
+  same "release-package.sh targets" "$1" "$(sh "$scripts/release-package.sh" targets)"
 }
 
 # group_package: the archives, their checksums and the calls `release-package.sh` refuses.
 group_package() {
+  check "release-package.sh targets lists the two gnu targets and $musl_target" pass -- \
+    targets_are "x86_64-unknown-linux-gnu
+aarch64-unknown-linux-gnu
+$musl_target"
   check "a version with a leading v is refused" refuse \
-    'release-package: v1.2.3 is no version of the form <major>.<minor>.<patch>' -- \
+    '2> release-package: v1.2.3 is no version of the form <major>.<minor>.<patch>' -- \
     sh "$scripts/release-package.sh" assets v1.2.3
   check "a version that is no bare version is refused" refuse \
-    'release-package: 1.2 is no version of the form <major>.<minor>.<patch>' -- \
+    '2> release-package: 1.2 is no version of the form <major>.<minor>.<patch>' -- \
     sh "$scripts/release-package.sh" assets 1.2
   check "the archive built from a stub binary holds ratchet, LICENSE and README.md with owner 0 and the modes 755 and 644" pass -- archives
   check "the archive verifies against the SHA256SUMS written beside it" pass -- sums
   check "an archive for a target no release is built for is refused" refuse \
-    'release-package: x86_64-apple-darwin is no target of a release' -- \
+    '2> release-package: x86_64-apple-darwin is no target of a release' -- \
     sh "$scripts/release-package.sh" archive "$version" x86_64-apple-darwin "$fix/stub/ratchet" "$work/dist-other"
   check "an archive of a file that is no executable is refused" refuse \
-    'release-package: ' ' is no executable file' -- \
+    '2> release-package: ' '2>  is no executable file' -- \
     sh "$scripts/release-package.sh" archive "$version" "${first_target:-none}" "$fix/notes-wanted" "$work/dist-other"
   mkdir -p "$work/dist-short"
   [ -n "$first_target" ] && cp "$work/dist/ratchet-$version-$first_target.tar.gz" "$work/dist-short/" 2> /dev/null
   check "checksums of a directory that lacks an archive are refused" refuse \
-    'release-package: no ratchet-1.2.3-' -- \
+    '2> release-package: no ratchet-1.2.3-' -- \
     sh "$scripts/release-package.sh" sums "$version" "$work/dist-short"
+}
+
+# --- static-check.sh ----------------------------------------------------------------------
+
+# static_check <kind> [<binary>]: static-check.sh on the binary, the stub when none is named,
+# with the stand-in printing the recorded output of that kind.
+static_check() {
+  READELF_KIND=$1 sh "$scripts/static-check.sh" "${2:-$fix/stub/ratchet}"
+}
+
+group_static() {
+  check "static-check.sh passes a static-pie binary: a dynamic section without NEEDED, no INTERP" pass \
+    "static-check: $fix/stub/ratchet: static, no NEEDED entry and no INTERP program header" -- \
+    static_check static
+  check "static-check.sh passes a static binary without a dynamic section" pass \
+    "static-check: $fix/stub/ratchet: static" -- \
+    static_check nodynamic
+  check "static-check.sh fails for a binary with a NEEDED entry, and names it" refuse \
+    "2> static-check: $fix/stub/ratchet: needs the shared library libc.so.6 (a NEEDED entry of readelf -d)" -- \
+    static_check needed
+  check "static-check.sh fails for a binary with an INTERP program header, and names it" refuse \
+    "2> static-check: $fix/stub/ratchet: asks for the program interpreter /lib64/ld-linux-x86-64.so.2 (an INTERP program header of readelf -l)" -- \
+    static_check interp
+  check "static-check.sh fails for an INTERP program header that names no interpreter" refuse \
+    "2> static-check: $fix/stub/ratchet: asks for the program interpreter an unnamed interpreter (an INTERP program header of readelf -l)" -- \
+    static_check interp-unnamed
+  check "static-check.sh fails for a file readelf cannot read" refuse \
+    "2> static-check: $fix/stub/ratchet: readelf -d cannot read it: readelf: Error: " -- \
+    static_check unreadable
+  check "static-check.sh fails for a file whose dynamic section readelf reads and whose program headers it cannot" refuse \
+    "2> static-check: $fix/stub/ratchet: readelf -l cannot read it: readelf: Error: Reading 504 bytes extends past end of file for program headers" -- \
+    static_check l-fails
+  check "static-check.sh fails when readelf -d writes readelf: Error: and exits 0, as for a truncated file" refuse \
+    "2> static-check: $fix/stub/ratchet: readelf -d exits 0 and reports an error: readelf: Error: Reading 1856 bytes extends past end of file for section headers" -- \
+    static_check d-error
+  check "static-check.sh fails when readelf -l writes readelf: Error: and exits 0" refuse \
+    "2> static-check: $fix/stub/ratchet: readelf -l exits 0 and reports an error: readelf: Error: Too many program headers - 0x9 - the file is not that big" -- \
+    static_check l-error
+  check "static-check.sh fails for a file that is not there" refuse \
+    "2> static-check: $fix/stub/absent: no such file" -- \
+    static_check static "$fix/stub/absent"
+  check "static-check.sh without a binary is a wrong call" refuse \
+    '2> usage: static-check.sh <binary>' -- \
+    sh "$scripts/static-check.sh"
+}
+
+# --- Taskfile.yml: the task check:static --------------------------------------------------
+
+# A stand-in for `cargo`, first in PATH for the runs of `task check:static` alone: it writes
+# the arguments of each call as one line to CARGO_CALLS and exits 0, building nothing.
+mkdir -p "$top/task-bin"
+cat > "$top/task-bin/cargo" << 'CARGO'
+#!/bin/sh
+printf '%s\n' "$*" >> "$CARGO_CALLS"
+CARGO
+chmod +x "$top/task-bin/cargo"
+
+# A `ratchet` that prints `ratchet <version>` only when its environment lacks
+# RELEASE_TEST_INHERITED, which `static_task` sets for task: run with `env -i`, it prints the
+# version; run with the environment of task, another line.
+mkdir -p "$fix/stub-empty-env"
+cat > "$fix/stub-empty-env/ratchet" << STUB
+#!/bin/sh
+[ "\${1-}" = --version ] || exit 1
+if [ -n "\${RELEASE_TEST_INHERITED-}" ]; then
+  echo "ratchet $version, run with the environment of task"
+else
+  echo "ratchet $version"
+fi
+STUB
+chmod 700 "$fix/stub-empty-env/ratchet"
+
+# static_listed: the task check of the Taskfile.yml under test runs check:static, after
+# check:rust.
+static_listed() {
+  awk '
+    /^  check:$/ { inside = 1; next }
+    inside && /^  [^ ]/ { inside = 0 }
+    inside && $0 == "      - task: check:rust" { rust = NR }
+    inside && $0 == "      - task: check:static" { static = NR }
+    END { exit (rust && static > rust) ? 0 : 1 }' "$taskfile" \
+    || { echo "Taskfile.yml: the task check does not run check:static after check:rust"; return 1; }
+}
+
+# static_task <kind> <binary>: `task check:static` of the Taskfile.yml under test, in a
+# directory of its own that holds it, a Cargo.toml of the version 1.2.3, static-check.sh and
+# the binary as the musl binary of the release profile; with the stand-ins for cargo and for
+# readelf, which answers that kind. Then the task called cargo build for the musl target.
+static_task() {
+  d=$work/task
+  rm -rf "$d"
+  mkdir -p "$d/.github/scripts" "$d/target/x86_64-unknown-linux-musl/release"
+  cp "$taskfile" "$d/Taskfile.yml"
+  cp "$scripts/static-check.sh" "$d/.github/scripts/static-check.sh"
+  printf '[workspace.package]\nversion = "%s"\n' "$version" > "$d/Cargo.toml"
+  cp "$2" "$d/target/x86_64-unknown-linux-musl/release/ratchet"
+  : > "$work/cargo-calls"
+  (
+    cd "$d" || exit 125
+    for name in $(env | sed -n 's/^\(TASK_[A-Za-z0-9_]*\)=.*/\1/p'); do
+      unset "$name"
+    done
+    PATH=$top/task-bin:$PATH CARGO_CALLS=$work/cargo-calls READELF_KIND=$1 RELEASE_TEST_INHERITED=1 \
+      task check:static
+  ) || return
+  grep -qx 'build --locked --release --bin ratchet --target x86_64-unknown-linux-musl' "$work/cargo-calls" \
+    || { echo "task check:static does not call cargo build --locked --release --bin ratchet --target x86_64-unknown-linux-musl:"; cat "$work/cargo-calls"; return 1; }
+}
+
+group_taskfile() {
+  check "Taskfile.yml: the task check runs check:static, after check:rust" pass -- static_listed
+  check "task check:static builds the musl binary, checks it with static-check.sh and runs it with an empty environment" pass \
+    'static-check: target/x86_64-unknown-linux-musl/release/ratchet: static, no NEEDED entry and no INTERP program header' \
+    "check:static: env -i ratchet --version: ratchet $version" -- \
+    static_task static "$fix/stub-empty-env/ratchet"
+  check "task check:static fails for a musl binary with an INTERP program header" refuse \
+    'static-check: target/x86_64-unknown-linux-musl/release/ratchet: asks for the program interpreter /lib64/ld-linux-x86-64.so.2' -- \
+    static_task interp "$fix/stub-empty-env/ratchet"
+  check "task check:static fails for a musl binary that prints another version" refuse \
+    'check:static: it prints "ratchet 9.9.9", not "ratchet 1.2.3"' -- \
+    static_task static "$fix/stub-other/ratchet"
+  check "task check:static fails for a musl binary that prints the version and exits 3" refuse \
+    'check:static: env -i ratchet --version exits 3' -- \
+    static_task static "$fix/stub-failing/ratchet"
 }
 
 # --- release-verify.sh --------------------------------------------------------------------
@@ -747,7 +1020,7 @@ assets=$(sh "$scripts/release-package.sh" assets "$version" 2> /dev/null) || ass
 
 # The description of a release as `gh release view <version> --json
 # assets,author,isDraft,isPrerelease,tagName` prints it: the bot as author, published, the
-# three assets uploaded.
+# four assets uploaded.
 # shellcheck disable=SC2086
 printf '%s\n' $assets | jq -R . | jq -s --arg login "$bot" --arg tag "$version" '{
   assets: map({name: ., state: "uploaded", contentType: "application/octet-stream", label: ""}),
@@ -772,11 +1045,16 @@ release() {
 }
 
 # verify <name>: release-verify.sh on that directory. Its files go to an own directory, which
-# a run leaves empty.
+# a run leaves empty. The stand-in for readelf answers as for a static binary.
 verify() {
+  verify_as static "$1"
+}
+
+# verify_as <kind> <name>: the same, with the stand-in for readelf answering that kind.
+verify_as() {
   [ -d "$work/tmp" ] || mkdir -p "$work/tmp"
-  TMPDIR=$work/tmp sh "$scripts/release-verify.sh" "$version" \
-    --description "$work/release/$1/description.json" --assets "$work/release/$1/assets"
+  READELF_KIND=$1 TMPDIR=$work/tmp sh "$scripts/release-verify.sh" "$version" \
+    --description "$work/release/$2/description.json" --assets "$work/release/$2/assets"
 }
 
 # nothing_left: no run of the group left a file in that directory.
@@ -818,79 +1096,106 @@ not_run() {
   return "$status"
 }
 
+# marking_stub <path>: a `ratchet` that prints the version, and leaves the file
+# $work/musl-started each time it is run.
+marking_stub() {
+  cat > "$1" << STUB
+#!/bin/sh
+: > "$work/musl-started"
+echo "ratchet $version"
+STUB
+  chmod 700 "$1"
+}
+
+# musl_not_started: release-verify.sh on the release `started`, whose musl binary the
+# stand-in for readelf calls one with a NEEDED entry. A run that started that binary passes,
+# so that the refuse case fails.
+musl_not_started() {
+  rm -f "$work/musl-started"
+  verify_as needed started
+  status=$?
+  if [ -f "$work/musl-started" ]; then
+    echo "release-verify.sh ran the musl binary before static-check.sh refused it"
+    return 0
+  fi
+  return "$status"
+}
+
 # group_verify_state: the description of the release: its tag, its state and its author.
 group_verify_state() {
   release good
-  check "release-verify.sh passes for a description with the bot as author beside its three assets" pass \
+  check "release-verify.sh passes for a description with the bot as author beside its four assets" pass \
     'release-verify: the release 1.2.3 is published' \
     "release-verify: its author is $bot" \
-    'release-verify: its 3 assets are attached' \
+    'release-verify: its 4 assets are attached' \
     'release-verify: sha256sum -c SHA256SUMS passes' \
     'release-verify: each archive holds ratchet, LICENSE and README.md' \
-    'release-verify: the ratchet of the x86_64 archive prints "ratchet 1.2.3" and exits 0' -- \
+    'release-verify: the ratchet of the x86_64-unknown-linux-gnu archive prints "ratchet 1.2.3" and exits 0' \
+    "release-verify: the ratchet of the $musl_target archive is static" \
+    "release-verify: the ratchet of the $musl_target archive prints \"ratchet 1.2.3\" and exits 0" -- \
     verify good
   check "release-verify.sh with --description and --assets leaves no file behind and calls no gh" pass -- quiet
 
   release prerelease '.isPrerelease = true'
   check "release-verify.sh fails for a prerelease" refuse \
-    'release-verify: the release 1.2.3 is a prerelease' -- \
+    '2> release-verify: the release 1.2.3 is a prerelease' -- \
     verify prerelease
 
   release unsaid 'del(.isPrerelease)'
   check "release-verify.sh fails for a description that does not say whether it is a prerelease" refuse \
-    'release-verify: the description does not say whether the release 1.2.3 is a prerelease' -- \
+    '2> release-verify: the description does not say whether the release 1.2.3 is a prerelease' -- \
     verify unsaid
 
   release draft '.isDraft = true'
   check "release-verify.sh fails for a draft" refuse \
-    'release-verify: the release 1.2.3 is a draft' -- \
+    '2> release-verify: the release 1.2.3 is a draft' -- \
     verify draft
 
   release undecided 'del(.isDraft)'
   check "release-verify.sh fails for a description that does not say whether it is a draft" refuse \
-    'release-verify: the description does not say whether the release 1.2.3 is a draft' -- \
+    '2> release-verify: the description does not say whether the release 1.2.3 is a draft' -- \
     verify undecided
 
   release author '.author.login = "b10x-bot"'
   check "release-verify.sh fails for another author" refuse \
-    "release-verify: the author of the release is b10x-bot, not $bot" -- \
+    "2> release-verify: the author of the release is b10x-bot, not $bot" -- \
     verify author
 
   release other '.tagName = "1.2.2"'
   check "release-verify.sh fails for the description of another release" refuse \
-    'release-verify: the description is of the release 1.2.2, not 1.2.3' -- \
+    '2> release-verify: the description is of the release 1.2.2, not 1.2.3' -- \
     verify other
 
   release text
   echo "release not found" > "$work/release/text/description.json"
   check "release-verify.sh fails for a description that is no JSON object" refuse \
-    'release-verify: the description ' ' is no JSON object' -- \
+    '2> release-verify: the description ' '2>  is no JSON object' -- \
     verify text
   check "release-verify.sh leaves no file behind and calls no gh when it fails at the description" pass -- quiet
 }
 
 # group_verify_assets: which assets the release carries, and that each is in the directory.
 group_verify_assets() {
-  release fourth '.assets += [.assets[0] | .name = "ratchet-1.2.3-x86_64-pc-windows-msvc.zip"]'
-  echo "not of the release" > "$work/release/fourth/assets/ratchet-1.2.3-x86_64-pc-windows-msvc.zip"
-  check "release-verify.sh fails for a release with a fourth asset" refuse \
-    'release-verify: the release carries an asset that is none of its 3: ratchet-1.2.3-x86_64-pc-windows-msvc.zip' -- \
-    verify fourth
+  release fifth '.assets += [.assets[0] | .name = "ratchet-1.2.3-x86_64-pc-windows-msvc.zip"]'
+  echo "not of the release" > "$work/release/fifth/assets/ratchet-1.2.3-x86_64-pc-windows-msvc.zip"
+  check "release-verify.sh fails for a release with a fifth asset" refuse \
+    '2> release-verify: the release carries an asset that is none of its 4: ratchet-1.2.3-x86_64-pc-windows-msvc.zip' -- \
+    verify fifth
 
   release uploading '.assets[0].state = "open"'
   check "release-verify.sh fails for an asset that is not uploaded" refuse \
-    'release-verify: the asset ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz is not attached' -- \
+    '2> release-verify: the asset ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz is not attached' -- \
     verify uploading
 
   release unattached 'del(.assets[1])'
   check "release-verify.sh fails for an asset that is not attached" refuse \
-    'release-verify: the asset ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz is not attached' -- \
+    '2> release-verify: the asset ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz is not attached' -- \
     verify unattached
 
   release absent
   rm -f "$work/release/absent/assets/SHA256SUMS"
   check "release-verify.sh fails for an asset that is not in the directory" refuse \
-    'release-verify: the asset SHA256SUMS is not in ' -- \
+    '2> release-verify: the asset SHA256SUMS is not in ' -- \
     verify absent
   check "release-verify.sh leaves no file behind and calls no gh when it fails at the assets" pass -- quiet
 }
@@ -900,19 +1205,19 @@ group_verify_sums() {
   release twice
   (cd "$work/release/twice/assets" && sha256sum "$x86_64.tar.gz" >> SHA256SUMS) 2> /dev/null
   check "release-verify.sh fails for a SHA256SUMS that names an archive twice" refuse \
-    'release-verify: SHA256SUMS does not name ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz once' -- \
+    '2> release-verify: SHA256SUMS does not name ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz once' -- \
     verify twice
 
   release unnamed
   (cd "$work/release/unnamed/assets" && sha256sum "$x86_64.tar.gz" > SHA256SUMS) 2> /dev/null
   check "release-verify.sh fails for a SHA256SUMS that does not name an archive" refuse \
-    'release-verify: SHA256SUMS does not name ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz once' -- \
+    '2> release-verify: SHA256SUMS does not name ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz once' -- \
     verify unnamed
 
   release changed
   printf 'x' >> "$work/release/changed/assets/$x86_64.tar.gz"
   check "release-verify.sh fails for a changed archive" refuse \
-    'release-verify: sha256sum -c SHA256SUMS fails' -- \
+    '2> release-verify: sha256sum -c SHA256SUMS fails' -- \
     verify changed
   check "release-verify.sh leaves no file behind and calls no gh when it fails at the checksums" pass -- quiet
 }
@@ -934,56 +1239,88 @@ OUTSIDE
     && ln -s "$work/outside/ratchet" "$work/repack/$x86_64/ratchet" && repack link "$x86_64"
   check "release-verify.sh fails for an archive whose ratchet is a link, and does not run its target" refuse \
     'release-verify: sha256sum -c SHA256SUMS passes' \
-    'release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz holds a member that is no regular file' -- \
+    '2> release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz holds a member that is no regular file' -- \
     not_run
 
   release second
   unpack "$aarch64" && echo "not of the release" > "$work/repack/$aarch64/NOTICE" && repack second "$aarch64"
   check "release-verify.sh fails for another file in the archive it does not run" refuse \
-    'release-verify: ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
+    '2> release-verify: ratchet-1.2.3-aarch64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
     verify second
 
   release extra
   unpack "$x86_64" && echo "not of the release" > "$work/repack/$x86_64/NOTICE" && repack extra "$x86_64"
   check "release-verify.sh fails for an archive that holds another file" refuse \
     'release-verify: sha256sum -c SHA256SUMS passes' \
-    'release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
+    '2> release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
     verify extra
 
   release outside
   unpack "$x86_64" && echo "not of the release" > "$work/repack/beside" && repack outside "$x86_64" "../repack/beside"
   check "release-verify.sh fails for an archive with a path outside its directory" refuse \
-    'release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
+    '2> release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
     verify outside
 
   release directory
   unpack "$x86_64" && rm "$work/repack/$x86_64/LICENSE" && mkdir "$work/repack/$x86_64/LICENSE" && repack directory "$x86_64"
   check "release-verify.sh fails for an archive whose LICENSE is a directory" refuse \
-    'release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
+    '2> release-verify: ratchet-1.2.3-x86_64-unknown-linux-gnu.tar.gz does not hold ratchet, LICENSE and README.md' -- \
     verify directory
   check "release-verify.sh leaves no file behind and calls no gh when it fails at a member" pass -- quiet
 }
 
-# group_verify_binary: what the binary of the x86_64 archive prints.
+# group_verify_binary: what the binaries of the two x86_64 archives print, and that the musl
+# one is static.
 group_verify_binary() {
   release failing
   unpack "$x86_64" && cp "$fix/stub-failing/ratchet" "$work/repack/$x86_64/ratchet" && repack failing "$x86_64"
   check "release-verify.sh fails for a binary that prints the version and exits 3" refuse \
-    'release-verify: `ratchet --version` of the x86_64 archive exits 3' -- \
+    '2> release-verify: `ratchet --version` of the x86_64-unknown-linux-gnu archive exits 3' -- \
     verify failing
 
   release among
   unpack "$x86_64" && cp "$fix/stub-among-text/ratchet" "$work/repack/$x86_64/ratchet" && repack among "$x86_64"
   check "release-verify.sh fails for a binary that prints the version among other text" refuse \
-    'release-verify: the ratchet of the x86_64 archive prints "ratchet 9.9.9 built for 1.2.3", not "ratchet 1.2.3"' -- \
+    '2> release-verify: the ratchet of the x86_64-unknown-linux-gnu archive prints "ratchet 9.9.9 built for 1.2.3", not "ratchet 1.2.3"' -- \
     verify among
 
   release binary
   unpack "$x86_64" && cp "$fix/stub-other/ratchet" "$work/repack/$x86_64/ratchet" && repack binary "$x86_64"
   check "release-verify.sh fails for a binary that prints another version" refuse \
     'release-verify: sha256sum -c SHA256SUMS passes' \
-    'release-verify: the ratchet of the x86_64 archive prints "ratchet 9.9.9", not "ratchet 1.2.3"' -- \
+    '2> release-verify: the ratchet of the x86_64-unknown-linux-gnu archive prints "ratchet 9.9.9", not "ratchet 1.2.3"' -- \
     verify binary
+
+  release musl-other
+  unpack "$musl" && cp "$fix/stub-other/ratchet" "$work/repack/$musl/ratchet" && repack musl-other "$musl"
+  check "release-verify.sh fails for a musl binary that prints another version" refuse \
+    'release-verify: the ratchet of the x86_64-unknown-linux-gnu archive prints "ratchet 1.2.3" and exits 0' \
+    "release-verify: the ratchet of the $musl_target archive is static" \
+    "2> release-verify: the ratchet of the $musl_target archive prints \"ratchet 9.9.9\", not \"ratchet 1.2.3\"" -- \
+    verify musl-other
+
+  release musl-failing
+  unpack "$musl" && cp "$fix/stub-failing/ratchet" "$work/repack/$musl/ratchet" && repack musl-failing "$musl"
+  check "release-verify.sh fails for a musl binary that prints the version and exits 3" refuse \
+    "2> release-verify: \`ratchet --version\` of the $musl_target archive exits 3" -- \
+    verify musl-failing
+
+  release needed
+  check "release-verify.sh fails for a musl binary with a NEEDED entry, after the gnu one ran" refuse \
+    'release-verify: the ratchet of the x86_64-unknown-linux-gnu archive prints "ratchet 1.2.3" and exits 0' \
+    "2> release-verify: the ratchet of the $musl_target archive is not static: needs the shared library libc.so.6 (a NEEDED entry of readelf -d)" -- \
+    verify_as needed needed
+
+  release started
+  unpack "$musl" && marking_stub "$work/repack/$musl/ratchet" && repack started "$musl"
+  check "release-verify.sh refuses a musl binary that is not static before it runs it" refuse \
+    "2> release-verify: the ratchet of the $musl_target archive is not static: needs the shared library libc.so.6 (a NEEDED entry of readelf -d)" -- \
+    musl_not_started
+
+  release interp
+  check "release-verify.sh fails for a musl binary with an INTERP program header" refuse \
+    "2> release-verify: the ratchet of the $musl_target archive is not static: asks for the program interpreter /lib64/ld-linux-x86-64.so.2" -- \
+    verify_as interp interp
 
   check "release-verify.sh leaves no file behind and calls no gh when it fails at the binary" pass -- quiet
 }
@@ -996,7 +1333,7 @@ through_gh() {
 }
 
 # gh_reads: the stand-in serves the good release, and was asked twice: for the description
-# with the repository of Cargo.toml, then for the three assets by name.
+# with the repository of Cargo.toml, then for the four assets by name.
 gh_reads() {
   : > "$GH_CALLS"
   GH_RELEASE=$work/release/good through_gh || return 1
@@ -1077,21 +1414,21 @@ group_gh() {
   release prerelease '.isPrerelease = true'
   check "release-verify.sh without them reads the release with gh release view and gh release download" pass \
     "release-verify: its author is $bot" \
-    'release-verify: the ratchet of the x86_64 archive prints "ratchet 1.2.3" and exits 0' -- \
+    'release-verify: the ratchet of the x86_64-unknown-linux-musl archive prints "ratchet 1.2.3" and exits 0' -- \
     gh_reads
   check "release-verify.sh --repository reads the release of that repository" pass \
     "release-verify: its author is $bot" -- \
     gh_reads_another
   : > "$GH_CALLS"
   check "release-verify.sh fails while gh finds no release" refuse \
-    'release-verify: gh release view 1.2.3 found no release in beyond10x/ratchet' -- \
+    '2> release-verify: gh release view 1.2.3 found no release in beyond10x/ratchet' -- \
     through_gh
   check "release-verify.sh fails when gh release download fails" refuse \
     "release-verify: its author is $bot" \
-    'release-verify: gh release download 1.2.3 failed' -- \
+    '2> release-verify: gh release download 1.2.3 failed' -- \
     gh_downloads_nothing
   check "release-verify.sh fails for a prerelease that gh serves" refuse \
-    'release-verify: the release 1.2.3 is a prerelease' -- \
+    '2> release-verify: the release 1.2.3 is a prerelease' -- \
     gh_not_published
   check "release-verify.sh leaves no file behind after a run through gh" pass -- nothing_left
 }
@@ -1291,7 +1628,9 @@ workflow_calls() {
   build='cargo build --locked --release --bin ratchet --target "$TARGET"'
   archive='sh .github/scripts/release-package.sh archive "$GITHUB_REF_NAME" "$TARGET" "target/$TARGET/release/ratchet" '
   same "the cargo calls of the job package" "$build" "$(grep -E '(^|[;&|( ])cargo ' "$work/runs")" || return 1
-  same "the variables of the job package" 'TARGET: ${{ matrix.target }}' "$(of package env)" || return 1
+  same "the variables of the job package, the pin of the image less its values" 'TARGET: ${{ matrix.target }}
+ALPINE_VERSION
+ALPINE_SHA256' "$(of package env | sed 's/^\(ALPINE_[A-Z0-9]*\): .*$/\1/')" || return 1
   line=$(grep -F -- 'release-package.sh' "$work/runs")
   dir=${line#"$archive"}
   case $dir in
@@ -1313,6 +1652,71 @@ cat $dir/notes.md" "$(of bundle run)" || return 1
   same "what the job bundle uploads" "name: ratchet-\${{ github.ref_name }}-release
 path: $dir/*
 if-no-files-found: error" "$(with bundle actions/upload-artifact)" || return 1
+}
+
+# alpine_pin: the image the job package runs the musl binary in, `<tag> <digest>`, read from
+# its variables: an Alpine 3 release and a SHA-256.
+alpine_pin() {
+  tag=$(of package env | sed -n 's/^ALPINE_VERSION: "\(3\.[0-9]*\.[0-9]*\)"$/\1/p')
+  digest=$(of package env | sed -n 's/^ALPINE_SHA256: \([0-9a-f]\{64\}\)$/\1/p')
+  [ -n "$tag" ] && [ -n "$digest" ] || { echo "the job package pins no Alpine 3 image by ALPINE_VERSION and ALPINE_SHA256:"; of package env; return 1; }
+  echo "$tag $digest"
+}
+
+# pages_step <name>: the step of pages.yml of that name, its `if:` included.
+pages_step() {
+  awk -v name="      - name: $1" '
+    $0 == name { inside = 1; print; next }
+    !inside { next }
+    match($0, /[^ ]/) && RSTART <= 7 { exit }
+    { print }' "$pages"
+}
+
+# workflow_alpine: the job package checks the binary of the musl target with static-check.sh
+# and runs it in Alpine, pinned by digest, before it packs it; the job gate of pages.yml runs
+# the musl binary `task check` built in the same image, as its last step and for the class
+# code alone.
+workflow_alpine() {
+  facts || return 1
+  pin=$(alpine_pin) || { echo "$pin"; return 1; }
+  tag=${pin% *} digest=${pin#* }
+  [ "$(printf '%s\n' "$targets" | grep -c -- '-musl$')" = 1 ] || { echo "release-package.sh targets names not one musl target:"; echo "$targets"; return 1; }
+  musl_of=$(printf '%s\n' "$targets" | grep -- '-musl$')
+  of package run > "$work/runs"
+  same "the commands of the job package between the build and the archive" "if [ \"\$TARGET\" = $musl_of ]; then
+sh .github/scripts/static-check.sh \"target/\$TARGET/release/ratchet\"
+printed=\$(docker run --rm -v \"\$PWD/target/\$TARGET/release/ratchet:/ratchet:ro\" \"alpine:\$ALPINE_VERSION@sha256:\$ALPINE_SHA256\" /ratchet --version)
+echo \"\$printed\"
+test \"\$printed\" = \"ratchet \$GITHUB_REF_NAME\"
+fi" "$(sed -n '/^cargo build /,/^sh .github\/scripts\/release-package.sh archive /{/^cargo build /d;/^sh .github\/scripts\/release-package.sh archive /d;p;}' "$work/runs")" || return 1
+  same "the last two steps of the job gate of pages.yml" "      - name: Run the repository gate
+      - name: Run the static ratchet in Alpine" "$(grep '^      - name: ' "$pages" | tail -n 2)" || return 1
+  cat > "$work/alpine-wanted" << 'STEP'
+      - name: Run the static ratchet in Alpine
+        if: steps.class.outputs.task == 'check'
+        env:
+          ALPINE_VERSION: "@TAG@"
+          ALPINE_SHA256: @DIGEST@
+        run: |
+          set -euo pipefail
+          version=$(sed -n '/^\[workspace.package\]$/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
+          test -n "$version"
+          printed=$(docker run --rm -v "$PWD/target/@MUSL@/release/ratchet:/ratchet:ro" "alpine:$ALPINE_VERSION@sha256:$ALPINE_SHA256" /ratchet --version)
+          echo "$printed"
+          test "$printed" = "ratchet $version"
+STEP
+  same "the step of pages.yml that runs the musl binary in Alpine" \
+    "$(sed -e "s/@TAG@/$tag/" -e "s/@DIGEST@/$digest/" -e "s/@MUSL@/$musl_of/" "$work/alpine-wanted")" \
+    "$(pages_step 'Run the static ratchet in Alpine')" || return 1
+}
+
+# toolchain <workflow>: the inputs of the step of its job gate that installs the rustc.
+toolchain() {
+  awk '
+    /^  [^ ]/ { job = $0; next }
+    job != "  gate:" { next }
+    /^      - / { inside = ($0 ~ /^      - uses: dtolnay\/rust-toolchain@/); next }
+    inside && /^          [^ ]/ { sub(/^ */, ""); print }' "$1"
 }
 
 # pins <workflow>: the versions and checksums of the tools it installs.
@@ -1356,6 +1760,12 @@ workflow_pins() {
   pins "$workflow" > "$work/pins-release"
   [ -s "$work/pins-pages" ] || { echo "pages.yml pins no tool"; return 1; }
   cmp -s "$work/pins-pages" "$work/pins-release" || { echo "release.yml pins:"; cat "$work/pins-release"; echo "pages.yml pins:"; cat "$work/pins-pages"; return 1; }
+  wanted=$(sed -n 's/^targets = \[\(.*\)\]$/\1/p' "$root/rust-toolchain.toml" | sed -e 's/"//g' -e 's/ *, */, /g')
+  same "the targets of rust-toolchain.toml" "$musl_target" "$wanted" || return 1
+  same "the toolchain of the job gate of pages.yml" "toolchain: \${{ steps.rustc.outputs.channel }}
+components: rustfmt, clippy
+targets: $wanted" "$(toolchain "$pages")" || return 1
+  same "the toolchain of the job gate of release.yml, which is that of pages.yml" "$(toolchain "$pages")" "$(toolchain "$workflow")" || return 1
   sed -n 's/^ *-* *uses: *//p' "$workflow" | LC_ALL=C sort -u > "$work/uses"
   [ -s "$work/uses" ] || { echo "release.yml uses no action"; return 1; }
   while IFS= read -r action; do
@@ -1378,6 +1788,9 @@ group_calls() {
 group_pins() {
   check "release.yml installs the tools of the gate by the steps of pages.yml and pins every action by a commit" pass -- workflow_pins
 }
+group_alpine() {
+  check "release.yml checks the musl binary and runs it in Alpine by digest before it packs it; pages.yml runs it there for the class code" pass -- workflow_alpine
+}
 
 # --- the cases on the files of the repository ---------------------------------------------
 
@@ -1396,22 +1809,25 @@ alone() {
 good=$top/work/group_package/dist
 
 for group in group_changelog group_agents group_tag group_section group_notes group_binary \
-  group_package group_verify_state group_verify_assets group_verify_sums group_verify_members \
-  group_verify_binary group_stand_in group_gh group_trigger group_jobs group_calls group_pins; do
+  group_package group_static group_taskfile group_verify_state group_verify_assets group_verify_sums \
+  group_verify_members group_verify_binary group_stand_in group_gh group_trigger group_jobs \
+  group_calls group_pins group_alpine; do
   alone "$top/work/$group" "$group"
 done
 
 # --- mutants ------------------------------------------------------------------------------
 
-# The tree a mutant is in: the root of the repository with a copy of `.github/scripts` and
-# `.github/workflows` and a link to everything else, so a script finds beside the copy what
-# it finds beside the original. One file of the copy differs from the repository at a time.
+# The tree a mutant is in: the root of the repository with a copy of `.github/scripts`,
+# `.github/workflows` and `Taskfile.yml` and a link to everything else, so a script finds
+# beside the copy what it finds beside the original. One file of the copy differs from the
+# repository at a time; a mutant is written to a copy, never through a link.
 tree=$top/mutant
 mkdir -p "$tree/.github"
 cp -R "$root/.github/scripts" "$root/.github/workflows" "$tree/.github/" 2> /dev/null
+cp "$root/Taskfile.yml" "$tree/Taskfile.yml"
 for entry in "$root"/* "$root"/.[!.]*; do
   case ${entry##*/} in
-    .github | '*' | '.[!.]*') ;;
+    .github | Taskfile.yml | '*' | '.[!.]*') ;;
     *) ln -s "$entry" "$tree/" ;;
   esac
 done
@@ -1425,6 +1841,7 @@ on_copy() {
     scripts=$tree/.github/scripts
     workflow=$tree/.github/workflows/release.yml
     pages=$tree/.github/workflows/pages.yml
+    taskfile=$tree/Taskfile.yml
     alone "$top/mutant-work" "$2"
     exit 0
   ) > "$top/mutant-out" 2>&1
@@ -1452,6 +1869,7 @@ g=.github/workflows/pages.yml
 c=.github/scripts/release-check.sh
 p=.github/scripts/release-package.sh
 v=.github/scripts/release-verify.sh
+s=.github/scripts/static-check.sh
 
 mutant W1 group_jobs $w "the job package loses needs: gate" '/^    needs: gate$/d'
 mutant W2 group_jobs $w "the job bundle loses needs: package" '/^    needs: package$/d'
@@ -1479,6 +1897,14 @@ mutant W19 group_pins $w "release.yml alone installs task with another digest" '
 mutant W20 group_pins $g "pages.yml alone installs another version of task" 's/^          GO_TASK_VERSION: "3\./          GO_TASK_VERSION: "4./'
 mutant W21 group_pins $g "pages.yml alone installs ess with another digest" 's/^          ESS_SHA256: c/          ESS_SHA256: d/'
 mutant W22 group_trigger $w "a step that creates the release" 's|^          cat dist/notes.md$|          gh release create "$GITHUB_REF_NAME" dist/*|'
+mutant W23 group_jobs $w "the musl target runs on ubuntu-latest, not ubuntu-22.04" '/- target: x86_64-unknown-linux-musl$/{n;s/runner: ubuntu-22.04$/runner: ubuntu-latest/;}'
+mutant W24 group_alpine $w "the job package runs no static check" '/sh .github\/scripts\/static-check.sh/d'
+mutant W25 group_alpine $w "the job package runs the musl binary in no Alpine image" '/printed=$(docker run /d'
+mutant W26 group_pins $g "pages.yml alone runs Alpine by another digest" 's/^\(          ALPINE_SHA256: \)[0-9a-f]/\1x/'
+mutant W27 group_alpine $g "the step of pages.yml that runs Alpine runs for the other classes" '/- name: Run the static ratchet in Alpine$/{n;s/task == /task != /;}'
+mutant W28 group_alpine $g "pages.yml runs the gnu binary in Alpine" 's|target/x86_64-unknown-linux-musl/release/ratchet:|target/release/ratchet:|'
+mutant W29 group_pins $g "the job gate of pages.yml installs the rustc without the musl target" '/^          targets: x86_64-unknown-linux-musl$/d'
+mutant W30 group_pins $w "the job gate of release.yml installs the rustc without the musl target" '/^          targets: x86_64-unknown-linux-musl$/d'
 
 mutant C1 group_section $c "the date of the section is any text" 's/ && substr(\$0, length(start) + 1) ~ [^{]*{/ {/'
 mutant C2 group_tag $c "the version is the first of any table" 's/table == "\[workspace.package\]" && //'
@@ -1502,19 +1928,41 @@ mutant P8 group_notes $p "notes: a bullet under no heading is a change" 's|^    
 mutant P9 group_notes $p "notes: a section needs no change line" 's/^        exit changes ? 0 : 3$/        exit 0/'
 mutant P10 group_binary $p "archive: the exit status of the binary is not read" '/^    \[ "$status" = 0 \] || refuse/d'
 mutant P11 group_binary $p "archive: the version is the last word the binary prints" 's/^    \[ "$printed" = "ratchet $version" \] \\$/    [ "${printed##* }" = "$version" ] \\/'
+mutant P12 group_package $p "targets names no musl target" "s/ x86_64-unknown-linux-musl'\$/'/"
+
+mutant S1 group_static $s "the INTERP half is dropped" 's/^interp=\$(.*$/interp=/'
+mutant S2 group_static $s "the NEEDED half is dropped" 's/^needed=\$(.*$/needed=/'
+mutant S3 group_static $s "the exit status of readelf -l is not read" '/readelf -l cannot read it/d'
+mutant S4 group_static $s "an INTERP header that names no interpreter passes" 's/ END { if (open) print "an unnamed interpreter" }//'
+mutant S5 group_static $s "a NEEDED entry is named on standard output" 's/ (a NEEDED entry of readelf -d)" >&2$/ (a NEEDED entry of readelf -d)"/'
+mutant S6 group_static $s "an INTERP header is named on standard output" 's/ (an INTERP program header of readelf -l)" >&2$/ (an INTERP program header of readelf -l)"/'
+mutant S7 group_static $s "a readelf -d that writes readelf: Error: and exits 0 passes" '/readelf -d exits 0 and reports an error/d'
+mutant S8 group_static $s "a readelf -l that writes readelf: Error: and exits 0 passes" '/readelf -l exits 0 and reports an error/d'
+
+t=Taskfile.yml
+mutant T1 group_taskfile $t "the task check does not run check:static" '/^      - task: check:static$/d'
+mutant T2 group_taskfile $t "check:static runs no static-check.sh" '/^      - sh .github\/scripts\/static-check.sh /d'
+mutant T3 group_taskfile $t "check:static runs static-check.sh on the gnu binary" 's|^      - sh .github/scripts/static-check.sh target/x86_64-unknown-linux-musl/release/ratchet$|      - sh .github/scripts/static-check.sh target/release/ratchet|'
+mutant T4 group_taskfile $t "check:static runs the binary with the environment of task" 's/printed=$(env -i target/printed=$(target/'
+mutant T5 group_taskfile $t "check:static does not compare what the binary printed" 's/^        \[ "$printed" = "ratchet $version" \] || .*$/        true/'
+mutant T6 group_taskfile $t "check:static does not read the exit status of the binary" '/^        \[ "$status" = 0 \] || { echo "check:static: env -i/d'
 
 mutant V1 group_gh $v "gh release view asks for assets,author alone" 's/--json assets,author,isDraft,isPrerelease,tagName/--json assets,author/'
 mutant V2 group_gh $v "the gh calls lose --repo" 's/ --repo "$repository"//'
 mutant V3 group_gh $v "gh release download loses the patterns" 's/ --dir "$directory" "$@" \\$/ --dir "$directory" \\/'
 mutant V4 group_verify_sums $v "SHA256SUMS may name an archive more than once" 's/exit found == 1 ? 0 : 1/exit found >= 1 ? 0 : 1/'
 mutant V5 group_verify_state $v "the work directory is not removed" "/^trap 'rm -rf \"\$work\"' EXIT\$/d"
-mutant V6 group_verify_members $v "the members of the x86_64 archive alone are read" '/^# 5\. /,/^# 6\. /s/^for archive in $archives; do$/for archive in ratchet-$version-$run_target.tar.gz; do/'
+mutant V6 group_verify_members $v "the members of the x86_64 archive alone are read" '/^# 5\. /,/^# 6\. /s/^for archive in $archives; do$/for archive in ratchet-$version-x86_64-unknown-linux-gnu.tar.gz; do/'
 mutant V7 group_gh $v "the repository is read from another key of Cargo.toml" 's/s|^repository = /s|^homepage = /'
 mutant V8 group_verify_state $v "isPrerelease is not read" 's/^for state in isDraft:draft isPrerelease:prerelease; do$/for state in isDraft:draft; do/'
-mutant V9 group_verify_assets $v "an asset beside the three is accepted" '/^\[ -z "$other" \] || refuse/d'
+mutant V9 group_verify_assets $v "an asset beside the four is accepted" '/^\[ -z "$other" \] || refuse/d'
 mutant V10 group_verify_members $v "the kind of a member is not read" "s/^    END { exit (NR == 4 .*\$/    END { exit 0 }' \\\\/"
-mutant V11 group_verify_binary $v "the exit status of the binary is not read" '/^\[ "$status" = 0 \] || refuse/d'
-mutant V12 group_verify_binary $v "the version is the last word the binary prints" 's/^\[ "$printed" = "ratchet $version" \] \\$/[ "${printed##* }" = "$version" ] \\/'
+mutant V11 group_verify_binary $v "the exit status of the binary is not read" '/^  \[ "$status" = 0 \] || refuse/d'
+mutant V12 group_verify_binary $v "the version is the last word the binary prints" 's/^  \[ "$printed" = "ratchet $version" \] \\$/  [ "${printed##* }" = "$version" ] \\/'
+mutant V13 group_verify_binary $v "release-verify.sh runs no static check" '/^  if \[ "$target" = "$static_target" \]; then$/,/^  fi$/d'
+mutant V14 group_verify_binary $v "the binary of the musl archive is not run" 's/^run_targets=.*$/run_targets=x86_64-unknown-linux-gnu/'
+mutant V15 group_verify_binary $v "the musl binary is run before its static check" 's/^  if \[ "$target" = "$static_target" \]; then$/  "$binary" --version > \/dev\/null 2>\&1 || :\
+&/'
 
 # ------------------------------------------------------------------------------------------
 

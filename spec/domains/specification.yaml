@@ -142,7 +142,11 @@ types:
     naming:
       summary: >-
         An aggregation as a map, `{kind: percentile, parameter: 95}` or `{kind: median}` (§ 3
-        value lists). Declared where a sampled plan has more than one run or sample.
+        value lists). Declared where a sampled plan has more than one run or sample. A sampled
+        measurement of a plan with `runs` above 1 states an aggregation or
+        `Measurement.over_all_runs`, a value its assessor computes over all runs of the plan,
+        such as the share of tests that passed in one run and failed in another; one that
+        states neither is an error (§ 3 "One run per candidate is valid").
     fields:
       - name: kind
         type: ratchet.specification.AggregationKind
@@ -178,14 +182,33 @@ types:
           Present exactly when the assessor declares a unit for the output, and then that unit
           (§ 3 "Comparisons"). `ratchet validate` refuses a missing one (`unit_missing`), another
           one (`unit_mismatch`) and one on an output without a unit (`unit_not_declared`). The
-          rule reads the assessor's declaration, so ESS does not check it here.
+          rule reads the assessor's declaration, so ESS does not check it here. An output has
+          one unit, the one its assessor declares, and every value of it is written in that
+          unit: 45 minutes of an output in `s` is `2700`. Two assessors may declare two units
+          for the same kind of value, such as `min` and `s` for a duration; `ratchet/1`
+          converts neither.
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: >-
-          Absent with `runs: 1`: the value is judged as observed (§ 3 "One run per candidate is
-          valid"). On a time-window plan, the aggregation across the runs in the window: one
+          Absent with `runs: 1` where the command measures once: the value is judged as
+          observed (§ 3 "One run per candidate is valid"). With `runs: 1` one of the existing
+          aggregation kinds is valid where the command repeats its measurement itself within
+          the one run, such as the median of three timings it prints or a value per segment
+          of its output: the repeats are samples of that run (evidence format § 1). On a
+          time-window plan, the aggregation across the runs in the window: one
           value at the scope `run`, one value per item at any other scope; a window aggregates
-          numbers, and assertions with `pass_rate`.
+          numbers, and assertions with `pass_rate`. Absent where the measurement states
+          `over_all_runs`.
+      - name: over_all_runs
+        type: Optional<Boolean>
+        summary: >-
+          `true`: the assessor computes one value over all runs of the plan, which is no
+          aggregation of a value per run, such as the share of tests that passed in one run and
+          failed in another (§ 3 "One run per candidate is valid"). A sampled measurement of a
+          plan with `runs` above 1 states it or an `aggregation`. It is valid for every value of
+          `runs` and is no aggregation, so a measurement that states it declares no
+          `aggregation`, also at `runs: 1`. The result carries the number of runs in `samples`
+          and no `aggregation` (format § 3). Absent means `false`.
       - name: boundary
         type: Optional<ratchet.specification.Boundary>
       - name: better
@@ -227,6 +250,12 @@ types:
   - name: ratchet.specification.Selection
     kind: enum
     variants: [candidate, merge_result]
+    naming:
+      summary: >-
+        Which tree or build is assessed: `candidate`, or `merge_result`, the candidate merged
+        into the trusted revision (§ 3). Under `merge_result` the record names the two apart:
+        `candidate` is the revision under judgement, such as the head of a pull request, and
+        `target.revision` the merged tree that was read (format § 3).
 
   - name: ratchet.specification.TargetSpec
     kind: struct
@@ -346,8 +375,12 @@ types:
     naming:
       summary: >-
         The conditions that qualify in one target class (§ 3 "Conditions are declared per target
-        class"). Three have a defined meaning; an assessor declares others, such as
-        `cache: warm`, which this open struct admits.
+        class"). They qualify the run, and so every measurement of the plan: in a plan with
+        exact and sampled measurements, a condition that its sampled measurements need, such as
+        `host_load_per_cpu` or `runner`, qualifies its exact measurements too (§ 3 "Exact and
+        sampled measurements of one run"). Three have a defined meaning; an assessor declares
+        others, such as `cache_profile: warm`, which this open struct admits. A plan and a declaration write the
+        cache condition as `cache_profile`, the member of the record, and under no other name.
     fields:
       - name: host_load_per_cpu
         type: Optional<ratchet.specification.LoadBound>
@@ -441,7 +474,11 @@ types:
         target class and the coverage that qualifies (§ 3). A time-window plan
         (`kind: time_window`) declares `window`, `population` and `min_samples`; a plan of
         another kind declares neither `window` nor `population`. `ratchet validate` reports
-        both (`time_window_incomplete`, `window_on_other_kind`).
+        both (`time_window_incomplete`, `window_on_other_kind`). One plan may hold exact and
+        sampled measurements of its one run, in every observation kind: the kind is that of the
+        run, such as `controlled_run` with `runs: 1` for a browser run that yields a count and
+        a duration, and the kinds of the measurements do not change it. No form is refused for
+        the mix, so no invariant states it (§ 3 "Exact and sampled measurements of one run").
     invariants:
       - any: ["kind != time_window", "defined(window)"]
       - any: ["kind != time_window", "defined(population)"]
@@ -463,7 +500,10 @@ types:
         summary: The project command a command assessor runs, such as `task test`.
       - name: runs
         type: Optional<Integer>
-        summary: One is valid; repeats are needed where the plan aggregates.
+        summary: >-
+          One is valid; repeated runs are needed where the plan aggregates across runs. With
+          one run a measurement may aggregate the repeats its command makes itself (§ 3 "One
+          run per candidate is valid").
       - name: min_samples
         type: Optional<Integer>
         summary: >-

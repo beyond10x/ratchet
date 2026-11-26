@@ -27,7 +27,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-targets='x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu'
+targets='x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-unknown-linux-musl'
 
 usage() {
   echo "usage: release-package.sh targets" >&2

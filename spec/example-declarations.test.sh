@@ -21,6 +21,11 @@
 #      is not checked against a declaration: `record-series@1` is built in and has none
 #      (spec/domains/assessor.yaml), and its outputs are the measurements of the source plan
 #   8  a directory of the examples that holds no file `*.ratchet.yaml`
+#   9  a binding under `presets:` whose `use:` names no file `<name>@<version>.preset.yaml` of
+#      the catalog directory of the presets, `presets/` (a name that is no `<name>@<version>`
+#      of letters, digits, `.`, `_` and `-` names none), and one whose `digest` is not
+#      `sha256:` and the SHA-256 that `sha256sum` gives over that file; with the line of the
+#      `use:` or of the `digest`
 # and, so that no plan and no measurement passes unread: an `assessments` that is no mapping, a
 # plan that is no mapping, and a `measurements` that is no mapping; a plan without `assessor`; an
 # assessor id that is no `<name>@<version>` of letters, digits, `.`, `_` and `-` (it names a
@@ -52,6 +57,10 @@
 #   - the bytes of a file (UTF-8, characters that hide text) and every key the rules above do
 #     not read: these are the gate's for `presets/` alone
 #   - that a declaration is what its program does: none of the nine assessors is a program here
+#   - of a binding, everything but the file its `use:` names and its `digest`: the inputs it
+#     passes (`with`) against the preset, and the plans and requirements of the bound preset,
+#     which spec/presets.test.sh checks in `presets/`. The resolution of a binding by
+#     `ratchet validate`, with the code `unresolved_reference`, is not built yet
 #
 # This is no YAML reader. It reads the forms the examples and the catalog are written in and
 # fails on a line of another form: a mapping by indentation (`key:` and `key: value`), a flow
@@ -75,8 +84,8 @@
 #                                              one check, no copy; the declarations default to
 #                                              `<examples>/quality/assessors`
 # Work files go to the ignored target/example-declarations. It needs POSIX sh and awk, and of the
-# other utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `ln`, `mkdir`, `mv`, `rm`, `sed` and
-# `tail`.
+# other utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `ln`, `mkdir`, `mv`, `rm`, `sed`,
+# `sha256sum` and `tail`. `sha256sum` gives the digest of the file a binding names.
 #
 # Exit 0: the line of the check is
 #   `example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`
@@ -139,7 +148,7 @@ check() {
     done
   done
 
-  awk '
+  awk -v pdir="$presets_dir" '
   function trim(s) { sub(/^ +/, "", s); sub(/ +$/, "", s); return s }
   function short(f) { sub(/^.*\//, "", f); return f }
   function shown(p) { gsub(/\037\[/, "[", p); gsub(/\037/, ".", p); return p }
@@ -428,6 +437,37 @@ check() {
     }
   }
 
+  # A path as one word of a shell command, between quotes (the byte 047).
+  function shell_word(s,    out, i, c, len) {
+    out = ""; len = length(s)
+    for (i = 1; i <= len; i++) { c = substr(s, i, 1); out = out (c == "\047" ? "\047\\\047\047" : c) }
+    return "\047" out "\047"
+  }
+
+  # The bindings under `presets:` of an example: rule 9. The file a binding names and the
+  # digest it states, and nothing else of the binding.
+  function check_bindings(F,    j, B, bp, U, look, sum) {
+    if (!mapping(F, "presets", "`presets` ")) return
+    for (j = 1; j <= nkeys[F, "presets"]; j++) {
+      B = keyof[F, "presets", j]; bp = "presets" SEP B
+      if (!mapping(F, bp, "the binding `" B "` ")) continue
+      U = text(F, bp SEP "use"); sum = ""
+      # A name that is no `<name>@<version>` of these characters names no file of the directory.
+      if (U ~ /^[A-Za-z0-9_][A-Za-z0-9._-]*@[A-Za-z0-9._-]+$/) {
+        look = "sha256sum " shell_word(pdir "/" U ".preset.yaml") " 2> /dev/null"
+        look | getline sum
+        close(look)
+        sub(/^\\/, "", sum); sub(/ .*$/, "", sum)
+      }
+      if (sum !~ /^[0-9a-f]+$/) {
+        fail(F, has(F, bp SEP "use") ? line_of(F, bp SEP "use") : line_of(F, bp), "the binding `" B "` names the preset `" U "`, and the catalog directory of the presets holds no file `" U ".preset.yaml`")
+        continue
+      }
+      if (text(F, bp SEP "digest") != "sha256:" sum)
+        fail(F, has(F, bp SEP "digest") ? line_of(F, bp SEP "digest") : line_of(F, bp), "the binding `" B "` states the digest " stated(F, bp SEP "digest") ", and `sha256sum` gives `sha256:" sum "` over `" U ".preset.yaml`")
+    }
+  }
+
   BEGIN {
     SEP = "\037"
     # The assessor of Ratchet itself that reads the runs of another plan
@@ -445,6 +485,7 @@ check() {
     for (e = 1; e <= nex; e++) {
       read_yaml(ex[e])
       if (mapping(ex[e], "assessments", "`assessments` ")) for (j = 1; j <= nkeys[ex[e], "assessments"]; j++) check_plan(ex[e], keyof[ex[e], "assessments", j])
+      check_bindings(ex[e])
     }
     if (failed > 0) {
       printf "example-declarations: %d example file(s), %d declaration(s) read, %d of %d measurement(s) as declared, %d failure(s)\n", nex, nread, good, total, failed
@@ -799,6 +840,19 @@ copy rule-8-no-example
 mkdir "$c/nested"
 for set_file in $set_examples; do mv "$c/$set_file" "$c/nested/$set_file"; done
 refused 'example-declarations: the directory of the examples holds no file `*.ratchet.yaml`' "the examples stand in a directory below"
+
+# 9 a binding under `presets:` whose `use:` names no preset of the catalog directory of the
+# presets, and one whose `digest` is not the SHA-256 of that file
+copy rule-9-binding-preset
+own_presets
+printf 'presets:\n  probes:\n    use: missing-preset@1\n    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000\n' >> "$c/$host"
+refused 'host-caused-limit.ratchet.yaml:50: the binding `probes` names the preset `missing-preset@1`, and the catalog directory of the presets holds no file `missing-preset@1.preset.yaml`' "a binding names a preset the catalog does not hold"
+
+copy rule-9-binding-digest
+own_presets
+cp "$presets/conformance-cases@1.preset.yaml" "$c.presets/"
+printf 'presets:\n  functional:\n    use: conformance-cases@1\n    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000\n' >> "$c/$host"
+refused 'host-caused-limit.ratchet.yaml:51: the binding `functional` states the digest `sha256:0000000000000000000000000000000000000000000000000000000000000000`, and `sha256sum` gives `sha256:' "a binding states a digest that is not the SHA-256 of the preset file"
 
 # -- what keeps a plan or a measurement from passing unread ------------------------------------
 

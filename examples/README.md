@@ -7,8 +7,9 @@ were first written against revision 2 and rewritten to revision 3. The gaps foun
 rounds are listed below, [G1 to G25](#gaps-of-revision-2-and-how-revision-3-closed-them) and
 [G26 to G29](#gaps-of-revision-3-and-how-revision-4-closed-them).
 Design-phase documents: nothing here runs. One gate step reads them,
-`sh spec/example-declarations.test.sh`: every assessor they name has a declaration, and each
-measurement names an output, a unit and a scope it declares. No tool has validated them beyond that
+`sh spec/example-declarations.test.sh`: every assessor they name has a declaration, each
+measurement names an output, a unit and a scope it declares, and each binding under `presets:`
+names a preset file of `presets/` with the SHA-256 of that file as its `digest`. No tool has validated them beyond that
 and YAML, TOML and JSON syntax.
 
 How to read them:
@@ -44,6 +45,7 @@ How to read them:
 | [`analyzer-findings.ratchet.yaml`](analyzer-findings.ratchet.yaml) | no new analyzer findings | developers, coding agents, API consumers | runbook, substrate, ext-07, ext-02 |
 | [`generated-artifact.ratchet.yaml`](generated-artifact.ratchet.yaml) | generated artifact by digest | developers, coding agents, docs readers | canon, runbook |
 | [`host-caused-limit.ratchet.yaml`](host-caused-limit.ratchet.yaml) | insufficient evidence on a host-caused limit | coding agents, developers | swell |
+| [`production-gate.ratchet.yaml`](production-gate.ratchet.yaml) | the production gate of a spec-executed service | operators, API consumers | a consumer's survey of 2026-11-25, not published |
 | [`ratchet.toml`](ratchet.toml) | local config (§ 5) | one checkout | swell |
 
 ## 1. ESS UI behavior
@@ -446,6 +448,45 @@ once before `task test` starts. That single reading decides one thing, whether t
 **Not in the answer.** It gives one load value per run, and the table reads it as the mean over the
 run. The evidence would also hold the minimum and the maximum.
 
+## 6. Production gate of a spec-executed service
+
+[`production-gate.ratchet.yaml`](production-gate.ratchet.yaml)
+
+**Checks.** One gate, `production`, over the seven checks a consumer named for a service that
+executes a specification, before the service goes to production. Five of them bind presets of
+[`presets/`](https://github.com/beyond10x/ratchet/tree/main/presets) under `presets:`, each with
+the digest of the preset file:
+
+| Check | In the file |
+| --- | --- |
+| 1. Every declared operation is served, and the set of served operations loses no item | `served-operations`, `conformance-cases@1` over the report of served operations: `no-case-lost` |
+| 2. Every scenario replay that passed in the accepted run passes; a known-failure list holds the others and gains no item | `replays`, `conformance-cases@1` over the replay report: `no-case-lost`; `replay-known-failures`, `known-failures@1`: `no-new-known-failure` |
+| 3. A request without a credential, with an expired one and with one of another tenant is refused | `probes`, `exposure-probes@1`: `requests-without-valid-credential-refused` |
+| 4. Console routes cannot be reached through the public proxy | `probes`: `console-not-reachable-through-public-proxy` |
+| 5. TLS is on for every public listener | `probes`: `tls-on-every-public-listener` |
+| 6. The image has no critical advisory | the plan `image-advisories` of the file, over `advisory-report@1` with `filter: {severity: [critical]}`, and `no-new-critical-advisory` (`no_new_items` against the accepted set) |
+| 7. The signatures of the image and of its provenance verify | `signatures`, `artifact-signatures@1`: `every-signature-verifies` |
+
+- Check 6 is a plan of the file because `dependency-advisories@1` takes no filter input. It says
+  "no critical advisory that the accepted set does not hold"; a limit of no critical advisory
+  at all waits for a severity limit on an identity set.
+- The gate is `kind: candidate`. A production gate is evaluated on a deployed environment, and
+  an operational gate takes only time-window plans without a `selection`, while the bound
+  presets' plans carry `selection: candidate` (§ 5; [`presets/production.md`](https://github.com/beyond10x/ratchet/blob/main/presets/production.md),
+  "Not expressible yet").
+- Ratchet sends no request, replays no scenario and verifies no signature: each report is
+  written by the project's own probe runner, replay runner, scanner or verifier.
+- `sh spec/example-declarations.test.sh` reads the plan of check 6 against `advisory-report@1`
+  and checks that each binding names a preset file of `presets/` with its digest. The plans of
+  the bound presets stand in `presets/`, which `sh spec/presets.test.sh` checks. Nothing checks
+  the inputs a binding passes yet.
+
+**Audience.** Operators of the service and its API consumers.
+
+**Sources.** A survey of a consumer that runs a prototype service which executes a
+specification (2026-11-25). The survey is not part of this repository, and nothing of the
+consumer is named here. The subject names, the paths and the class `staging` are illustrative.
+
 ## `ratchet.toml`
 
 [`ratchet.toml`](ratchet.toml) has the seven sections of § 5. It is the local config of a
@@ -470,7 +511,9 @@ workstation checkout of example 5.
   relative to the root. The declaration of an assessor is a file there, such as
   `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory
   [`quality/assessors/`](quality/assessors/) holds the declaration of each of the nine assessors
-  the examples name, all but `record-series@1`, which is Ratchet's own and has none.
+  the examples name, all but `record-series@1`, which is Ratchet's own and has none. A
+  declaration there is an illustration that no plan binds by its digest, unlike a file of
+  `presets/`, so a change of the format changes it in place and gives it no new version.
 - `[records] store` names the ref that holds the series, and no path. The records of a local run
   are therefore kept in `.ratchet/records` under the root, as they are without the section (§ 5,
   local config; § 6).
@@ -520,7 +563,7 @@ run for `forge-workflow-timing@1`, which reads one finished run of a workflow an
 no count.
 
 Shapes of revision 4 that no example uses: `statements`, with `meaning` and `serves` on a
-requirement; a `presets` binding; `planted_defects`; `paired`; `executed_ids`; `value` on an
+requirement; `planted_defects`; `paired`; `executed_ids`; `value` on an
 exception; `skip` in `ratchet.toml`; `window: {last: N}`; `population: {filter: ...}`;
 `from: trusted_revision` on a population; a `selection` on a time-window plan.
 

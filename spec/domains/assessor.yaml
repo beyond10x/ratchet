@@ -82,8 +82,9 @@ types:
         One output an assessor declares (§ 4 "Outputs"), an entry of `outputs` under the
         output's name, such as `findings` or `duration`: the value type, the kind, the scopes,
         the unit or that the output has none, the boundaries of a duration, and the identity
-        key of a set and the fields of its items. `ratchet validate` checks a measurement's
-        output, kind, scope, unit, boundary, identity key and filter fields against it, and the
+        key of a set, the fields of its items and the values of those fields that are a closed
+        list. `ratchet validate` checks a measurement's output, kind, scope, unit, boundary,
+        identity key, filter fields and filter values against it, and the
         CLI checks each result of an evidence document against it. Coverage is declared once for
         the assessor, not per output (§ 4 "Coverage").
     fields:
@@ -95,7 +96,9 @@ types:
         type: List<ratchet.specification.Scope>
         summary: >-
           The scopes a result of this output can belong to, beside `run`, which every assessor
-          has. The scope items are not declared: they come from the inputs of a run.
+          has. The scope items are not declared: they come from the inputs of a run. The list
+          may be empty: `scopes: []` declares an output whose results have the scope `run`
+          alone. The field stays required, so such an output writes the empty list.
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-
@@ -116,6 +119,13 @@ types:
         summary: >-
           The names an item of a set may have under `fields`, which a measurement's `filter`
           may read, such as `severity` (§ 3, § 4).
+      - name: item_values
+        type: Optional<Map<String, List<String>>>
+        summary: >-
+          The closed list of values of an item field, keyed by a name of `item_fields`, such as
+          `{class: [equal, allowed, different]}`. A measurement's `filter` on that field names
+          only these values, and an item of a result has one of them under that field. A field
+          without a list stays open: any value is read (format § 10).
     invariants:
       - any: ["value_type != identity_set", "defined(identity_key)"]
       - any: ["value_type == identity_set", "not defined(identity_key)"]
@@ -173,7 +183,9 @@ entities:
         type: Optional<List<String>>
         summary: >-
           The observation conditions it declares beyond `host_load_per_cpu`, `tools` and
-          `runner`, such as `cache` (§ 3). Absent or empty: it declares none.
+          `runner`, such as `cache_profile` (§ 3). Absent or empty: it declares none. A plan
+          and a declaration write the cache condition as `cache_profile`, the member of the
+          record, and under no other name.
       - name: coverage_unit
         type: ratchet.assessor.CoverageUnit
         summary: >-

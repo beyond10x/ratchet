@@ -62,23 +62,23 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `research/` | surveys and their answers, `synthesis.md`, `candidate-presets.md`, consumer input; confidentiality rules in `research/README.md` |
 | `spec/` | ESS specification of Ratchet's nouns (`system.yaml`, `domains/`) and the `ess-cli/2` binding of the `ratchet` commands (`cli.yaml`); proposals; `UNMAPPED:` markers are open design questions; `crates/ratchet-cli-contract/` is generated from it |
 | `presets/` | the preset catalog: `<name>@<version>.preset.yaml` (a `ratchet/1` preset), `<name>@<version>.assessor.yaml` (the `ratchet-assessor/1` declaration a preset names; none for `record-series@1`, the assessor of Ratchet itself, whose name is reserved), `README.md` (the rules of the catalog, the YAML forms and the characters a file may hold, how a project binds a preset) and one page per family, such as `functional.md`. No comment in a YAML file: a binding carries the digest of the file. A list is a flow list, a requirement writes out the names of its assessment, its measurement and its statements, and every line ends with a line feed. `sh spec/presets.test.sh`, a step of `check:spec`, checks every file against `spec/domains/`, each preset against the declaration of its assessor and the table "Comparisons" of `docs/design.md` § 3, and every measurement against its row on a page. A new rule of the script gets a case there: a defect in a copy that is refused with the message of the rule, so the case fails when the rule is taken out. A copy holds a fixed set of files of `presets/`, named once in the script (`set_files`): `README.md` and the functional family. The whole of `presets/` is checked once, and a new family adds its files to no copy; a case that edits a file outside the set stops the run. A case may share the copy of another (`again`) where the two defects stand apart and its message names its own line, path or value. A form that stays valid gets a copy that is accepted. The script runs under `dash` and `mawk` as under `bash` and `gawk`: it reads bytes (`LC_ALL=C`), and no awk function has the name of a parameter. Every file under it is `code` for the classifier of `pages.yml` |
-| `examples/` | worked `ratchet/1` specifications (`*.ratchet.yaml`), the local config `ratchet.toml` of one of them, and `README.md`, which gives the source of every value. `quality/assessors/` holds the `ratchet-assessor/1` declaration of each assessor an example names that `presets/` does not declare, none for `record-series@1`, written in the form of the files of `presets/`. `sh spec/example-declarations.test.sh`, a step of `check:spec`, checks that each assessor an example names has its declaration, there or in `presets/`, and that each measurement names an output, a unit and a scope it declares; it checks no other key of an example and not the keys and types of a declaration. A new rule of the script gets a case there: a defect in a copy of a fixed set of three examples and their four declarations (`set_examples`, `set_declarations`) that is refused with the message of the rule. A change that adds a file `*.ratchet.yaml` adds, in the same change, the declaration of each assessor it names that has none in `quality/assessors/` or `presets/`. A file under it is `code` for the classifier of `pages.yml`, and `README.md` is `planning` |
+| `examples/` | worked `ratchet/1` specifications (`*.ratchet.yaml`), the local config `ratchet.toml` of one of them, and `README.md`, which gives the source of every value. `quality/assessors/` holds the `ratchet-assessor/1` declaration of each assessor an example names that `presets/` does not declare, none for `record-series@1`, written in the form of the files of `presets/`. `sh spec/example-declarations.test.sh`, a step of `check:spec`, checks that each assessor an example names has its declaration, there or in `presets/`, and that each measurement names an output, a unit and a scope it declares, and the `use:` and `digest` of each binding under `presets:`; it checks no other key of an example and not the keys and types of a declaration. A new rule of the script gets a case there: a defect in a copy of a fixed set of three examples and their four declarations (`set_examples`, `set_declarations`) that is refused with the message of the rule. A change that adds a file `*.ratchet.yaml` adds, in the same change, the declaration of each assessor it names that has none in `quality/assessors/` or `presets/`. A file under it is `code` for the classifier of `pages.yml`, and `README.md` is `planning` |
 | `Cargo.toml`, `Cargo.lock` | the Cargo workspace: its members are the hand-written crates (`crates/*`), and each generated crate is in `exclude` (§ "Generated crates"). `[workspace.package]` holds the one version |
-| `rust-toolchain.toml` | the one pinned rustc, with `rustfmt` and `clippy`. The local gate and the CI job both read it |
+| `rust-toolchain.toml` | the one pinned rustc, with `rustfmt`, `clippy` and the target `x86_64-unknown-linux-musl` that `task check:static` builds for. The local gate and the CI job both read it; the toolchain step of the job `gate` of `pages.yml` and of the job `Gate` of `release.yml` names the same targets, and `release.test.sh` fails when one differs |
 | `.config/nextest.toml` | the test budget: a test is ended at 60 s, the run at 120 s, each as a failure. `.github/scripts/test-budget.test.sh` refuses a weaker value, `on-timeout`, a `grace-period` over 10 s and every form of `slow-timeout` and `global-timeout` other than `<key> = ...` on one line (dotted keys, a table of its own), so write the two that way |
 | `crates/ratchet-cli-contract/` | generated by `ess generate cli` from `spec/` and `spec/cli.yaml`: the parser, the help text, the process adapter and the `Handler` seam (library `cli_contract`). Never edited; `task generate` writes it (§ "Generated crates") |
 | `crates/ratchet/` | the `ratchet` binary. `src/commands/mod.rs` selects the handler by the callable of the binding from the table `BUILT`; a command that is built has its file there with one function `call` and its row in the table, and every other command shares `unbuilt`, the unavailable answer. A unit test beside the table fails when a key is no callable of the binding. `src/main.rs` answers `ratchet --version` itself (`ratchet <version of the workspace>`, exit 0; the generated parser declares no version, so `ratchet --help` does not name it) and writes the two streams: a reader of standard output that is gone ends the binary without a panic and with the exit status of the command, any other failure to write is one line on standard error and exit 1. `tests/main.rs` is the one integration-test binary: a module and a file per command, so a story that builds a command edits `src/commands/<command>.rs` and `tests/<command>.rs` and neither `mod.rs` nor `main.rs`; `tests/version.rs` and `tests/closed_pipe.rs` test what `main.rs` answers. `tests/commands.rs` lists the commands no story builds and fails when the binding declares a command it does not list |
 | `.github/scripts/` | `check-generated.sh`: one line per generated crate, the drift check and the regeneration. `*.test.sh`: script tests, each run by `task check:scripts`; a new one needs no entry anywhere |
-| `.github/scripts/release-*.sh`, `release.test.sh` | the scripts of a release (§ "Release"): `release-check.sh` (the tag, the workspace version, the changelog section), `release-package.sh` (targets, archive, `SHA256SUMS`, notes), `release-verify.sh` (a published release), and `release.test.sh`, their script test |
+| `.github/scripts/release-*.sh`, `static-check.sh`, `release.test.sh` | the scripts of a release (§ "Release"): `release-check.sh` (the tag, the workspace version, the changelog section), `release-package.sh` (targets, archive, `SHA256SUMS`, notes), `release-verify.sh` (a published release), `static-check.sh` (a binary names no shared library and no program interpreter), and `release.test.sh`, their script test |
 | `.github/scripts/ess-pin.test.sh` | the script test of the pin of `ess` (§ "Gate"): `ESS_TOOLCHAIN` is named once in `Taskfile.yml`, in its root `env:`, it is the `ESS_VERSION` of `pages.yml`, its major and minor are the requirement of `spec/ess-inputs.yaml`, and every call of `ess` that `task check:spec` and `task check:generated` make is started with it. The two tasks run to their end in a copy, with a stand-in `ess` first in `PATH` that records each call and succeeds, a stand-in for each `spec/*.test.sh` and an empty directory for each generated crate. Each rule refuses a broken copy under `target/` with its message; a call of `check:spec` or `check:generated` that loses the pin is refused with the task and the call |
 | `CHANGELOG.md` | what each release holds, in the Keep a Changelog form; `## [Unreleased]` takes the lines of a wave when it closes (§ "Release", "Changelog lines") |
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`): the epics and stories of the first milestone |
 | `ROADMAP.md` | the trajectory: first consumer and its first gap, the next waves by story id, what the next release holds |
 | `website/` | the public documentation site at `https://beyond10x.github.io/ratchet/` (Docusaurus on `@beyond10x/docs-system`, pinned by commit in `package.json`). Its docs pages are `vision.md`, `docs/design.md`, `research/*.md` and `research/responses/*.md`, read in place; `docusaurus.config.ts` gives each its route, title and header (`pages`), the files stay unchanged. `product.json` is the landing page, drawn by `src/pages/index.tsx` (not withProductSite's `landing` option, which ships the build machine's path in the bundle). `.npmrc` sets `allow-git=root`: npm 12 otherwise refuses the Git-pinned dependency. A new file in `research/` (other than `responses/`) needs an entry in `pages` and in `sidebars.ts`; a new file in `docs/` also needs an `include` pattern. A Markdown link to a file the site does not publish fails the build, so link such files by GitHub URL |
-| `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/`, `crates/`, `presets/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths`. Its second job, `gate` (`Repository gate`), reads the class from the first and repeats no path: for the class `code` it installs the rustc of `rust-toolchain.toml`, Node, `task`, `cargo-nextest`, `ess` and `aep` and runs `task check`; for the class `docs-site` it installs `task` and `ess` and runs `task check:spec`, because that task reads `docs/evidence-format.md` and `docs/design.md`; for the class `planning` it ends green without a checkout. `task`, `cargo-nextest`, `ess` and `aep` are downloaded by URL at a pinned version and refused unless their SHA-256 is the one in the step; Node is the major the job `build` names. A step of the job that another class needs gets that class in its `if:`, and `task check:ci-paths` holds which task each class runs. Every file under `crates/` and under `presets/` is `code`, a generated `README.md` and a page of the catalog included. The step that lists the changed files runs `git diff --no-renames`, so a renamed file is listed with the path it had and a file moved out of `crates/` or `presets/` is `code` |
+| `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/`, `crates/`, `presets/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths`. Its second job, `gate` (`Repository gate`), reads the class from the first and repeats no path: for the class `code` it installs the rustc of `rust-toolchain.toml`, Node, `task`, `cargo-nextest`, `ess` and `aep` and runs `task check`, then runs the musl binary that `task check` built in an Alpine image pinned by digest (`ALPINE_VERSION`, `ALPINE_SHA256`). Docker resolves `alpine:<ALPINE_VERSION>@sha256:<ALPINE_SHA256>` by the digest alone: the digest selects the image, and `ALPINE_VERSION` is a label nothing checks. A bump changes both, the digest read from the registry for the new tag (the line `Digest:` of `docker buildx imagetools inspect alpine:<tag>`); for the class `docs-site` it installs `task` and `ess` and runs `task check:spec`, because that task reads `docs/evidence-format.md` and `docs/design.md`; for the class `planning` it ends green without a checkout. `task`, `cargo-nextest`, `ess` and `aep` are downloaded by URL at a pinned version and refused unless their SHA-256 is the one in the step; Node is the major the job `build` names. A step of the job that another class needs gets that class in its `if:`, and `task check:ci-paths` holds which task each class runs. Every file under `crates/` and under `presets/` is `code`, a generated `README.md` and a page of the catalog included. The step that lists the changed files runs `git diff --no-renames`, so a renamed file is listed with the path it had and a file moved out of `crates/` or `presets/` is `code` |
 | `.github/workflows/b10x-docs-site.yml` | publishes that artifact to GitHub Pages through `beyond10x/website`'s `project-site.yml`, pinned by commit, for bot-authored pushes to `main` |
 | `.github/workflows/shared-gates.yml` | the organization's shared source gates (`beyond10x/gates`, pinned by commit) |
-| `.github/workflows/release.yml` | `Release`, on a tag `<major>.<minor>.<patch>`, with `contents: read`: `release-check.sh` and `task check`, then the archives of both Linux targets, `SHA256SUMS` and `notes.md` as the artifact `ratchet-<version>-release`. It creates no release and reads no token (§ "Release"). Its job `Gate` installs the tools of the job `gate` of `pages.yml` by the same steps, less their `if:`; a new version or digest of one is a change of both files, and `release.test.sh` fails when a step differs |
+| `.github/workflows/release.yml` | `Release`, on a tag `<major>.<minor>.<patch>`, with `contents: read`: `release-check.sh` and `task check`, then the archives of the three Linux targets (the musl one checked with `static-check.sh` and run in the Alpine image of `pages.yml`), `SHA256SUMS` and `notes.md` as the artifact `ratchet-<version>-release`. It creates no release and reads no token (§ "Release"). Its job `Gate` installs the tools of the job `gate` of `pages.yml` by the same steps, less their `if:`; a new version or digest of one, and of the Alpine image, is a change of both files, and `release.test.sh` fails when a step differs |
 | `Taskfile.yml` | `task check`: the repository gate; `task generate`: rewrite the generated crates; `task site`: build the site. It includes `acceptance/Taskfile.yml` as `acceptance` when that file exists. Its root `env:` holds `ESS_TOOLCHAIN`, the pin of `ess` (§ "Gate") |
 
 ## Domain language
@@ -109,6 +109,7 @@ through `aep plan artifact`.
 | `aep plan artifact validate` | the planning store is valid |
 | `check:spec` | the specification, the binding, the record formats, the preset catalog `presets/`, and the declarations of the assessors `examples/*.ratchet.yaml` names against the outputs, units and scopes their measurements read (`spec/README.md`) |
 | `check:rust` | `cargo fmt --check` and `cargo clippy --workspace --all-targets --locked -- -D warnings`. Both read the members of the workspace, so a generated crate is neither formatted nor linted. Do not add `--all` to `cargo fmt`: it follows path dependencies into the generated crates |
+| `check:static` | `cargo build --locked --release --bin ratchet --target x86_64-unknown-linux-musl`, then `.github/scripts/static-check.sh` on that binary (no `NEEDED` entry, no `INTERP` program header), then `env -i <binary> --version`, which prints `ratchet <version of Cargo.toml>`. The musl link is the same on a workstation and on the forge: a linker setting of a host's cargo configuration for `x86_64-unknown-linux-gnu` does not reach it, and the repository has no `.cargo/config.toml`. The run of the binary in Alpine, pinned by digest, is the one part that runs on the forge only: the last step of the job `gate` of `pages.yml`, for the class `code` |
 | `check:generated` | each generated crate equals a fresh generation, byte for byte (§ "Generated crates") |
 | `check:scripts` | every `.github/scripts/*.test.sh` |
 | `test` | `cargo nextest run --workspace --locked`, then the line `test: the ten slowest tests` and that list |
@@ -116,7 +117,8 @@ through `aep plan artifact`.
 | `site` | `npm ci` and `npm run build` in `website/`, the build CI runs |
 
 The gate needs `task`, `ess` (the release `spec/ess-inputs.yaml` requires), `aep`, `jq`,
-`cargo-nextest` and `npm`. The job `gate` of `pages.yml` installs the same versions the gate was
+`cargo-nextest`, `npm`, `readelf` and the target `x86_64-unknown-linux-musl` of
+`rust-toolchain.toml`. The job `gate` of `pages.yml` installs the same versions the gate was
 written with; a new version of one of them is a change of that job.
 
 `ESS_TOOLCHAIN` in the root `env:` of `Taskfile.yml` pins `ess` to that release: the `ess` in
@@ -220,8 +222,9 @@ primary checkout. Every commit has a body.
 
 ## Release
 
-A release is the workspace version at a bare tag (`0.1.0`): two Linux archives of the `ratchet`
-binary, `SHA256SUMS`, and notes cut from `CHANGELOG.md`. The tag workflow builds and the bot
+A release is the workspace version at a bare tag (`0.1.0`): three Linux archives of the `ratchet`
+binary (built against glibc for `x86_64` and `aarch64`, and static for `x86_64` with musl, which
+runs on a host with any C library), `SHA256SUMS`, and notes cut from `CHANGELOG.md`. The tag workflow builds and the bot
 publishes: `.github/workflows/release.yml` has `contents: read` and creates no release. A tag and
 a release are publications, so they wait for the owner's order (workspace `AGENTS.md`
 § "A default proceeds").
@@ -261,9 +264,11 @@ release overtook is cut again from `main`. The git commands of the bot are `b10x
    `tag -a <version> -m "ratchet <version>" <commit>`, then `push origin <version>`.
 4. The tag starts the workflow `Release` (`.github/workflows/release.yml`). Its job `Gate` runs
    `release-check.sh` and `task check`; `Package` builds `ratchet` for
-   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` and writes
-   `ratchet-<version>-<target>.tar.gz` with `release-package.sh archive`, which refuses a
-   binary that does not print `ratchet <version>` for `--version` and exit 0;
+   `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-musl`,
+   checks the musl binary with `static-check.sh` and runs its `--version` in the Alpine image
+   pinned by digest, and writes the three archives `ratchet-<version>-<target>.tar.gz` with
+   `release-package.sh archive`, which refuses a binary that does not print
+   `ratchet <version>` for `--version` and exit 0;
    `Bundle the release assets` writes `SHA256SUMS` and `notes.md` and uploads the artifact
    `ratchet-<version>-release`. Find the run with
    `gh run list --repo beyond10x/ratchet --workflow release.yml` and wait for it in the
@@ -284,16 +289,19 @@ release overtook is cut again from `main`. The git commands of the bot are `b10x
      --title "ratchet <version>" --notes-file target/release-assets/notes.md \
      target/release-assets/ratchet-<version>-x86_64-unknown-linux-gnu.tar.gz \
      target/release-assets/ratchet-<version>-aarch64-unknown-linux-gnu.tar.gz \
+     target/release-assets/ratchet-<version>-x86_64-unknown-linux-musl.tar.gz \
      target/release-assets/SHA256SUMS
    ```
 
 6. `sh .github/scripts/release-verify.sh <version>` exits 0. Only then is the release reported
    as released. It reads the published release with `gh`, read-only, and checks in this order:
    the release is `<version>`, no draft and no prerelease; its author is `b10x-bot[bot]`; the
-   two archives and `SHA256SUMS` are attached, no other asset is, and they are downloaded;
-   `sha256sum -c SHA256SUMS` passes on them; each archive holds `ratchet`, `LICENSE` and
-   `README.md` as regular files and nothing else; the `ratchet` of the `x86_64` archive prints
-   `ratchet <version>` for `--version` and exits 0. Before the release exists it exits 1.
+   three archives and `SHA256SUMS`, four assets, are attached, no other asset is, and they are
+   downloaded; `sha256sum -c SHA256SUMS` passes on them; each archive holds `ratchet`,
+   `LICENSE` and `README.md` as regular files and nothing else; the `ratchet` of the
+   `x86_64-unknown-linux-gnu` archive prints `ratchet <version>` for `--version` and exits 0;
+   that of the `x86_64-unknown-linux-musl` archive passes `static-check.sh`, then does the same.
+   Each message names the target. It needs `readelf`. Before the release exists it exits 1.
 
 ### A tag whose run fails
 
@@ -319,20 +327,39 @@ The run of step 4 is the only build of a tag. Read a red run before anything els
   section with a date of the calendar and at least one change line under a heading.
 - `release-package.sh`: `targets` and `assets <version>` name what a release is built for and
   carries; `archive`, `sums` and `notes` write the archive, `SHA256SUMS` and the notes. A new
-  target is one word in `targets` there and one entry in the matrix of the workflow.
+  gnu target is one word in `targets` there and one entry in the matrix of the workflow. A
+  musl target is more: the static check and the run in Alpine of `Package` stand under a
+  shell `if` that names `x86_64-unknown-linux-musl` alone, `release-verify.sh` checks the one
+  `static_target`, and `rust-toolchain.toml` and the jobs `gate` install that one target; a
+  second musl target changes each of them and `release.test.sh`.
 - `release-verify.sh <version>`: the checks of step 6. With `--description <file> --assets
   <directory>` it reads a description in the form `gh release view <version> --json
-  assets,author,isDraft,isPrerelease,tagName` and the assets from disk, and calls no `gh`.
-- `release.test.sh` runs the three on fixtures with a stub binary and a stand-in for `gh`
-  that answers only the calls `release-verify.sh` is meant to make. It reads the workflow as a
+  assets,author,isDraft,isPrerelease,tagName` and the assets from disk, and calls no `gh`. It
+  verifies the releases from 0.0.4 on: one published before the musl archive, such as 0.0.3,
+  lacks an asset and is refused.
+- `static-check.sh <binary>`: the binary is static. It exits 0 when `readelf -d` shows no
+  `NEEDED` entry and `readelf -l` no `INTERP` program header, and 1 with one line per such
+  entry, naming the library or the interpreter. A call of `readelf` that fails, or that writes
+  a `readelf: Error:` line and exits 0 as GNU readelf does on a truncated file, is refused
+  with that line. `task check:static`, the job `Package` and `release-verify.sh` run it on the
+  musl binary.
+- `release.test.sh` runs the four on fixtures with a stub binary, a stand-in for `gh`
+  that answers only the calls `release-verify.sh` is meant to make, and a stand-in for
+  `readelf` that prints recorded output of a static binary, of one with a `NEEDED` entry, of
+  one with an `INTERP` header with and without its interpreter, and of a file `readelf` reads
+  with an error. It reads each refusal of a script whose header promises standard error there
+  alone. It runs `task check:static` in a directory of its own with a stand-in for `cargo`.
+  It reads the workflow as a
   structure: the trigger, the permissions, `needs` and the runner of each job, the commands,
   the names and paths of the artifacts, and the steps that install the tools of the gate,
-  which equal those of `pages.yml`. Its cases stand in groups, and a group reads nothing
-  another group wrote but the archives. Its last part are mutants: a copy of the workflow or
-  of a script with one change, each refused by a case of the group named with it. A mutant
-  whose line was rewritten fails until its expression is written anew, and a new refusal of
-  a script gets a case and a mutant. It reaches no network, builds nothing and makes no tag,
-  and needs GNU `date`.
+  which equal those of `pages.yml`, the toolchain of both jobs `gate` with the targets of
+  `rust-toolchain.toml`, and the run in Alpine of `Package` and of the job `gate` of
+  `pages.yml`, by the same pin. Its cases stand in groups, and a group reads nothing
+  another group wrote but the archives. Its last part are mutants: a copy of the workflow, of
+  a script or of `Taskfile.yml` with one change, each refused by a case of the group named
+  with it. A mutant whose line was rewritten fails until its expression is written anew, and
+  a new refusal of a script gets a case and a mutant. It reaches no network, builds nothing
+  and makes no tag, and needs `task` and GNU `date`.
 
 ## Never
 

@@ -31,6 +31,7 @@ jobs:
         with:
           toolchain: ${{ steps.rustc.outputs.channel }}
           components: rustfmt, clippy
+          targets: x86_64-unknown-linux-musl
       - name: Show the rustc the gate builds with
         env:
           CHANNEL: ${{ steps.rustc.outputs.channel }}
@@ -119,6 +120,8 @@ jobs:
             runner: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -138,9 +141,17 @@ jobs:
       - name: Build ratchet and write its archive
         env:
           TARGET: ${{ matrix.target }}
+          ALPINE_VERSION: "3.24.4"
+          ALPINE_SHA256: f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
         run: |
           set -euo pipefail
           cargo build --locked --release --bin ratchet --target "$TARGET"
+          if [ "$TARGET" = x86_64-unknown-linux-musl ]; then
+            sh .github/scripts/static-check.sh "target/$TARGET/release/ratchet"
+            printed=$(docker run --rm -v "$PWD/target/$TARGET/release/ratchet:/ratchet:ro" "alpine:$ALPINE_VERSION@sha256:$ALPINE_SHA256" /ratchet --version)
+            echo "$printed"
+            test "$printed" = "ratchet $GITHUB_REF_NAME"
+          fi
           sh .github/scripts/release-package.sh archive "$GITHUB_REF_NAME" "$TARGET" "target/$TARGET/release/ratchet" dist
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

@@ -1,0 +1,14 @@
+format: ratchet-assessor/1
+name: http-probe-report
+version: "1"
+command: http-probe-report
+targets: [deployment]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: probe
+coverage: [executed, not_run, passed, failed]
+outputs:
+  credential_refused: {value_type: assertion, kind: exact, scopes: [probe]}
+  console_unreachable: {value_type: assertion, kind: exact, scopes: [probe]}
+  tls_enforced: {value_type: assertion, kind: exact, scopes: [probe]}

@@ -1,7 +1,7 @@
 # The build family
 
 How long does a project take to build and to test, and how many of its tests give two answers
-on one tree? Five presets judge it from the report of the project's own build and test runs:
+on one tree? Six presets judge it from the report of the project's own build and test runs:
 
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
@@ -10,6 +10,7 @@ on one tree? Five presets judge it from the report of the project's own build an
 | [`test-step-time@1`](test-step-time@1.preset.yaml) | The time of the test step, against a limit and against its accepted value | An imported report of the runs of the test step, [`test-report@1`](test-report@1.assessor.yaml) |
 | [`test-time@1`](test-time@1.preset.yaml) | The time of the slowest test of the test step, against a limit and against its accepted value | The same report |
 | [`flake-rate@1`](flake-rate@1.preset.yaml) | The share of the tests that pass in one execution and fail in another on one tree | The same report |
+| [`flake-rate@2`](flake-rate@2.preset.yaml) | The same share, and the measurement states that the value is one over all runs of the report | The same report |
 
 Every measurement of the family is sampled and has no default tolerance: the tolerance, the
 number of runs and the command are required inputs of each preset. The two limits of the family
@@ -366,6 +367,24 @@ presets:
       tolerance: 0.01
 ```
 
+## `flake-rate@2`
+
+`flake-rate@1` with one key more: its measurement states `over_all_runs: true`, so the file
+says that the assessor computes the rate once over all runs of the report, which is no
+aggregation of a rate per run ([`docs/design.md`](../docs/design.md) § 3, "One run per
+candidate is valid"). The inputs, the plan, the requirement, what `flake_rate` holds and the
+binding are those of `flake-rate@1`, with `use: flake-rate@2`. A result of the output holds the
+number of runs of the report in `samples` and no aggregation. `flake-rate@1` stays as it was
+released.
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `flake-rate@2/test-runs/flake-rate` | Lower | None: a share between 0 and 1 | The input `tolerance`, absolute; required, no default | `test-report@1`, output `flake_rate`, under the cache profile `warm`, computed once over all runs of the report (`over_all_runs: true`), at least `runs` of them |
+
+| Requirement | Measurement | Comparison | Judged by a release |
+| --- | --- | --- | --- |
+| `flake-rate-does-not-rise` | `flake-rate` | Not above the accepted value by more than the tolerance | Not yet: sampled |
+
 ## Candidate against a reference implementation
 
 The rule is that of [`docs/design.md`](../docs/design.md) § 4, "A candidate against a
@@ -411,4 +430,7 @@ key to a format; each point names the place in the specification
    it is no median of a value per run, and `pass_rate` aggregates an assertion. So
    `flake-rate@1` declares no `aggregation`, also where `runs` is above 1, though
    `ratchet.specification.Aggregation` says that one is declared where a sampled plan has more
-   than one run.
+   than one run. Answered from `flake-rate@2` on: `ratchet.specification.Measurement` has the
+   member `over_all_runs`, and a measurement that states `over_all_runs: true` has a value its
+   assessor computes over all runs of the plan, which is no aggregation. `flake-rate@2` states
+   it; `flake-rate@1` stays as it was released.

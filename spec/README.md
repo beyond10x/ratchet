@@ -10,7 +10,7 @@ marks a question the design does not answer yet.
 | File | Declares |
 |---|---|
 | `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, unit, boundary, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window` as `{length, last}`, `population` as `{runs_of, from}` or `{filter}`, `min_samples`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, input declarations with `local`, preset (its block, the three maps it holds, the reference to an input) and preset binding |
-| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
+| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields and the closed list of values of an item field), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
 | `domains/evidence.yaml` | the assessment run `ratchet-evidence/1` in two parts. `evidence`: project, assessment, assessor, candidate, resolved target with the window (bounds, items, newest item, runs left out), resolved inputs, completion, observed conditions (host load as mean, min and max; tools), coverage with its unit and the units not executed, the list of results (complete or incomplete, the value members beside `value_type`), import source. `run`: start and end, queue wait and run time, resolved local inputs, artifacts. Proof record with the defect ids refused and accepted |
 | `domains/reference.yaml` | reference record (generated or accepted value; `values`, or `items` as `{identity, reason, owner}`), reference change, trade-off with `gains` and `loosens` |
 | `domains/gate.yaml` | gate decision (a candidate, or for an operational gate none) and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause from the list of its verdict (`FailCause`, `InsufficientEvidenceCause`), its next step (`candidate`, `assessment`, `system`) and in an operational gate its window |
@@ -66,7 +66,9 @@ runs twelve steps, and `task check` calls it:
    Its last line is `cli-errors: <n> of <n> named errors declared on their command`;
 9. `sh spec/gate-inputs.test.sh`, which copies `spec/` and the two documents into the ignored
    `target/gate-inputs/`, hides one defect per copy behind a change of form, and fails when
-   the six scripts above accept a copy. Its last line is
+   the six scripts above accept a copy, or when `spec/record-examples.test.sh` does not refuse
+   with its digest message a copy whose `evidence` of § 6 example 1 has one byte changed. Its
+   last line is
    `gate-inputs: <n> of <n> broken inputs refused`;
 10. `sh spec/presets.test.sh`, which reads every file of the preset catalog `presets/`: a file
     is UTF-8 without a NUL byte, a control character and a character that ends a line for a
@@ -79,21 +81,27 @@ runs twelve steps, and `task check` calls it:
     also for each item of a list, and names a target kind the assessor takes; a measurement
     names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
     that the declaration of its assessor declares, and a plan a condition and a population
-    field that it declares; a plan over `runs_of` names `record-series@1`, which no file
-    declares, and has no target selection and no conditions; a requirement compares its
-    measurement as the table "Comparisons" of design § 3 allows for the value type of the
+    field that it declares; the cache condition is `cache_profile` and never `cache`, in a plan
+    and in a declaration, an input of a declaration has no reserved name such as `out`, a key
+    of `item_values` is a field of `item_fields` of its output and a value of a `filter` one
+    the output lists there, an exact measurement aggregates with `sum` or not at all, and a
+    sampled measurement of a plan whose `runs` is a literal above 1 states an `aggregation` or
+    `over_all_runs: true` and never both; a plan over `runs_of` names `record-series@1`, which
+    no file declares, and has no target selection and no conditions; a requirement compares
+    its measurement as the table "Comparisons" of design § 3 allows for the value type of the
     output, the pass rate of an assertion as a number; the plan of a sampled measurement
     declares a condition, unless it is a plan over `runs_of`, and a requirement that compares a
     sampled measurement with an accepted value has a tolerance and an adoption; and every
-    measurement has one row with
-    four filled cells on a page of the catalog. It then writes one defect per rule into copies
-    of a fixed set of files of `presets/`, in the ignored `target/presets/`, and fails when a
-    defect is accepted or is refused without the message of its rule. The set is `README.md`
-    and the functional family, named once in the script (`set_files`): the whole of `presets/`
-    is checked once, and a copy holds no file of another family, so a family that the catalog
-    gets adds nothing to a copy. Defects that stand apart share a copy, each on a
-    line of its own, and each is judged by a message that names its own line, path or value:
-    the check of a copy takes most of the time of the script. It prints
+    measurement has one row with four filled cells on a page of the catalog. It then writes one
+    defect per rule into copies of a fixed set of files of `presets/`, in the ignored
+    `target/presets/`, and fails when a defect is accepted or is refused without the message of
+    its rule, or when the unchanged set, checked again through `--catalog` and `--spec`, prints
+    another last line. The set is `README.md` and the functional family, named once in the
+    script (`set_files`): the whole of `presets/` is checked once, and a copy holds no file of
+    another family, so a family that the catalog gets adds nothing to a copy. Defects that
+    stand apart share a copy, each on a line of its own, and each is judged by a message that
+    names its own line, path or value: the check of a copy takes most of the time of the
+    script. It prints
     `presets: <d> of <d> defect(s) refused with the message of their rule`, and its last line is
     `presets: <f> of <f> file(s) valid, <r> of <r> measurement(s) with a row, <c> of <c> broken copies refused`;
 11. `sh spec/example-declarations.test.sh`, which reads every file `examples/*.ratchet.yaml`
@@ -104,8 +112,9 @@ runs twelve steps, and `task check` calls it:
     does not declare, on a unit the output does not declare (`unit_missing`, `unit_mismatch`,
     `unit_not_declared`), on a scope other than `run` that the output does not list, on a
     measurement of a plan over `runs_of` that does not keep the unit or the scope of the
-    measurement of its source plan that it names as `output`, and on a directory without an
-    example. It states no number of examples, and it does not check a declaration's own keys
+    measurement of its source plan that it names as `output`, on a directory without an
+    example, and on a binding under `presets:` whose `use:` names no file of `presets/` or
+    whose `digest` is not the SHA-256 that `sha256sum` gives over that file. It states no number of examples, and it does not check a declaration's own keys
     and types: `presets.test.sh` does that for `presets/` alone. It then writes one defect per
     rule into copies of a fixed set of three examples and the four declarations they name, in
     the ignored `target/example-declarations/`, and fails when a copy is accepted or is refused
@@ -118,8 +127,8 @@ runs twelve steps, and `task check` calls it:
 
 Each script states how much it reads and fails on another number, so that a section, a table
 or an example which an edit moves out of the form the script looks for is not skipped: 78 field
-rows in 13 tables of § 3 and 19 in 2 tables of § 10 (`record-fields`, `record-types`, a number
-per table), 3 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
+rows in 13 tables of § 3 and 20 in 2 tables of § 10 (`record-fields`, `record-types`, a number
+per table), 5 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.
 `presets.test.sh` states no number of the catalog, because the catalog grows by a family at a
@@ -278,7 +287,8 @@ A `ratchet/1` file is not the entities of `domains/specification.yaml` written o
 the file applies the rules below and infers no other. Each row names the line of
 `docs/design.md` that states the rule; where no sentence states it, the line is that of the
 illustrative YAML of § 3 which shows it, marked "YAML". Three rules were taken on 2026-11-24
-and are stated in § 12 of the design alone; their row names that section. The example member is
+and one on 2026-11-26, and they are stated in § 12 of the design alone; their row names that
+section. The example member is
 from `examples/`, or from the design where no example file uses the form.
 
 | Rule | `docs/design.md` | Example member |
@@ -294,7 +304,8 @@ from `examples/`, or from the design where no example file uses the form.
 | **A number is the decimal of its text as written.** `max: 2.125` is `2.125`; the number never passes through a binary float. A scalar in exponent form or with a sign `+` is refused. A quoted decimal text is accepted and means the same. | § 12 | `max: 2.125` (`examples/host-caused-limit.ratchet.yaml:21`) |
 | **A requirement may leave `serves` out.** An absent `serves` is the empty list; `QualityRequirement.serves` is a required list in the entity. | § 12 | `requirements.no-lint-findings` (`examples/analyzer-findings.ratchet.yaml:77`) |
 | **A date is the text of its scalar.** A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created` and `expires` are the text of the scalar, quoted or plain. | § 12 | `expires: 2026-11-30` (`examples/analyzer-findings.ratchet.yaml:113`) |
-| **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`, named `<name>@<version>.preset.yaml` in a catalog source (`ratchet.config.CatalogFileKind`). Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | § 4, "Presets"; § 5, "Local config" | `presets/conformance-cases@1.preset.yaml`; `presets.ux.use: web-ux@1` (design § 4; no example binds a preset) |
+| **A comment carries nothing.** A `ratchet/1` file may hold YAML comments, and a reader of the format skips them: no rule, value or entity is read from a comment. A preset is bound by the digest of its bytes, so a comment changes that digest, and the catalog `presets/` writes none (`presets/README.md`). What the scripts of the gate skip or refuse of a comment is their own reading, not the format. | § 12 | `# Checks 1 to 5 and 7 bind presets of presets/; ...` (`examples/production-gate.ratchet.yaml:12`) |
+| **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`, named `<name>@<version>.preset.yaml` in a catalog source (`ratchet.config.CatalogFileKind`). Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | § 4, "Presets"; § 5, "Local config" | `presets/conformance-cases@1.preset.yaml`; `presets.served-operations.use: conformance-cases@1` (`examples/production-gate.ratchet.yaml:16`) |
 | **A preset holds three of the seven maps.** Beside `format` and `preset` its root holds `statements`, `assessments` and `requirements` (`ratchet.specification.PresetMember`), each a map of the entity that the relation of that name of `QualitySpecification` targets. An entry states no `project`. `subjects`, `gates`, `exceptions` and `presets` are refused. | § 4, "Presets" | `assessments.conformance` (`presets/conformance-cases@1.preset.yaml`) |
 | **A reference to an input is the whole of a value.** `${inputs.<name>}` stands where a scalar or a list stands, with no text beside it, and the type of the input fits the place (`ratchet.specification.InputReference`). Inside a flow collection it is quoted. No key is a reference, and neither is a name by which a requirement names another entry of its preset: `assessment`, `measurement` and the items of `serves` are written out. `<name>` is the key of the input, which is text and may hold a `.`. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. | § 4, "Presets" | `environments: ${inputs.environments}` (`presets/conformance-cases@1.preset.yaml`) |
 

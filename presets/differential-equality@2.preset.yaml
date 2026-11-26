@@ -1,0 +1,69 @@
+format: ratchet/1
+
+preset:
+  name: differential-equality
+  version: "2"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+    different_limit: {type: integer, required: true}
+
+assessments:
+  comparison:
+    subject: ${inputs.subject}
+    assessor: comparison-report@2
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      equal-cases:
+        kind: exact
+        output: cases
+        scope: run
+        identity: [case_id]
+        filter: {class: [equal]}
+      allowed-cases:
+        kind: exact
+        output: cases
+        scope: run
+        identity: [case_id]
+        filter: {class: [allowed]}
+      different-cases:
+        kind: exact
+        output: cases
+        scope: run
+        identity: [case_id]
+        filter: {class: [different]}
+
+requirements:
+  no-equal-case-lost:
+    meaning: Every case of the accepted set of equal cases is still equal.
+    assessment: comparison
+    measurement: equal-cases
+    condition: {operator: no_lost_items}
+    reference: {kind: accepted_value}
+  no-new-allowed-case:
+    meaning: No case is allowed to differ that the accepted set of allowed cases does not hold.
+    assessment: comparison
+    measurement: allowed-cases
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  no-new-different-case:
+    meaning: No case is different that the accepted set of different cases does not hold.
+    assessment: comparison
+    measurement: different-cases
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  different-cases-within-limit:
+    meaning: The number of different cases is at most the limit of the binding.
+    assessment: comparison
+    measurement: different-cases
+    condition:
+      operator: lte
+      value: ${inputs.different_limit}

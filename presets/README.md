@@ -30,6 +30,8 @@ Pages:
   binary, the number of dependencies, the advisories that apply to them.
 - [code.md](code.md): generated and hand-written lines of code, the obligations a generator
   leaves, the findings of a linter.
+- [production.md](production.md): HTTP probes of a deployed service that fail closed, the
+  signatures of an image and of its provenance.
 
 A file is named by the name and the version it states, and neither holds an `@`. Nothing else
 lies in the directory: no subdirectory, no symbolic link, no empty file and no entry whose name
@@ -125,15 +127,20 @@ A file in another form is refused, also where a YAML reader would accept it:
   comment.
 - **A measurement as its assessor declares it.** A measurement has the kind of the output it
   names, the unit of that output or none where the output has none, and a boundary and an
-  identity key that the output declares. `run_time` and `queue_wait` are boundaries of Ratchet
+  identity key that the output declares. A `filter` names fields the output declares for its
+  items, and for a field whose values the output lists under `item_values` only those values;
+  a field without such a list is open, and a key of `item_values` is a field of `item_fields`
+  of its output. `run_time` and `queue_wait` are boundaries of Ratchet
   itself and stand also on an output that declares no boundaries. `pass_rate` aggregates an
   assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
   as a number. An assessment passes every input its assessor requires, with the declared type,
   also for each item of a list, and names a target kind the assessor takes. A condition of an
   observation is `host_load_per_cpu`, `tools`, `runner` or one the assessor declares, and a
-  field of a population filter is one of its `population_fields`. A value that an input gives
-  is not checked against the declaration, because the binding passes it; only the kind of a
-  target is checked against the default of its input.
+  field of a population filter is one of its `population_fields`. The cache condition is
+  `cache_profile`, and a plan that states `cache` and a declaration that lists `cache` are
+  refused, also where the two agree. A value that an input gives is not checked against the
+  declaration, because the binding passes it; only the kind of a target is checked against the
+  default of its input.
 - **A window over the runs of another plan.** `record-series@1` is the assessor of Ratchet
   itself that reads the runs of another plan ([`docs/design.md`](../docs/design.md) § 3, "A
   series of runs as a population"). The name is reserved: a plan names it without a
@@ -149,7 +156,10 @@ A file in another form is refused, also where a YAML reader would accept it:
   `ratchet validate` reports, the script refuses. The plan of a sampled measurement declares at
   least one condition under `observation.conditions`, unless it is a window over `runs_of`,
   which declares none. A requirement that compares a sampled measurement with an accepted value
-  has a tolerance, with `percent` or `absolute`, and an `adoption`.
+  has a tolerance, with `percent` or `absolute`, and an `adoption`. A sampled measurement of a
+  plan whose `runs` is a number above 1 states an `aggregation` or `over_all_runs: true`, a
+  value its assessor computes over all runs of the plan, and never both; a `runs` that an input
+  gives is not read.
 - **No text that is empty.** A member without a value is left out, not written as `""`.
 - **No comment in a preset or a declaration.** A binding carries the digest of the preset file,
   so a reworded comment would be a new digest. What a file means is on the page. The script
@@ -159,10 +169,14 @@ A file in another form is refused, also where a YAML reader would accept it:
 
 `sh spec/presets.test.sh`, a step of `task check:spec`, checks every file of this directory
 against the specification, against the declaration of its assessor and against the pages. Its
-header says what it checks and what it does not: among the latter the invariants of the types
-beside the four of a plan over `runs_of`, a value that an input gives where a rule reads the
-value, a measurement of a plan of `record-series@1` against the source plan, the number of runs
-of an adoption from the trusted revision, and the prose of a row. No script
+header says what it checks, and under "Not checked" it lists, each with its reason, every form
+it accepts without a word: among them the invariants of the types beside the four of a plan
+over `runs_of`, a value that an input gives where a rule reads the value, a measurement of a
+plan of `record-series@1` against the source plan, the number of runs of an adoption from the
+trusted revision, the prose of a row, and the forms that no sentence of the design forbids
+outright, such as a percentile without its rank or `tolerance: {}` on an exact measurement. A
+form the design forbids is refused, such as an exact measurement that aggregates with `median`
+or an input of a declaration named `out`. No script
 checks the rules "Tolerance", "A value against a reference implementation", "Names",
 "Evidence" and "Generic examples".
 
