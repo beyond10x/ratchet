@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:value-over-all-runs
 kind: story
-status: draft
+status: active
 title: A sampled measurement states a value computed over all runs
 summary: No aggregation kind gives one value over all runs, so flake-rate@1 declares none with runs above 1.
 relations:
@@ -17,7 +17,10 @@ scope:
   path: presets
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 7
+revision: 10
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 9}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 10}
 ---
 ## Context
 
@@ -46,13 +49,18 @@ Every outcome below is observable without a `ratchet` command.
 1. `docs/design.md` § 3, the row "Aggregation" of the table (`:88`) and the paragraph "One run
    per candidate is valid" (`:114`): the rule that a sampled measurement of a plan with `runs`
    above 1 states an aggregation, or states that the assessor computes its value over all runs
-   of the plan, and that one stating neither is an error. The design first answers whether
-   `ratchet validate` reports that form today and writes the answer. Text only, no case.
-2. `spec/domains/specification.yaml`: the form, a variant of
-   `ratchet.specification.AggregationKind` (`:136-138`) or a member of
-   `ratchet.specification.Measurement` with the rule in the summary of `Aggregation`
-   (`:143-145`); the story decides which. `spec/domains/evidence.yaml` says what a result of
-   that value carries as `samples` (`:368-375`). Checked by
+   of the plan, and that one stating neither is an error. The form is valid for every value of
+   `runs`, and at `runs: 1` it is no aggregation: the measurement declares none, as the
+   paragraph "One run per candidate is valid" requires. § 3 "Measurement kind and observation
+   conditions" lists, beside "`ratchet validate` reports a sampled measurement that declares
+   no conditions" (`:92`), a sampled measurement of a plan with `runs` above 1 that states
+   neither among what `ratchet validate` reports. Text only, no case.
+2. `spec/domains/specification.yaml`: the form is a member of
+   `ratchet.specification.Measurement` (`:158`), not a variant of
+   `ratchet.specification.AggregationKind` (`:136-138`): a variant would be an `aggregation`
+   at `runs: 1`, where the summary of `Measurement.aggregation` (`:182-188`) says it is
+   absent. The summary of `Aggregation` (`:143-145`) states the rule. `spec/domains/evidence.yaml`
+   says what a result of that value carries as `samples` (`:368-375`). Checked by
    `ess specify validate --path spec --strict-requires`, which exits 0, and by
    `task check:generated`.
 3. `spec/presets.test.sh`, rule `sampled`: a sampled measurement of a plan whose `runs` is a
@@ -73,7 +81,9 @@ Every outcome below is observable without a `ratchet` command.
 
 - Whether the existing aggregation kinds are valid with `runs: 1` when the command repeats
   itself is `story:specification-answers-first-format-consumer` (finding 11). This story adds
-  the form for a value over all runs and nothing about `runs: 1`.
+  the form for a value over all runs, and of `runs: 1` says only that the form is valid there
+  and is no aggregation. How many runs a preset
+  declares for each value of an input stays with `story:member-for-some-input-values`.
 - An addition to a released format; a preset that uses it is a new version of the preset.
 - It runs `task check:generated` when it edits `spec/domains/`.
 - The acceptance and refusal by `ratchet validate`, with a code, are

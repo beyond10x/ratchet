@@ -7,7 +7,7 @@ title: A standard catalog of quality criteria as ratchet/1 presets
 summary: presets/ with the preset files and assessor declarations of eight families, a page per family, a check in the gate, and binding resolution.
 relations:
 - decomposes: initiative:first-milestone
-revision: 3
+revision: 4
 ---
 ## Context
 
@@ -108,6 +108,12 @@ five later stories of this epic ahead of the waves to 0.1.0: `story:cache-condit
 `story:production-gate-spec-executed-service`. The parts of three of them that need a `ratchet`
 command are `story:cache-condition-one-name-in-ratchet`, `story:value-over-all-runs-in-ratchet`
 and `story:item-field-values-in-ratchet`, which wait for the waves to 0.1.0.
+`story:value-over-all-runs`, `story:item-field-values` and `story:cache-condition-one-name`
+each add to the format by a decision of its own, declared in `spec/` first; the preset files
+of the catalog add no key to it.
+
+`story:production-gate-spec-executed-service` names two drafts that wait for the waves to
+0.1.0: `story:severity-limit-on-identity-set` and `story:production-gate-kind`.
 
 ## Order
 
@@ -146,7 +152,10 @@ valid `ratchet/1` that no command resolves.
 
 ## Done when
 
-The four stories are implemented. `presets/README.md` says what a project writes before
+The four stories listed under § Stories and the five stories of this epic in the wave of
+`.engineering/waves/0.1.0-ahead-1.md` are implemented; the parts of those five that wait for
+the waves to 0.1.0 (the three `-in-ratchet` stories and the two drafts named above) are
+implemented or rejected with a written reason. `presets/README.md` says what a project writes before
 `ratchet validate` resolves a binding (`story:preset-catalog-functional`). Telling the first
 consumer the path and commit of the catalog and which part 0.1.0 evaluates is the
 coordinator's act after each catalog story is merged; it is no story.

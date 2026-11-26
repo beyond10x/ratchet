@@ -29,7 +29,7 @@ scope:
   path: examples/preset-binding
 - confidence: cited
   path: presets/README.md
-revision: 15
+revision: 16
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T01:07:33Z", actor: "agent:ratchet", revision: 14}
 - {from: "proposed", to: "active", at: "2026-11-25T01:09:50Z", actor: "agent:ratchet", revision: 15}
@@ -68,7 +68,9 @@ reported.
   catalog source live there after `story:cli-skeleton-validate` and
   `story:assessor-declaration`; the binding is resolved beside them.
 - `examples/preset-binding/` (new): the specification and its `ratchet.toml` with a path
-  source; `examples/README.md` loses the sentence that no example uses a binding.
+  source, with its entry in `examples/README.md`. "A `presets` binding" is already gone from
+  the list in `examples/README.md` of shapes no example uses: `story:production-gate-spec-executed-service`
+  removes it with its example.
 - `presets/README.md`: what `ratchet validate` prints for a binding.
 - `docs/design.md` § 4: the sentence "no example has tested it" goes.
 - `CHANGELOG.md`: lines under `## [Unreleased]`.

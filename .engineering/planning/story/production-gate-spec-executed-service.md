@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:production-gate-spec-executed-service
 kind: story
-status: draft
+status: active
 title: A ratchet file as the production gate of a spec-executed service
 summary: 'Seven checks of a consumer''s survey in one example gate: checks 1, 2 and 6 from the catalog, a ninth family of two presets and two declarations for probe assertions and artifact verification.'
 relations:
@@ -24,7 +24,10 @@ scope:
   path: spec/example-declarations.test.sh
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 13
+revision: 16
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 15}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 16}
 ---
 ## Context
 
@@ -76,20 +79,52 @@ Check 6 is a plan of the example over `advisory-report@1` with `filter: {severit
 and a requirement `no_new_items` against the accepted set; "no critical advisory" as a limit
 waits for the severity story of the Notes.
 
-`presets/` gains 2 presets, 2 declarations and 1 page, the ninth family, as the Scope names.
-The last line of `sh spec/presets.test.sh` goes from
-`presets: 47 of 47 file(s) valid, 41 of 41 measurement(s) with a row, <c> of <c> broken copies refused`
-to `presets: 52 of 52 file(s) valid, 45 of 45 measurement(s) with a row, <c> of <c> broken copies refused`,
-with `<c>` the count that `story:preset-check-unlisted-forms` leaves (92 at `7aa82f8`): the
-probe preset has 3 measurements, one per check 3, 4 and 5, and the verification preset 1.
+The counts below are increments over the state the eight stories before this one in the wave
+leave, read from the last line of each script just before this story starts: stories 3 to 8
+add broken copies to `spec/presets.test.sh`, and stories 7 and 8 add files and measurements to
+`presets/`, first.
 
-`sh spec/example-declarations.test.sh` reads the example: its check line counts 6 example
-files (5 at `7aa82f8`) with every measurement as declared. A new rule of that script: each
-`use:` under `presets:` of an example names a file `presets/<name>@<version>.preset.yaml`. The
-example is accepted, and a broken copy whose `use:` names a preset that `presets/` does not
-hold is refused with the message of the rule; the last line counts one broken copy more (31 at
-`7aa82f8`). Before the story the two presets and their declarations are absent, the example
-does not exist, and no script reads a `use:`.
+`presets/` gains 2 presets, 2 declarations and 1 page, the ninth family, as the Scope names.
+The last line of `sh spec/presets.test.sh`,
+`presets: <f> of <f> file(s) valid, <m> of <m> measurement(s) with a row, <c> of <c> broken copies refused`,
+shows `<f>` 5 more and `<m>` 4 more than before this story, and `<c>` unchanged: this story
+adds no case to that script. The probe preset has 3 measurements, one per check 3, 4 and 5,
+and the verification preset 1.
+
+`sh spec/example-declarations.test.sh` reads the example. Its check line,
+`example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`,
+shows `<e>` 1 more (5 at `7aa82f8`; no story before this one in the wave adds an example),
+`<d>` 1 more (`advisory-report@1`, which no example names before), and `<m>` 1 more (the plan
+of check 6; the plans of a bound preset stand in `presets/`, which `spec/presets.test.sh`
+checks). A new rule of that script reads each binding under `presets:` of an example: its
+`use:` names a file `presets/<name>@<version>.preset.yaml` that exists, and its `digest` is
+`sha256:` and the SHA-256 that `sha256sum` gives over that file. The example is accepted with
+the digests it writes. Two broken copies are refused with the message of the rule: one whose
+`use:` names a preset that `presets/` does not hold, and one whose `digest` differs from the
+file's. The last line counts 2 broken copies more than before this story (31 at `7aa82f8`;
+no story before this one in the wave adds a case to that script). The header's list of the
+utilities it needs names `sha256sum`. The rule checks that the file exists and its digest, and
+nothing else of a binding: the inputs (`with`) and the code `unresolved_reference` of
+`ratchet validate` stay with `story:preset-binding-resolution`. Before the story the two
+presets and their declarations are absent, the example does not exist, and no script reads a
+`use:`.
+
+Observed by count on the example, each 0 before the story, when the file does not exist, and 1
+after: `grep -c '^    kind: candidate$' examples/production-gate.ratchet.yaml` (the gate's
+kind), `grep -c 'filter: {severity: \[critical\]}' examples/production-gate.ratchet.yaml` (the
+plan of check 6) and `grep -c 'operator: no_new_items' examples/production-gate.ratchet.yaml`
+(its requirement).
+
+Files beside `presets/` and the scripts:
+
+- `docs/design.md` § 4, the table of domains and candidate preset families (`:475-487` at
+  `7aa82f8`, 11 rows): one row more for the ninth family, its probe assertions and artifact
+  verification, with the reports of the project's probe runner and verifier as the evidence
+  source; 12 rows after. Text only, no case.
+- `examples/README.md`: the list of shapes of revision 4 that no example uses (`:522-525` at
+  `7aa82f8`) no longer names "a `presets` binding", and the example has its entry beside the
+  other examples. Text only, no case.
+- `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
 
 ## Scope
 
@@ -97,8 +132,9 @@ does not exist, and no script reads a `use:`.
   measurements), a preset and a declaration for artifact verification (check 7; 1
   measurement), and the page of the new family.
 - `examples/production-gate.ratchet.yaml`, `examples/README.md`.
-- `spec/example-declarations.test.sh`: the rule on `use:` and its broken copy.
-- `docs/design.md` § 4: the two rows of the preset table.
+- `spec/example-declarations.test.sh`: the rule on `use:` and `digest`, its two broken copies.
+- `docs/design.md` § 4: the row of the ninth family in the table of domains and candidate
+  preset families.
 - `CHANGELOG.md`.
 
 ## Notes
@@ -110,15 +146,18 @@ does not exist, and no script reads a `use:`.
   `.github/scripts/`, `ess specify validate`, or files. It is 9 of the nine in the order of
   `.engineering/waves/0.1.0-ahead-1.md`. It builds on
   `story:preset-catalog-functional` and `story:preset-catalog-factory`.
-- A severity on an item of an identity set and a requirement by it in `spec/domains/` becomes
-  its own draft story. It first reads `docs/design.md:175`: an identity set takes `eq` on the
-  number of its items, so `eq` with the value 0 on the filtered set may already state the limit.
-- The gate kind of a production gate in `docs/design.md` § 5 becomes its own draft story, beside
-  `story:gate-judges-commit-of-a-tag`.
+- A severity on an item of an identity set and a requirement by it in `spec/domains/` is the
+  draft `story:severity-limit-on-identity-set`. It first reads `docs/design.md:175`: an
+  identity set takes `eq` on the number of its items, so `eq` with the value 0 on the filtered
+  set may already state the limit.
+- The gate kind of a production gate in `docs/design.md` § 5 is the draft
+  `story:production-gate-kind`, beside `story:gate-judges-commit-of-a-tag`.
 - A declaration that imports a served-operations report or a replay report becomes its own
   draft story where that report does not fit the form of `conformance-report@1`.
-- The example writes the `digest` of each binding; no command checks a binding digest until
-  `story:preset-binding-resolution`.
+- The example writes the `digest` of each binding, and the rule of
+  `spec/example-declarations.test.sh` compares it with the file; `ratchet validate` checks a
+  binding (its digest, its inputs, `unresolved_reference`) from
+  `story:preset-binding-resolution` on.
 - `probe-report@1` (`presets/probe-report@1.assessor.yaml`) already declares the assertions
   `health` and `readiness` at the scope `expectation`; the declaration of checks 3 to 5 takes
   another name.

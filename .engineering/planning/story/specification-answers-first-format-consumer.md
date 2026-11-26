@@ -2,12 +2,15 @@
 format: aep.planning-md/3
 id: story:specification-answers-first-format-consumer
 kind: story
-status: draft
+status: active
 title: The specification answers five places the first format consumer could not read
 summary: 'scopes: [], a value aggregated in one run, units, comments, the evidence digest.'
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 7
+revision: 10
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 9}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 10}
 ---
 ## Context
 
@@ -47,7 +50,7 @@ What each answer may change:
   `story:value-over-all-runs`.
 - 14: the answer is text only. It changes none of the types the slice of 0.1.0 reads
   (`ratchet.evidence.EvidenceCoverage`, `ratchet.evidence.ImportSourceKind`,
-  `ratchet.specification.Condition`, `epic:format-gaps-first-format-consumer` lines 55-57);
+  `ratchet.specification.Condition`, § Order of `epic:format-gaps-first-format-consumer`);
   the `unit` of a `Condition` stays as it is.
 
 ## Acceptance
@@ -56,12 +59,16 @@ Each of the five places has one answer, written in `spec/` and in the document t
 or disagreed. Per place, the file the answer lands in and what checks it (line numbers of
 `7aa82f8`):
 
-- 10, `scopes: []` — the summary of `scopes` in `spec/domains/assessor.yaml` (`:94-98`) and
-  `docs/evidence-format.md` § 10 — `sh spec/presets.test.sh`, rules `type` and `required`: the
-  catalog's declarations write `scopes: []` (`presets/advisory-report@1.assessor.yaml:15`) and
-  are accepted, and an output without `scopes` is refused; where the answer refuses the empty
-  list, a new rule of that script refuses it with a broken copy, and the catalog's declarations
-  change in the same story.
+- 10, `scopes: []` — the answer: the empty list is valid and means an output whose results
+  have the scope `run` alone; `scopes` stays required. Written in the summary of `scopes` in
+  `spec/domains/assessor.yaml` (`:94-98`) and in `docs/evidence-format.md` § 10 —
+  `sh spec/presets.test.sh`, rules `type` and `required`: the catalog's declarations write
+  `scopes: []` (`presets/advisory-report@1.assessor.yaml:15`) and stay accepted, unchanged. A
+  new case of that script takes `scopes` out of the output of its copied declaration (the line
+  `number_output`, `  failed: {value_type: number, kind: exact, scopes: [], unit: cases}`,
+  becomes `  failed: {value_type: number, kind: exact, unit: cases}`) and expects the message
+  of rule `required`, "has no `scopes`, which ratchet.assessor.AssessorOutput requires"; no
+  case drops `scopes` before the story, and the last line counts one broken copy more.
 - 11, a value aggregated inside one run — `docs/design.md` § 3 (`:114`, "One run per candidate
   is valid"), the summary of `aggregation` in `spec/domains/specification.yaml` (`:182-188`)
   and `docs/evidence-format.md` § 1 (`:12`) — text only, no case: no script reads `runs`
@@ -77,10 +84,17 @@ or disagreed. Per place, the file the answer lands in and what checks it (line n
   (`spec/example-declarations.test.sh:60`, `spec/presets.test.sh:141`), not the format.
 - 16, the evidence digest — the recipe in `docs/evidence-format.md` § 2 (beside the table of
   the three digests, `:27-31`), and the evidence digest of the first example of § 6 written in
-  the text of § 6 — a new rule of `sh spec/record-examples.test.sh`: it applies the recipe to
-  that example (the bytes from the `{` of the value of `evidence` to its matching `}`),
-  computes the SHA-256 with `sha256sum`, and fails when the result differs from the digest § 6
-  states; the script passes, and with one byte of that `evidence` changed it fails.
+  the text of § 6 as one line of the form
+  ``The evidence digest of the example above is `sha256:<64 lowercase hex digits>`.``, after
+  that example's block. The digest is over the bytes of the example as printed in the
+  document, not of the file the assessor wrote: § 6 says the printed example leaves out
+  `details.items` of one output and changes the white space (`:380-383`). A new rule of
+  `sh spec/record-examples.test.sh`: it finds that one line in § 6, applies the recipe to the
+  first example (the bytes from the `{` of the value of `evidence` to its matching `}`, as the
+  block stands in the document), computes the SHA-256 with `sha256sum`, and fails when the
+  line is missing or the result differs from the digest it states; the script passes, and with
+  one byte of that `evidence` changed it fails. The header's line "Needs `jq`." (`:34`) names
+  `sha256sum` beside `jq`.
 
 `ess specify validate` passes, and the story runs `task check:generated` when it edits
 `spec/domains/`.

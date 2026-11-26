@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:cache-condition-one-name
 kind: story
-status: draft
+status: active
 title: The cache condition has one name in a plan and in a record
 summary: A plan writes cache and a record holds cache_profile; no rule joins the two.
 relations:
@@ -23,7 +23,10 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 11
+revision: 14
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 13}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 14}
 ---
 ## Context
 
@@ -56,22 +59,25 @@ of `ratchet.evidence.ObservedConditions`. It is none of the three types that
 
 ## Acceptance
 
-The condition is named `cache_profile` in a plan, a declaration and a record. Every outcome
-below is observable without a `ratchet` command.
+The condition is named `cache_profile` in a plan, a declaration and a record; the name is
+fixed here and is not reopened by the story. Every outcome below is observable without a
+`ratchet` command.
 
-1. `spec/domains/specification.yaml` (summary of `ObservationConditions`, `:348-350`) and
-   `spec/domains/assessor.yaml` (summary of `Assessor.conditions`, `:172-176`) write
-   `cache_profile`, and `spec/domains/evidence.yaml` (summary of `ObservedConditions`,
-   `:175-183`) says that a declared `cache_profile` is held in `cache_profile` and not under
-   `other`. Checked by `ess specify validate --path spec --strict-requires`, which exits 0,
-   and by `task check:generated`; the sentences are text, no case.
-2. `docs/design.md` § 3: the example writes `cache_profile: warm` (`:296`). Text only, no case:
-   no script reads that example.
+1. `spec/domains/specification.yaml` (summary of `ObservationConditions`, `:347-350`) and
+   `spec/domains/assessor.yaml` (summary of `Assessor.conditions`, `:174-176`) state that a
+   plan and a declaration write the cache condition as `cache_profile` and under no other
+   name, and `spec/domains/evidence.yaml` (summary of `ObservedConditions`, `:175-183`) says
+   that a declared `cache_profile` is held in `cache_profile` and not under `other`. Checked
+   by `ess specify validate --path spec --strict-requires`, which exits 0, and by
+   `task check:generated`; the sentences are text, no case.
+2. `docs/design.md` § 3: the example writes `cache_profile: warm` (`:296`), and the text
+   beside it states that a plan and a declaration write the cache condition as
+   `cache_profile` and under no other name. Text only, no case: no script reads that example.
 3. `docs/evidence-format.md` § 3, below the table of `evidence.conditions` (`:100-113`): one
-   sentence that a plan and a declaration write the key of the row `cache_profile` and that a
-   record holds it there and not under `other`. Text only, no case; the rows stay, and
-   `spec/record-fields.test.sh` and `spec/record-types.test.sh` keep their count of 78 rows
-   in § 3.
+   sentence that a plan and a declaration write the cache condition as `cache_profile`, the
+   key of the row, and under no other name, and that a record holds it there and not under
+   `other`. Text only, no case; the rows stay, and `spec/record-fields.test.sh` and
+   `spec/record-types.test.sh` keep their count of 78 rows in § 3.
 4. `examples/quality/assessors/command-timing@1.assessor.yaml` declares
    `conditions: [cache_profile]`, the condition its plan in `docs/design.md` § 3 uses
    (finding 7 of `review-result:adversary-example-assessor-declarations-attack-1`). Text only,
@@ -79,7 +85,10 @@ below is observable without a `ratchet` command.
    declaration (its header, `:38-40`).
 5. `spec/presets.test.sh`, rule `assessor`: a condition `cache` of a plan, and an item `cache`
    of the `conditions` of a declaration, are refused with a message that names
-   `cache_profile`. Before the story a copy whose declaration lists `cache` and whose plan
+   `cache_profile`. The source of the refusal is the sentence of items 1 to 3 that a plan and
+   a declaration write `cache_profile` and no other name; the struct stays open
+   (`spec/domains/specification.yaml:345`, `undeclared_fields: ignored`) for every other
+   condition an assessor declares. Before the story a copy whose declaration lists `cache` and whose plan
    writes `cache: warm` is accepted (`:1758-1761`). After the story those copies write
    `cache_profile` and are accepted, a broken copy that writes `cache` in both places is
    refused with the message of the rule, and the copy at `:1884` writes `cache_profile`.
@@ -88,11 +97,9 @@ below is observable without a `ratchet` command.
 
 ## Notes
 
-- `cache_profile` is the planning reading: it is the member of the record and the key of the
-  seven released files, and `cache` stands only in two summaries, one design example and the
-  copies of the script. The story confirms it or records the other name with its reason; with
-  `cache`, the five presets and two declarations change in a new version and every item above
-  changes with them.
+- Why `cache_profile`: it is the member of the record and the key of the seven released
+  files, and `cache` stands only in two summaries, one design example and the copies of the
+  script. The presets and declarations of 0.0.2 stay as released.
 - It runs `task check:generated` when it edits `spec/domains/`.
 - The refusal by `ratchet validate`, and the reading of a declared `cache_profile` from a
   record, are `story:cache-condition-one-name-in-ratchet`, which waits for the waves to 0.1.0.

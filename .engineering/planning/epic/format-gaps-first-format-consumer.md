@@ -7,7 +7,7 @@ title: The formats say what the first format consumer's quality definition needs
 summary: '23 findings from writing the quality definition of beyond10x/inference against the formats, 22 places after one was withdrawn: things a format cannot say, a missing set of declarations, silent or disagreeing places.'
 relations:
 - decomposes: initiative:first-milestone
-revision: 7
+revision: 8
 ---
 ## Context
 
@@ -27,7 +27,8 @@ is answered by a story of this epic, finding 8 by a story of `epic:preset-catalo
 ## Outcome
 
 Each of the 22 places has an answer in `spec/` and in the design documents, with a test that
-failed before, and the quality definition of `beyond10x/inference` can say in the formats what
+failed before where a script reads the place; where none does, the story names that and
+answers in text. The quality definition of `beyond10x/inference` can say in the formats what
 it now leaves out or writes in a weaker form.
 
 ## Stories

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:item-field-values
 kind: story
-status: draft
+status: active
 title: An assessor declaration states the values of an item field
 summary: A closed list of values for an item field, so that a filter on a misspelt value is refused.
 relations:
@@ -19,7 +19,10 @@ scope:
   path: spec/domains/assessor.yaml
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 8
+revision: 11
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 10}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 11}
 ---
 ## Context
 
@@ -34,7 +37,7 @@ and `different`, and three measurements of `differential-equality@1` select by i
 fields and not their values (`spec/domains/assessor.yaml:114-118`). `spec/presets.test.sh`
 refuses a `filter` field the output does not declare (`:1094-1098`, case `:2412-2414`) and
 lists "the values of a `filter`: no declaration lists the values of an item field" under "Not
-checked" (`:129`). A `filter` on a misspelt class selects nothing, and no check refuses it.
+checked" (`:129` at `7aa82f8`). A `filter` on a misspelt class selects nothing, and no check refuses it.
 
 Four declarations state `item_fields` today: `presets/comparison-report@1.assessor.yaml:17`,
 `presets/advisory-report@1.assessor.yaml:17`, `presets/lint-report@1.assessor.yaml:17` and
@@ -52,9 +55,13 @@ Every outcome below is observable without a `ratchet` command.
 2. `docs/evidence-format.md` § 10, the table of an output (`:676-686`): the row of the form,
    and the declaration example (`:690-717`) unchanged unless the form renames `item_fields`.
    Checked by `spec/record-fields.test.sh` and `spec/record-types.test.sh`: before the story
-   both count 19 rows in the 2 tables of § 10; after, a new member gives 20 rows in both
-   scripts' stated counts, or a changed type gives a changed Type cell of the `item_fields`
-   row (`:686`) with 19 rows. `spec/contract-examples.test.sh` reads the example and exits 0.
+   both count 19 rows in the 2 tables of § 10, 7 of them in the table of an output; after, a
+   new member gives 20 rows and 8 in that table, or a changed type gives a changed Type cell of
+   the `item_fields` row (`:686`) with 19 rows. With a new member every place that states the
+   number changes with it: `spec/record-fields.test.sh` (header `:14`, the comment `:56` and
+   the number of the table `:58`), `spec/record-types.test.sh` (header `:27` and the number of
+   the table `:63`), and `spec/README.md` (`:119-122`, "19 in 2 tables of § 10").
+   `spec/contract-examples.test.sh` reads the example and exits 0.
 3. `presets/comparison-report@2.assessor.yaml` (new) lists `equal`, `allowed` and `different`
    for `class`, and `presets/differential-equality@2.preset.yaml` (new) names it, with the
    three rows of its measurements on `presets/functional.md`. The files `@1` released in 0.0.2
@@ -62,7 +69,8 @@ Every outcome below is observable without a `ratchet` command.
    last line counts two more files and three more measurements with a row.
 4. `spec/presets.test.sh`, rule `assessor`: a `filter` that names a value outside the list of
    its field is refused with a message that names the value, the field and the list. Before
-   the story the header lists the values of a `filter` under "Not checked" (`:129`), and a
+   the story the header lists the values of a `filter` under "Not checked", the line
+   "- the values of a `filter`: no declaration lists the values of an item field", and a
    copy with `filter: {class: [diferent]}` is accepted. After the story that line is gone, a
    broken copy whose `filter` reads `{class: [diferent]}` against a declaration that lists the
    values of `class` is refused with the message of the rule, and a copy that filters by a

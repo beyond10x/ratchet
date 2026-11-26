@@ -2,19 +2,20 @@
 format: aep.planning-md/3
 id: story:preset-check-unlisted-forms
 kind: story
-status: draft
+status: active
 title: The preset check refuses or lists the 14 forms it accepts in silence
 summary: 14 forms of a preset or declaration are accepted and not named under Not checked (2 of them forbidden by the design), and one comparison of the harness has no case.
 relations:
 - decomposes: epic:preset-catalog
 scope:
 - confidence: inferred
-  path: docs/design.md
-- confidence: inferred
   path: presets/README.md
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 9
+revision: 13
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 12}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 13}
 ---
 ## Context
 
@@ -39,11 +40,14 @@ findings 16 and 17; its cases b01, b02, b03, b07 and b08, run on `dd2cba5`) foun
 
 The story keeps 12 forms, 1 to 12 of the Notes. Forms 1 and 2, which `docs/design.md:88` and
 `docs/evidence-format.md:624` forbid, are refused by `sh spec/presets.test.sh` with the message
-of a rule, each with a broken copy. Forms 3 to 12 stand in the header under "Not checked", each
-with its reason, except a form for which the story finds a sentence of `docs/design.md` or
-`docs/evidence-format.md` that forbids it: that form is refused with the message of a rule and
-the sentence is named beside it. Forms 13 and 14 stand under "Not checked" with the story that
-decides each named. For form 7 the header or a rule covers each place a tolerance stands: `reference.tolerance` of a requirement, the one field of the
+of a rule, each with a broken copy; the refused set is these two forms and no other. Forms 3
+to 12 stand in the header under "Not checked", each with its reason. Form 13 stands under "Not
+checked" with `story:value-over-all-runs` named as the story that decides it. Form 14 stands
+under "Not checked" with its reason the sentence that
+`story:specification-answers-first-format-consumer` (finding 11) writes into `docs/design.md`
+§ 3, the paragraph "One run per candidate is valid" (`:114` at `7aa82f8`), on an aggregation
+with `runs: 1`: the header quotes that sentence, and adds that the script cannot see whether a
+command repeats its measurement itself. For form 7 the header or a rule covers each place a tolerance stands: `reference.tolerance` of a requirement, the one field of the
 type `ratchet.specification.Tolerance` (`spec/domains/specification.yaml:574-575`), on an exact
 measurement with a reference `accepted_value` (as `presets/image-size@1.preset.yaml:47`) and
 with a reference `generated`, beside the sampled measurement and the window over runs, refused
@@ -52,7 +56,14 @@ are accepted without a word.
 
 The script's harness holds a case that fails the run when the comparison at
 `spec/presets.test.sh:1600` (the line printed with `--catalog` and `--spec` against the line of
-the check in process) is deleted; before the story the script stays green with it deleted.
+the check in process) is deleted. A case cannot delete its own line, so the case writes a copy
+of the script under `target/presets`, edits the copy so that the line it prints with
+`--catalog` and `--spec` differs from the line of its check in process, runs the copy, and
+expects exit 1 with the message of the comparison. With the comparison deleted from the
+script, the copy carries no comparison, exits 0, and the case fails the run. Before the story
+the script stays green with the comparison deleted. The time of the new case is measured and
+stated in the implementor's report; it stays inside the 60 s bound of one test and the 120 s of
+the step.
 
 ## Notes
 
@@ -83,14 +94,13 @@ the check in process) is deleted; before the story the script stays green with i
   Two forms on `runs`, decided by other stories:
   13. a sampled measurement with a literal `runs` above 1 and no aggregation:
       `story:value-over-all-runs`;
-  14. `runs: 1` with an aggregation (`docs/design.md:114`):
+  14. `runs: 1` with an aggregation (`docs/design.md:114`): the sentence that
       `story:specification-answers-first-format-consumer` (finding 11, built before this
-      story) for the existing aggregation kinds when the command repeats its measurement
-      itself, and `story:member-for-some-input-values` for a preset that declares the
-      aggregation for every value of `runs`.
+      story) writes there for the existing aggregation kinds when the command repeats its
+      measurement itself is the reason in the header; `story:member-for-some-input-values`
+      keeps a preset that declares the aggregation for every value of `runs`.
 - The story writes no new rule into `docs/design.md`: the catalog adds no rule to the format on
   its own (`epic:preset-catalog`, "Rules of the catalog"). A form the design does not already
   forbid stands under "Not checked" with its reason.
 - An adoption from the trusted revision without `runs` already stands under "Not checked"
-  with its reason (`spec/presets.test.sh:121-124`); it is no form of this story.
-- POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s.
+  with its reason (`spec/presets.test.sh:123-126` at `7aa82f8`); it is no form of this story.- POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s.

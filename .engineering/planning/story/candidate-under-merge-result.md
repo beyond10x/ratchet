@@ -2,12 +2,15 @@
 format: aep.planning-md/3
 id: story:candidate-under-merge-result
 kind: story
-status: draft
+status: active
 title: Under merge_result a record names the candidate and the merged tree apart
 summary: candidate is the revision under judgement, target.revision the merge commit that was read.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 6}
 ---
 ## Context
 
@@ -48,7 +51,13 @@ Every outcome below is observable without a `ratchet` command.
    `spec/record-examples.test.sh`: before the story it expects 4 examples (`want_examples`,
    `:46`, 3 today and 4 after `story:workflow-run-target-identifiers`) and none has
    `merge_result`; after the story it expects 5, the new example decodes, and the last line
-   counts 5 examples. `spec/README.md:122` says 5 examples in § 6.
+   counts 5 examples. `spec/README.md:122` and the header of the script
+   (`spec/record-examples.test.sh:27`, "§ 6 holds 3 examples", 4 after
+   `story:workflow-run-target-identifiers`) say 5 examples in § 6.
+   The script does not see the selection or the two ids, so they are observed with `jq` over
+   the files the script writes, after `sh spec/record-examples.test.sh`:
+   `jq -s '[.[] | objects | select(.evidence.target.selection == "merge_result" and .evidence.candidate != .evidence.target.revision)] | length' target/record-examples/example-*.json`
+   prints 0 before the story and 1 after.
 4. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
 
 ## Notes

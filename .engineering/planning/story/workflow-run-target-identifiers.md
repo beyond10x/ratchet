@@ -2,12 +2,15 @@
 format: aep.planning-md/3
 id: story:workflow-run-target-identifiers
 kind: story
-status: draft
+status: active
 title: A workflow_run target names its run and its job
 summary: The specification and the format document list run_id and job for a target of the kind workflow_run, with a § 6 example; identifiers stays an open map.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 4
+revision: 7
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 6}
+- {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 7}
 ---
 ## Context
 
@@ -37,6 +40,21 @@ it, both list them; a new example in § 6 of `docs/evidence-format.md` has a tar
 and in the header of that script (`:27`) go from 3 to 4; and `sh spec/record-examples.test.sh`
 passes. `ess specify validate` passes, and the story runs `task check:generated` because it
 edits `spec/domains/`.
+
+The script reads `identifiers` as an open map and does not see the two names, so they are
+observed by a count over § 6: `sed -n '/^## 6\. /,/^## 7\. /p' docs/evidence-format.md | grep
+-c '"run_id"'` prints 0 before the story and 1 after, and the same pipe with `'"job"'` prints 0
+before and 1 after.
+
+A `workflow_run` target may carry `selection: candidate`: neither the row `selection` (`:77`)
+nor rule 1 (`:199`) restricts it by kind, and `examples/ci-turnaround.ratchet.yaml:26`
+declares such a plan. Rule 1 then requires `candidate`, and the row `candidate` (`:62`) and the
+summary of `ratchet.evidence.CandidateIdentity` (`spec/domains/evidence.yaml:56-59`) name its
+identity for `revision`, `document` and `build` only. The example writes as `candidate` the
+commit id the run ran at, equal to its `target.revision`, and the story adds that identity for
+`workflow_run` to both places. Text only, no case: no row is added, and
+`spec/record-fields.test.sh` and `spec/record-types.test.sh` keep their count of 78 rows in
+§ 3.
 
 ## Notes
 
