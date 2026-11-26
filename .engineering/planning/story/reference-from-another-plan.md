@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:reference-from-another-plan
 kind: story
-status: active
+status: implemented
 title: A reference is adopted from the evidence of another plan
 summary: 'The run of a reference implementation as the accepted set of the candidate: a requirement names another assessment as the source of its reference.'
 relations:
@@ -19,10 +19,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 18
+revision: 19
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"test_result":1,"review_outcome":7}}}
 ---
 ## Context
 

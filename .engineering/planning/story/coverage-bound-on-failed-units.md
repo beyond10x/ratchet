@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:coverage-bound-on-failed-units
 kind: story
-status: active
+status: implemented
 title: A plan bounds the failed units of its run
 summary: CoverageBounds has no bound for failed, so a run with failed requests qualifies for a timing.
 relations:
@@ -17,10 +17,11 @@ scope:
   path: presets/operation-time@2.preset.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 19
+revision: 20
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

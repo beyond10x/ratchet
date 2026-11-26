@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:gate-entry-unless-only-paths
 kind: story
-status: active
+status: implemented
 title: A gate entry is skipped when every changed path is in a list
 summary: 'The negative form of when: {changed} on a gate entry.'
 relations:
@@ -14,10 +14,11 @@ scope:
   path: spec/README.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 10, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 11, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

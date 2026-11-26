@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:build-target-invocation
 kind: story
-status: active
+status: implemented
 title: The invocation contract covers a target that is a build
 summary: No reserved argument passes the artifact of a build, so the built file is an input and nothing ties it to the revision.
 relations:
@@ -25,10 +25,11 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: cited
   path: spec/record-examples.test.sh
-revision: 22
+revision: 23
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 21, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 22, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 23, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

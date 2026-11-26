@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:plan-declares-what-its-command-needs
 kind: story
-status: active
+status: implemented
 title: A plan declares what its command needs before it runs
 summary: A credential, an environment variable or a device by name, and whether a run is billed; a machine that lacks one is not assessable there.
 relations:
@@ -14,10 +14,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 16
+revision: 17
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

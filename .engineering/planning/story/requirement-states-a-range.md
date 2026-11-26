@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:requirement-states-a-range
 kind: story
-status: active
+status: implemented
 title: A requirement states a range of a number
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
@@ -17,10 +17,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 13
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 

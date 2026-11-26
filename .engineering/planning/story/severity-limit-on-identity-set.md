@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:severity-limit-on-identity-set
 kind: story
-status: active
+status: implemented
 title: A requirement limits the items of an identity set by severity
 relations:
 - decomposes: epic:preset-catalog
@@ -15,10 +15,11 @@ scope:
   path: examples/production-gate.ratchet.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 12
+revision: 13
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 11, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:example-release-quality
 kind: story
-status: active
+status: implemented
 title: An example plan for the quality of a release
 summary: 'examples/release-quality.ratchet.yaml: exact counts with better: lower under a gate that starts report-only.'
 relations:
@@ -14,10 +14,11 @@ scope:
   path: examples/quality/assessors/release-counts@1.assessor.yaml
 - confidence: inferred
   path: examples/release-quality.ratchet.yaml
-revision: 18
+revision: 19
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:05Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

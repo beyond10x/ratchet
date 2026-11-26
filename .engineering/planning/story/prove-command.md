@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:prove-command
 kind: story
-status: active
+status: implemented
 title: 'ratchet prove: run the planted defects of a requirement'
 relations:
 - decomposes: epic:improvement-and-policy
@@ -23,10 +23,11 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 16
+revision: 17
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 

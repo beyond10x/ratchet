@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:requirement-over-two-measurements
 kind: story
-status: active
+status: implemented
 title: A requirement compares two measurements
 summary: A subset between two identity sets and a comparison of two numbers of one unit, for the known-failure list and the reference implementation.
 relations:
@@ -27,10 +27,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 25
+revision: 26
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 24, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 25, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 26, decided_on: {"recorded":{"test_result":1,"review_outcome":6}}}
 ---
 ## Context
 

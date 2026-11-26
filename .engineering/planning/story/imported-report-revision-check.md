@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:imported-report-revision-check
 kind: story
-status: active
+status: implemented
 title: An imported report of another revision is refused
 summary: A report states the revision or source digest it was produced from, and assess refuses one that is not the candidate's.
 relations:
@@ -24,10 +24,11 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 23
+revision: 24
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 22, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 23, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 24, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

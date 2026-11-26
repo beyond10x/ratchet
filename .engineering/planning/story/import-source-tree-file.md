@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:import-source-tree-file
 kind: story
-status: active
+status: implemented
 title: An imported run names a file of the tree as its source
 summary: A source kind for a committed results file and for a run made by hand.
 relations:
@@ -20,10 +20,11 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: cited
   path: spec/record-examples.test.sh
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

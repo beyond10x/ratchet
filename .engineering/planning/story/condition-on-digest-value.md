@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:condition-on-digest-value
 kind: story
-status: active
+status: implemented
 title: A requirement compares a digest with a value the specification states
 summary: A condition with eq on a digest measurement and a pinned sha256 value.
 relations:
@@ -14,10 +14,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 10, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 11, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

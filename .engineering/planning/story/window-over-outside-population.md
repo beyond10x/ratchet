@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:window-over-outside-population
 kind: story
-status: active
+status: implemented
 title: An assessor of a window over a population outside the record store learns its window
 relations:
 - decomposes: epic:ci-turnaround
@@ -17,10 +17,11 @@ scope:
   path: spec/contract-examples.test.sh
 - confidence: cited
   path: spec/domains/assessor.yaml
-revision: 13
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 

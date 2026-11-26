@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:machine-as-a-condition
 kind: story
-status: active
+status: implemented
 title: A plan declares the machine and the build profile as conditions
 summary: Declared condition keys for machine memory, an unused accelerator and the build profile of the measured binary.
 relations:
@@ -20,10 +20,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

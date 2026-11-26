@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:coverage-count-lower-bound
 kind: story
-status: active
+status: implemented
 title: A coverage count the source does not hold is a lower bound or not known
 summary: EvidenceCoverage without inventing the counts an imported report lacks.
 relations:
@@ -28,10 +28,11 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 19
+revision: 20
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

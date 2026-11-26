@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:list-item-statement
 kind: story
-status: active
+status: implemented
 title: An item of a list carries a statement of what it stands for
 summary: A plan states per item of a passed list or of a scope what the item bounds or asserts.
 relations:
@@ -18,10 +18,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 20
+revision: 21
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 21, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:number-states-its-source
 kind: story
-status: active
+status: implemented
 title: A limit or a tolerance of a ratchet/1 file states its source
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
@@ -17,10 +17,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

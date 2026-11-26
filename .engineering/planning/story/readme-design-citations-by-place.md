@@ -2,17 +2,18 @@
 format: aep.planning-md/3
 id: story:readme-design-citations-by-place
 kind: story
-status: active
+status: implemented
 title: The README of the specification cites the design by place, not by line number
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
   path: spec/README.md
-revision: 9
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 9, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 10, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

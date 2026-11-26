@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:plan-never-assessed
 kind: story
-status: active
+status: implemented
 title: A plan that was never assessed is told apart from a plan whose record is missing
 summary: A plan in observe mode with no run is reported as never assessed, and a file can state that no run is expected yet.
 relations:
@@ -16,10 +16,11 @@ scope:
   path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 19
+revision: 20
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

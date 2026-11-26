@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:gate-judges-commit-of-a-tag
 kind: story
-status: active
+status: implemented
 title: A gate states that it judges the commit of a tag
 summary: A candidate gate names the revision it judges when that is not the candidate of a change, first the commit a tag points at.
 relations:
@@ -16,10 +16,11 @@ scope:
   path: spec/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 17
+revision: 18
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:coverage-count-with-reference
 kind: story
-status: active
+status: implemented
 title: A coverage count is a measurement a reference can protect
 summary: executed, skipped, not_run and unsupported as measurements with a direction and an accepted value.
 relations:
@@ -18,10 +18,11 @@ scope:
   path: spec/example-declarations.test.sh
 - confidence: cited
   path: spec/presets.test.sh
-revision: 13
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:02Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 

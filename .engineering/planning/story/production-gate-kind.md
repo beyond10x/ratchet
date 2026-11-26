@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:production-gate-kind
 kind: story
-status: active
+status: implemented
 title: A gate states that it is a production gate
 relations:
 - decomposes: epic:preset-catalog
@@ -17,10 +17,11 @@ scope:
   path: presets/production.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

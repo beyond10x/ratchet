@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:result-with-two-dimensions
 kind: story
-status: active
+status: implemented
 title: A number result carries its condition cell beside its scope item
 summary: A result per scenario and viewport without joining the two into one item name.
 relations:
@@ -26,10 +26,11 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 17
+revision: 18
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:01Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

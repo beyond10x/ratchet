@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:records-tracked-baseline-directory
 kind: story
-status: active
+status: implemented
 title: The local config names a tracked directory of baseline records
 summary: A read-only source of records in the tree beside the directory a machine writes.
 relations:
@@ -16,10 +16,11 @@ scope:
   path: examples/ratchet.toml
 - confidence: cited
   path: spec/domains/config.yaml
-revision: 12
+revision: 13
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 11, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

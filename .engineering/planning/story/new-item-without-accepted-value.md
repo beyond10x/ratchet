@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:new-item-without-accepted-value
 kind: story
-status: active
+status: implemented
 title: A scope item with no accepted value of its own can be judged
 relations:
 - decomposes: epic:improvement-and-policy
@@ -17,10 +17,11 @@ scope:
   path: spec/domains/gate.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 13
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:04Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":6}}}
 ---
 ## Context
 

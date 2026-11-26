@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:member-for-some-input-values
 kind: story
-status: active
+status: implemented
 title: A preset leaves a member out for some values of an input
 summary: 'A reference to an input stands for a value and no key, so a preset declares an aggregation for runs: 1 too.'
 relations:
@@ -23,10 +23,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 20
+revision: 21
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 21, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

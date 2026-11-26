@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:assertion-required-items
 kind: story
-status: active
+status: implemented
 title: A plan names the items an assertion must have
 summary: An assertion takes no reference, so no set names the expectations that must be there; one bound covers both endpoints of health-readiness@1.
 relations:
@@ -17,10 +17,11 @@ scope:
   path: presets/operability.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 17
+revision: 18
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Context
 

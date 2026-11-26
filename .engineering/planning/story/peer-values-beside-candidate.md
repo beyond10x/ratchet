@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:peer-values-beside-candidate
 kind: story
-status: draft
+status: rejected
 title: Values of other implementations stand beside the candidate's
 summary: A measurement carries values of named other implementations with version and method; no gate reads them. Or the boundary excludes it, in writing.
 relations:
@@ -16,7 +16,10 @@ scope:
   path: docs/design.md
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 6
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T23:39:05Z", actor: "human:operator", revision: 7}
+- {from: "proposed", to: "rejected", at: "2026-11-26T23:39:05Z", actor: "human:operator", revision: 8}
 ---
 ## Context
 

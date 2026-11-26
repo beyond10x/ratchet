@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:input-allowed-values
 kind: story
-status: active
+status: implemented
 title: An input of a preset declares the values it may have
 summary: An input has a type and no list of values, so a wrong direction word is found where it is used.
 relations:
@@ -19,10 +19,11 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 18
+revision: 19
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-26T23:39:03Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 
