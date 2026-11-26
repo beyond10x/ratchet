@@ -41,14 +41,27 @@
 #   inputs    no input of a preset is local, and a default is a value of the type of its
 #             input. A scalar of a preset that holds `${` or `{inputs.` is
 #             `${inputs.<name>}` alone, `<name>` is a declared input of the preset, and the
-#             type of the input fits the place (`ratchet.specification.InputReference`).
+#             type of the input fits the place (`ratchet.specification.InputReference`). An
+#             input of the type `conditions` stands as the whole value of
+#             `observation.conditions` of a plan, a map from a target class to its
+#             conditions, and nowhere else, and only a preset declares one: an input of a
+#             declaration of that type is refused, because an assessor reads no plan's
+#             conditions as an input.
 #             `<name>` is the key of the input as this script reads a key, so
 #             `${inputs.a.b}` refers to the input `a.b`: the specification gives the name of
 #             an input no type but text. In a declaration `${` is text, and only a scalar
 #             that is `${inputs.<name>}` alone is refused there: a declaration has no
 #             inputs to refer to. An input of a declaration has no name of
 #             `ratchet.assessor.ReservedArgument`, such as `out`: Ratchet passes those
-#             arguments itself (docs/evidence-format.md § 10, "Reserved names")
+#             arguments itself (docs/evidence-format.md § 10, "Reserved names"). An input of
+#             the type `string` that lists `values` (`InputDeclaration.values`) is read
+#             against them: its default, of a preset or of a declaration, and each item of a
+#             list default is one of the values, and a reference to it at the place of an
+#             enum, such as `better`, stands there only where each of its values is a value
+#             of that enum. An input of the type `string` without `values` stays accepted at
+#             the place of an enum, as `code-lines@1` writes it: the binding passes the word.
+#             A literal that a plan passes to an input of its assessor's declaration with
+#             `values` is checked by the rule `assessor`
 #   names     a requirement names an assessment of its preset and a measurement of that
 #             assessment, and the statements it serves are statements of the preset. These
 #             three names are written out: a reference there is refused, because no row
@@ -59,6 +72,8 @@
 #             of the declaration that is not local, and its value has the declared type: a
 #             literal by its YAML kind, a reference by the type of the input of the preset
 #             (an `integer` also where a `decimal` is declared), and so each item of a list.
+#             A literal, and each item of a literal list, is one of the `values` the
+#             declaration lists for the input, where it lists them.
 #             Every required input that is not local is passed. An input that the
 #             declaration names in `observation_inputs` under a key
 #             is passed by the key of the plan's `observation`: a plan has that key where
@@ -118,7 +133,8 @@
 #   sampled   what docs/design.md § 3 and § 5 say `ratchet validate` reports. The plan of a
 #             measurement of the kind `sampled` declares at least one condition under
 #             `observation.conditions`, unless it reads the runs of another plan (`runs_of`),
-#             which declares none. A requirement that compares such a measurement with a
+#             which declares none, or an input of the type `conditions` gives them. A
+#             requirement that compares such a measurement with a
 #             reference of the kind `accepted_value` has a `reference.tolerance` with a
 #             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
 #             without a declaration, so also on a plan of `record-series@1`. A measurement of
@@ -183,26 +199,31 @@
 #     sampled measurement of a plan with more than one run and forbids it nowhere else, and an
 #     exact value is the same in every run
 #   - `runs: 1` with an aggregation. docs/design.md § 3, "One run per candidate is valid":
-#     "With `runs: 1` a measurement may declare one of the existing aggregation kinds when the
-#     command repeats its measurement itself within the one run, such as a command that times
-#     its work three times and prints the median, or one that prints a value per segment of
-#     its output: the repeats are samples of that run (evidence format § 1), and the result
-#     carries their number in `samples`." The script cannot see whether a command repeats its
-#     measurement itself
+#     "An aggregation of one value is that value", so a measurement may declare its
+#     aggregation for every value of `runs`, and a preset whose `runs` is an input does so,
+#     such as `workload-throughput@1`; at `runs: 1` with a command that measures once the
+#     result carries `samples: 1` and is judged as observed. And "With `runs: 1` a measurement
+#     may declare one of the existing aggregation kinds when the command repeats its
+#     measurement itself within the one run": the repeats are samples of that run. So the form
+#     is valid whether or not the command repeats its measurement, which the script cannot see
 #   - the invariants of the types, beside the four of an assessment plan under `series` and
 #     those of a condition that `compare` reads (`within` with its two bounds in order, `min`
 #     and `max` on no other operator, `subset_of` with `against`, a `digest` with `eq`): they
 #     are written in the expression language of ESS, and `ess generate synthesize` writes
 #     them as Rust. So a `digest` beside a `value` on a number, and `against` beside a
-#     `value`, a `digest`, a `min` or a `max`, are left to the decoder
+#     `value`, a `digest`, a `min` or a `max`, are left to the decoder, and so are a default
+#     and a `list` on an input of the type `conditions`, and `values` on an input of another
+#     type than `string`, whose default and literals are then not read against `values`
 #   - a value that an input gives, where a rule reads the value: the binding passes it. These
 #     are the assessor of an assessment, and with it every rule that reads its declaration;
 #     the output of a measurement, and with it the rules on that measurement and on the
 #     requirements that compare it; the kind, the unit, the scope, the boundary and the
 #     identity key of a measurement, also where one item of the key is a reference; a value of
 #     a `filter`; the kind of an aggregation over an assertion; the `runs` of a plan and the
-#     `over_all_runs` of a measurement; an operator; the unit of a condition; and the kind of a
-#     reference. Only the kind of a target is read from the default of its input
+#     `over_all_runs` of a measurement; an operator; the unit of a condition; the kind of a
+#     reference; the conditions of a plan, which the rule `sampled` then counts as
+#     declared; and a reference that a plan passes to an input of its assessor that lists
+#     `values`. Only the kind of a target is read from the default of its input
 #   - a measurement of a plan of `record-series@1` against the measurement of the source plan
 #     it reads (the output, the kind, the unit, the scope, the boundary, the identity key,
 #     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
@@ -653,9 +674,16 @@ check_catalog() {
     return n == 4 && s[3] == "serves"
   }
 
+  # 1 when `path` is the `observation.conditions` of a plan, where an input of the type
+  # `conditions` stands.
+  function plan_conditions(path,    n, s) {
+    n = split(path, s, SEP)
+    return n == 4 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions"
+  }
+
   # A scalar of a preset that holds `${` or `{inputs.`, or a scalar of a declaration that is
   # `${inputs.<name>}` alone: a reference to an input of the preset.
-  function reference(i, F, fk, path, t,    x, name, ip, it, il, u, e, b, ok, here) {
+  function reference(i, F, fk, path, t,    x, name, ip, it, il, u, e, b, ok, here, j, v) {
     x = n_text[i]
     here = "`" shown(path) "` "
     if (x !~ REF) { fail(F, n_line[i], here "holds `${` or `{inputs.` and is not `${inputs.<name>}` alone: a reference to an input is the whole of a value and has this one spelling"); return }
@@ -676,13 +704,23 @@ check_catalog() {
       if (il) { fail(F, n_line[i], here "takes one value (`" u "`), and the input `" name "` declares a list"); return }
       e = u
     }
-    if (e ~ /^Map<String, / || e ~ /^List</ || is_struct(e)) { fail(F, n_line[i], here "is a `" e "`, and an input stands for a scalar or a list of scalars"); return }
+    # An input of the type `conditions` stands as the whole value of `observation.conditions`
+    # of a plan, and nowhere else.
+    if (it == "conditions" && plan_conditions(path)) return
+    if (e ~ /^Map<String, / || e ~ /^List</ || is_struct(e)) { fail(F, n_line[i], here "is a `" e "`, and an input stands for a scalar or a list of scalars" (plan_conditions(path) ? ", or for the conditions of a plan where it has the type `conditions`" : "")); return }
     b = base(e)
     if (b == "Integer") ok = (it == "integer")
     else if (b == "Decimal") ok = (it == "integer" || it == "decimal")
     else if (b == "Boolean") ok = (it == "boolean")
     else ok = (it == "string" || it == "path")
-    if (!ok) fail(F, n_line[i], here "takes `" e "`, and the input `" name "` has the type `" it "`")
+    if (!ok) { fail(F, n_line[i], here "takes `" e "`, and the input `" name "` has the type `" it "`"); return }
+    # An input with `values` stands at the place of a closed list only where each of its
+    # values is a value of that list.
+    if (kind[b] == "enum" && it == "string" && has(F, ip SEP "values"))
+      for (j = 1; has(F, ip SEP "values" SEP "[" j "]"); j++) {
+        v = text(F, ip SEP "values" SEP "[" j "]")
+        if (!((b, v) in variant)) { fail(F, n_line[i], here "takes `" e "`, and the input `" name "` lists the value `" v "`, which is no value of " b); return }
+      }
   }
 
   # ---- what joins two places of the directory -----------------------------------------------
@@ -758,6 +796,21 @@ check_catalog() {
     return c + 0
   }
   function last(path) { sub(/^.*\037/, "", path); return path }
+
+  # The first value at `path` of the file F, or the first item of the list there, that the
+  # list at `vp` of the file VF does not hold; "" where it holds each. With `refs`, where a
+  # plan passes the value, a reference is not read: the binding passes its value.
+  function outside(F, path, VF, vp, refs,    j, x) {
+    if (has(F, path SEP "[1]")) {
+      for (j = 1; has(F, path SEP "[" j "]"); j++) {
+        x = text(F, path SEP "[" j "]")
+        if (!(refs && given(x)) && !holds(VF, vp, x)) return x
+      }
+      return ""
+    }
+    x = text(F, path)
+    return ((refs && given(x)) || holds(VF, vp, x)) ? "" : x
+  }
 
   # ---- a page: what Markdown does not show ---------------------------------------------------
 
@@ -1073,9 +1126,13 @@ check_catalog() {
       if (s[n] == "default" && ((fk == "preset" && n == 4 && s[1] == "preset" && s[2] == "inputs") || (fk == "assessor" && n == 3 && s[1] == "inputs"))) {
         ip = substr(path, 1, length(path) - 8)
         it = text(F, ip SEP "type"); il = (text(F, ip SEP "list") == "true")
-        if (("ratchet.specification.InputType", it) in variant) {
+        # An input of the type `conditions` has no default: the decoder reads that invariant.
+        if (("ratchet.specification.InputType", it) in variant && it != "conditions") {
           m = unfit(F, path, it, il, 0)
           if (m != "") fail(F, n_line[i], named(path) m ", and its input has the type " typed(it, il))
+          # A default is one of the values of its input.
+          else if (it == "string" && has(F, ip SEP "values") && (v = outside(F, path, F, ip SEP "values", 0)) != "")
+            fail(F, n_line[i], named(path) (il ? "holds the item `" : "is `") v "`, which is none of the values `" items(F, ip SEP "values") "` of the input `" last(ip) "`")
         }
       }
       # The cache condition has one name in a plan, a declaration and a record:
@@ -1086,6 +1143,10 @@ check_catalog() {
       # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
       if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
         fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
+      # An assessor reads the conditions of no plan as an input: only a preset declares an
+      # input of the type `conditions` (ratchet.specification.InputDeclaration).
+      if (fk == "assessor" && n == 3 && s[1] == "inputs" && s[3] == "type" && n_text[i] == "conditions")
+        fail(F, n_line[i], "`inputs." s[2] "` has the type `conditions`, and only a preset declares an input of the type `conditions`: an assessor reads no plan'"'"'s conditions as an input")
       # A key of `observation_inputs` is a key of the observation that Ratchet passes, and
       # names an input of the declaration (docs/evidence-format.md § 10, "Invocation").
       if (fk == "assessor" && n == 2 && s[1] == "observation_inputs") {
@@ -1177,6 +1238,9 @@ check_catalog() {
         } else {
           m = unfit(F, path, dt, dl, 1)
           if (m != "") fail(F, n_line[i], named(path) m ", and `" a "` declares the input `" s[4] "` as " typed(dt, dl))
+          # A literal is one of the values that the declaration lists for the input.
+          else if (dt == "string" && has(D, dp SEP "values") && (v = outside(F, path, D, dp SEP "values", 1)) != "")
+            fail(F, n_line[i], named(path) (dl ? "holds the item `" : "is `") v "`, which is none of the values `" items(D, dp SEP "values") "` that `" a "` declares for the input `" s[4] "`")
         }
       }
 
@@ -1187,8 +1251,10 @@ check_catalog() {
         # Sampled evidence qualifies under declared conditions (docs/design.md § 3,
         # "Measurement kind and observation conditions"). A window over the runs of another
         # plan declares none: only runs that qualified under the source plan enter it.
+        # Conditions that an input of the type `conditions` gives are passed by the binding,
+        # and not read.
         plan = "assessments" SEP s[2]
-        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
+        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0 && !given(text(F, plan SEP "observation" SEP "conditions")))
           fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
         # A sampled measurement of a plan with more than one run states an aggregation, or
         # `over_all_runs: true`, a value the assessor computes over all runs of the plan, which
@@ -2045,11 +2111,16 @@ swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
 swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
 # A condition and a field of a population filter that the declaration lists, beside a
 # condition of Ratchet itself, and two conditions of the machine and the build that the
-# declaration does not list: the rule reads the members of ObservationConditions.
+# declaration does not list: the rule reads the members of ObservationConditions. The plan
+# declares what its command needs, by name (ObservationPlan.needs).
 swap "$conf_d" 'conditions: []' 'conditions: [cache_profile]'
 printf 'population_fields: [service]\n' >> "$c/$conf_d"
-swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard, build_profile: release, cpu_model: \"AMD EPYC 7763\"}}'
-accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the conditions runner, build_profile and cpu_model of Ratchet and a declared field of a population filter"
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard, build_profile: release, cpu_model: \"AMD EPYC 7763\"}}\n      needs: {environment: [PROVIDER_TOKEN], billed: true}'
+# The conditions of a plan as the whole value of `observation.conditions`, given by an input
+# of the type `conditions`.
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    conditions: {type: conditions, required: true}'
+swap "$known" '      kind: snapshot' '      kind: snapshot\n      conditions: ${inputs.conditions}'
+accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the conditions runner, build_profile and cpu_model of Ratchet, a declared field of a population filter, the needs of a command and the conditions of a plan by an input of the type conditions"
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
@@ -2561,7 +2632,7 @@ refused 'the input `report` is local, and a preset declares no local input' "an 
 
 # -- the inputs of a preset ----------------------------------------------------------------------
 
-# Eleven references, each at a path of its own in one copy.
+# Thirteen references, each at a path of its own in one copy, and an input of a declaration.
 copy input-undeclared
 swap "$conf" "$passes" '      report: ${inputs.reports}'
 refused 'refers to the input `reports`, which the preset does not declare' "an assessment refers to the input reports"
@@ -2606,6 +2677,23 @@ again input-integer-for-text
 swap "$differ" '    subject: ${inputs.subject}' '    subject: ${inputs.different_limit}'
 refused 'takes `ratchet.specification.SubjectName`, and the input `different_limit` has the type `integer`' "the subject of an assessment is an integer input"
 
+# An input of the type `conditions` stands as the whole value of `observation.conditions`, and
+# only a preset declares one.
+again conditions-input-at-a-scalar
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    conditions: {type: conditions, required: true}'
+swap "$known" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {runner: "${inputs.conditions}"}}'
+refused '`assessments.known-failures.observation.conditions.all.runner` takes `String`, and the input `conditions` has the type `conditions`' "the runner of a class is a conditions input"
+
+again conditions-input-in-a-declaration
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  machine: {type: conditions, required: false}'
+refused '`inputs.machine` has the type `conditions`, and only a preset declares an input of the type `conditions`' "a declaration declares an input of the type conditions"
+
+# An input with `values` stands at the place of an enum only where each value is a variant.
+again input-values-outside-enum
+swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, required: true}\n    way: {type: string, required: true, values: [lower, sideways]}'
+swap "$conf" '        better: higher' '        better: ${inputs.way}'
+refused '`assessments.conformance.measurements.passed.better` takes `ratchet.specification.Direction`, and the input `way` lists the value `sideways`, which is no value of ratchet.specification.Direction' "an input whose values hold sideways stands at better"
+
 copy input-in-preset-block
 swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: "${inputs.subject}", required: true}'
 refused '`preset.inputs.subject.type` is a reference inside the `preset` block' "the type of an input is a reference"
@@ -2618,7 +2706,8 @@ edit_spec specification.yaml '
   { print }'
 refused 'takes `Boolean`, and the input `subject` has the type `string`' "the specification makes the subject of a plan a boolean, and the presets pass a text input"
 
-# Five defaults of five inputs in one copy, and two more of two of those inputs in a second.
+# Five defaults of five inputs in one copy, and in a second two more of two of those inputs and
+# the default of an input with `values`.
 copy input-default-integer
 swap "$differ" '    different_limit: {type: integer, required: true}' '    different_limit: {type: integer, required: true, default: banana}'
 refused '`preset.inputs.different_limit.default` is no integer, and its input has the type `integer`' "the default of an integer input is a word"
@@ -2646,6 +2735,10 @@ refused '`preset.inputs.different_limit.default` is no decimal without exponent'
 again input-default-item
 swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true, default: [ci, 3]}'
 refused '`preset.inputs.environments.default` holds an item that is no text' "the default of a list of text holds the integer 3"
+
+again input-default-outside-values
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    direction: {type: string, required: false, values: [lower, higher], default: sideways}'
+refused '`preset.inputs.direction.default` is `sideways`, which is none of the values `[lower, higher]` of the input `direction`' "the default of an input is none of its values"
 
 # -- names inside a preset -----------------------------------------------------------------------
 
@@ -2794,6 +2887,11 @@ refused '`assessments.comparison.inputs.exclude` holds an item that is the input
 again assessor-input-literal
 swap "$known" '      list: ${inputs.list}' '      list: 3'
 refused '`assessments.known-failures.inputs.list` is no text, and `case-list@1` declares the input `list` as `path`' "an assessment passes the integer 3 where a path is declared"
+
+again plan-literal-outside-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  mode: {type: string, required: false, values: [strict, lenient]}'
+swap "$known" '    inputs:' '    inputs:\n      mode: loose'
+refused '`assessments.known-failures.inputs.mode` is `loose`, which is none of the values `[strict, lenient]` that `case-list@1` declares for the input `mode`' "a plan passes a word that is none of the values of the input of its assessor"
 
 again assessor-unit-undeclared
 swap "$conf" '        identity: [case_id]' '        identity: [case_id]\n        unit: cases'

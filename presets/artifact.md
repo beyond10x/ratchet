@@ -326,12 +326,14 @@ key to a format; each point names the place in the specification
    binary it holds" compares two measurements. `ratchet.specification.QualityRequirement`
    names one ([functional.md](functional.md), point 2).
 3. **The conditions of a plan as an input.** As for the latency family
-   ([latency.md](latency.md), "Not expressible yet", point 3): an input stands for a scalar or
-   a list of scalars and for no map, so a binding cannot pass the tools that decide a size,
-   such as the version of the compiler, as the condition `tools`. The date of an advisory
-   database is no condition of Ratchet itself, and a declaration could name one; a snapshot of
-   an exact set would then stop qualifying with every new day, so `advisory-report@1` declares
-   none.
+   ([latency.md](latency.md), "Not expressible yet", point 3): up to `operation-time@1` an input
+   stood for a scalar or a list of scalars and for no map, so a binding cannot pass the tools
+   that decide a size, such as the version of the compiler, as the condition `tools`.
+   The input type `conditions` answers it from `operation-time@2` on, as the whole value of
+   `observation.conditions`, and the presets of this family still fix their conditions, none,
+   until a version of their own takes the input. The date of an advisory database is no
+   condition of Ratchet itself, and a declaration could name one; a snapshot of an exact set
+   would then stop qualifying with every new day, so `advisory-report@1` declares none.
 4. **A target that is a build.** What the family judges is a built thing, and
    `ratchet.specification.TargetKind` has `build` for it. Up to `binary-size@1` each plan of
    the family names the kind `revision`, the built file is an input, and the program writes

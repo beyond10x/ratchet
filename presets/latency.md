@@ -40,7 +40,7 @@ Each preset holds one plan of the kind `controlled_run` with these inputs:
 | `report` | path | yes | The timing report of the workload runs, relative to the root of the tree |
 | `workload` | string | yes | The workload of the project, by its path or its name, such as `workloads/conformance.yaml`. Ratchet ships no workload and no load runner |
 | `environments` | list of string | yes | The target classes the plan runs in, such as `[ci]` |
-| `runner` | string | yes | The label of the runner whose runs qualify, such as `ci-standard`. It is the condition of the plan in every class |
+| `runner` | string | yes | The label of the runner whose runs qualify, such as `ci-standard`. It is the condition of the plan in every class. `operation-time@2` takes the input `conditions` in its place |
 | `runs` | integer | yes | The number of runs of the workload behind a value. It has no default; `1` is valid |
 | `adoption_runs` | integer | yes | The number of qualifying runs on the trusted revision whose median becomes the accepted value. It has no default |
 
@@ -155,12 +155,17 @@ preset, with the cause `coverage_below_plan`: a failed request is often the fast
 one, so the timing of the others says nothing
 ([`docs/design.md`](../docs/design.md) § 3, "Evidence coverage"). The bound is a number of
 requests, `timing-report@1` counts them as `failed`, and the failures themselves are judged
-by [`conformance-cases@1`](functional.md) in a plan of their own. The other inputs, the
-requirements and the binding are those of `operation-time@1`, with `use: operation-time@2`
-and the input below. The file `@1` stays as it was released.
+by [`conformance-cases@1`](functional.md) in a plan of their own. The binding passes the
+conditions of the plan as the input `conditions`, of the input type `conditions`, in place of
+the input `runner` of `@1`: the whole map `observation.conditions`, a class and its conditions,
+so a project may bound the host load for the class `local` and name a runner for the class
+`ci` ([`docs/design.md`](../docs/design.md) § 4, "Presets"). The other inputs and the
+requirements are those of `operation-time@1`, with `use: operation-time@2` and the inputs
+below. The file `@1` stays as it was released.
 
 | Input | Type | Required | What it is |
 | --- | --- | --- | --- |
+| `conditions` | conditions | yes | The conditions whose runs qualify, a map from a target class to its conditions, with `all` for what holds in every class. It has no default |
 | `failed_requests_max` | integer | yes | The most failed requests of a run that qualifies. It has no default: `0` says that a run with one failed request decides nothing |
 
 | Measurement | Direction | Unit | Tolerance | Evidence |
@@ -168,6 +173,30 @@ and the input below. The file `@1` stays as it was released.
 | `operation-time@2/operations/p50` | Lower | `ms` | The input `p50_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, boundary `request_start_to_response_complete`, the 50th percentile per operation, of a run with at most `failed_requests_max` failed requests |
 | `operation-time@2/operations/p95` | Lower | `ms` | The input `p95_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, the same boundary, the 95th percentile per operation, of such a run |
 | `operation-time@2/operations/p99` | Lower | `ms` | The input `p99_tolerance_percent`; required, no default | `timing-report@1`, output `duration`, the same boundary, the 99th percentile per operation, of such a run |
+
+```yaml
+presets:
+  latency:
+    use: operation-time@2
+    digest: sha256:<digest of the preset file>
+    with:
+      subject: orders-api
+      report: target/workload/timing.json
+      workload: workloads/conformance.yaml
+      environments: [local, ci]
+      conditions:
+        local: {host_load_per_cpu: {max: 0.5}}
+        ci: {runner: ci-standard}
+      runs: 3
+      min_samples: 200
+      adoption_runs: 10
+      p50_tolerance_percent: 10
+      p95_tolerance_percent: 15
+      p99_tolerance_percent: 25
+      failed_requests_max: 0
+```
+
+The numbers of this binding are illustrations and no recommendation.
 
 ## `event-time@1`
 
@@ -301,14 +330,23 @@ key to a format; each point names the place in the specification
    another plan (point 1), which a tolerance then applies to.
 3. **The conditions of a plan as an input.** A project may want a bound on the host load for
    the class `local` and a runner for the class `ci`. `ratchet.specification.ObservationPlan`
-   holds `conditions` as a map from a class to its conditions, and
-   `ratchet.specification.InputType` has no type for a map: an input stands for a scalar or a
-   list of scalars. So each preset of the family fixes the form, a `runner` in every class.
+   holds `conditions` as a map from a class to its conditions, and up to `operation-time@1` an
+   input stood for a scalar or a list of scalars, so each preset of the family fixed the form,
+   a `runner` in every class. Answered from `operation-time@2` on: the input type `conditions`
+   of `ratchet.specification.InputType` stands as the whole value of `observation.conditions`,
+   and the binding passes the conditions of every class
+   ([`docs/design.md`](../docs/design.md) § 4, "Presets").
+   `operation-time@1`, `event-time@1`, `event-time@2` and `workload-throughput@1` still fix a
+   `runner` in every class until a version of their own takes the input.
 4. **A member that is there for some values of an input.** `ratchet.specification.Measurement`
-   says of `aggregation` that it is absent with `runs: 1`, and a plan declares `paired` or
+   said of `aggregation` that it is absent with `runs: 1`, and a plan declares `paired` or
    leaves it out. `ratchet.specification.InputReference` stands for a value and for no key, so
    a preset cannot leave a member out when the binding passes `runs: 1`.
-   `workload-throughput@1` therefore always declares the median of the runs.
+   `workload-throughput@1` therefore always declares the median of the runs. This point is
+   answered without a new form ([`docs/design.md`](../docs/design.md) § 3, "One run per
+   candidate is valid"): an aggregation of one value is that value, so a measurement may
+   declare its aggregation for every value of `runs`, and at `runs: 1` the result carries
+   `samples: 1` and is judged as observed. The presets stay as they are.
 5. **A coverage bound on failed units.** A run in which requests fail should not qualify for a
    timing. Up to `operation-time@1`, `ratchet.specification.CoverageBounds` bounded
    `executed`, `skipped`, `not_run` and `unsupported` and had no bound for `failed`: the

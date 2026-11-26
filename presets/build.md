@@ -408,15 +408,22 @@ key to a format; each point names the place in the specification
    build" compares two measurements. `ratchet.specification.QualityRequirement` names one
    ([functional.md](functional.md), point 2).
 3. **The conditions of a plan as an input.** As for the latency family
-   ([latency.md](latency.md), "Not expressible yet", point 3): an input stands for a scalar or
-   a list of scalars and for no map. So each preset fixes the form, a `runner` in every class,
-   and a binding cannot pass the tools that decide a build time, such as the version of the
-   compiler, as the condition `tools`. The cache profile is a text, and the presets still fix
+   ([latency.md](latency.md), "Not expressible yet", point 3): up to `operation-time@1` an input
+   stood for a scalar or a list of scalars and for no map. So each preset fixes the form, a
+   `runner` in every class, and a binding cannot pass the tools that decide a build time, such
+   as the version of the compiler, as the condition `tools`.
+   The input type `conditions` answers it from `operation-time@2` on, as the whole value of
+   `observation.conditions`, and the presets of this family still fix their conditions until a
+   version of their own takes the input. The cache profile is a text, and the presets still fix
    it: `cold` and `warm` are two criteria with a row each, and an input would give one row for
    both.
 4. **A member that is there for some values of an input.** As for the latency family
    ([latency.md](latency.md), point 4): a preset cannot leave `aggregation` out when the
    binding passes `runs: 1`, so the four durations always declare the median of the runs.
+   This point is answered without a new form
+   ([`docs/design.md`](../docs/design.md) § 3, "One run per candidate is valid"): an
+   aggregation of one value is that value, so at `runs: 1` the result carries `samples: 1`
+   and is judged as observed. The presets stay as they are.
 5. **The inputs that hold the observation.** As for the latency family
    ([latency.md](latency.md), point 6): a plan names the command twice, as
    `observation.command` and as the input `build_command` or `test_command`, and

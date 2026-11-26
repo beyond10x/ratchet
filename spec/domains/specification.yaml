@@ -151,7 +151,10 @@ types:
         measurement of a plan with `runs` above 1 states an aggregation or
         `Measurement.over_all_runs`, a value its assessor computes over all runs of the plan,
         such as the share of tests that passed in one run and failed in another; one that
-        states neither is an error (§ 3 "One run per candidate is valid").
+        states neither is an error (§ 3 "One run per candidate is valid"). An aggregation
+        of one value is that value: the median, a percentile and the best of one value are the
+        value, and the pass rate of one run is its result. So an aggregation is valid for
+        every value of `runs`, also 1.
     fields:
       - name: kind
         type: ratchet.specification.AggregationKind
@@ -195,15 +198,18 @@ types:
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: >-
-          Absent with `runs: 1` where the command measures once: the value is judged as
+          Not needed with `runs: 1` where the command measures once: the value is judged as
           observed (§ 3 "One run per candidate is valid"). With `runs: 1` one of the existing
           aggregation kinds is valid where the command repeats its measurement itself within
           the one run, such as the median of three timings it prints or a value per segment
-          of its output: the repeats are samples of that run (evidence format § 1). On a
-          time-window plan, the aggregation across the runs in the window: one
-          value at the scope `run`, one value per item at any other scope; a window aggregates
-          numbers, and assertions with `pass_rate`. Absent where the measurement states
-          `over_all_runs`.
+          of its output: the repeats are samples of that run (evidence format § 1). The
+          aggregation of one value is that value, so a measurement may declare it for every
+          value of `runs`, as a preset whose `runs` is an input does: at `runs: 1` with a
+          command that measures once the result carries `samples: 1` and is judged as
+          observed. On a time-window plan, the aggregation across the runs in the window:
+          one value at the scope `run`, one value per item at any other scope; a window
+          aggregates numbers, and assertions with `pass_rate`. Absent where the measurement
+          states `over_all_runs`.
       - name: over_all_runs
         type: Optional<Boolean>
         summary: >-
@@ -550,11 +556,12 @@ types:
     kind: struct
     naming:
       summary: >-
-        How evidence is collected: the observation kind, the scenarios, the workload or command,
-        the run or sample count, a paired run or a time window, the conditions that qualify per
-        target class and the coverage that qualifies (§ 3). A time-window plan
-        (`kind: time_window`) declares `window`, `population` and `min_samples`; a plan of
-        another kind declares neither `window` nor `population`. `ratchet validate` reports
+        How evidence is collected: the observation kind, the scenarios, the workload or command
+        and what the command needs, the run or sample count, a paired run or a time window, the
+        conditions that qualify per target class and the coverage that qualifies (§ 3). A
+        time-window plan (`kind: time_window`) declares `window`, `population` and
+        `min_samples`; a plan of another kind declares neither `window` nor `population`.
+        `ratchet validate` reports
         both (`time_window_incomplete`, `window_on_other_kind`). One plan may hold exact and
         sampled measurements of its one run, in every observation kind: the kind is that of the
         run, such as `controlled_run` with `runs: 1` for a browser run that yields a count and
@@ -601,11 +608,49 @@ types:
         type: Optional<Map<String, ratchet.specification.ObservationConditions>>
         summary: >-
           Keyed by target class (`local`, `ci`, …), with `all` for what holds in every class.
+          In a preset the whole map may be a reference to an input of the type `conditions`,
+          which the binding passes (§ 4 "Presets").
           `ratchet validate` reports a sampled measurement whose plan declares none, except on
           a window over `runs_of`, which declares no conditions of its own: only runs that
           qualified under the source plan enter its population (§ 3).
       - name: coverage
         type: Optional<ratchet.specification.CoverageBounds>
+      - name: needs
+        type: Optional<ratchet.specification.CommandNeeds>
+        summary: >-
+          What the command of the plan needs before it runs, each by name (§ 3 "The local gate
+          and CI are different targets"). `ratchet assess` checks each need before it starts
+          the command: a run on a machine that lacks a need does not start, and the requirement
+          is not assessable there, insufficient evidence with the cause `not_assessable_here`
+          and the name of the need (§ 5 "Local config", rule 6). Absent, the command needs
+          nothing that Ratchet checks.
+
+  - name: ratchet.specification.CommandNeeds
+    kind: struct
+    naming:
+      summary: >-
+        What the command of a plan needs before it runs (§ 3): environment variables, files,
+        and whether a run is billed. A need is written by name and never by value: the file
+        holds no secret, and a value would differ per machine, as a local input does
+        (`local_input_in_specification`). A need with a value, such as an expected version of
+        a driver, is a condition (`ratchet.specification.ObservationConditions`) and no need.
+    fields:
+      - name: environment
+        type: Optional<List<String>>
+        summary: >-
+          The names of environment variables that are set before the run, such as
+          `PROVIDER_TOKEN`; a credential is one of them.
+      - name: files
+        type: Optional<List<String>>
+        summary: >-
+          The paths that exist before the run, such as a device file `/dev/kfd` or a credential
+          file.
+      - name: billed
+        type: Optional<Boolean>
+        summary: >-
+          `true`: a run costs money at a provider. `ratchet explain` and `ratchet assess` name
+          it, and only `[local] skip` leaves it out of the runs of a machine (§ 5 "Local
+          config", rule 1). Absent means `false`.
 
   # § 3 value lists: Ratchet, closed. The five number operators compare a number or the item
   # count of a set; `no_new_items` and `no_lost_items` compare a set with the accepted set;
@@ -903,23 +948,31 @@ types:
     naming:
       summary: The revision or decision that authorized a change, such as `decision:<id>` (§ 5, § 6).
 
-  # § 4 "Custom assessors": string, integer, decimal, boolean, path, or a list of one of these.
+  # § 4 "Custom assessors": string, integer, decimal, boolean, path, or a list of one of these;
+  # and `conditions`, the conditions of a plan, a map from a target class to its conditions,
+  # which only a preset declares and never as a list (§ 4 "Presets").
   - name: ratchet.specification.InputType
     kind: enum
-    variants: [string, integer, decimal, boolean, path]
+    variants: [string, integer, decimal, boolean, path, conditions]
 
   - name: ratchet.specification.InputDeclaration
     kind: struct
     naming:
       summary: >-
         One declared input of an assessor or a preset (§ 4), an entry of `inputs` under the
-        input's name: a type, whether it is required, a default, and whether it is local. A
+        input's name: a type, whether it is required, a default, the values it may have, and
+        whether it is local. A
         plan passes the assessor inputs that are not local as `inputs`, a binding passes preset
         inputs as `with`, and `ratchet validate` checks names and types against the
-        declaration. A local input has the type `path` and is not a list.
+        declaration. A local input has the type `path` and is not a list. An input of the type
+        `conditions` is no list and has no default, and only a preset declares one: an assessor
+        reads no plan's conditions as an input.
     invariants:
       - any: ["not defined(local)", "local == false", "type == path"]
       - any: ["not defined(local)", "local == false", "not defined(list)", "list == false"]
+      - any: ["type != conditions", "not defined(default)"]
+      - any: ["type != conditions", "not defined(list)", "list == false"]
+      - any: ["not defined(values)", "type == string"]
     fields:
       - name: type
         type: ratchet.specification.InputType
@@ -933,6 +986,15 @@ types:
       - name: default
         type: Optional<Json>
         summary: A value of the declared type, where a default is meaningful.
+      - name: values
+        type: Optional<List<String>>
+        summary: >-
+          The values the input may have, on an input of the type `string`, such as
+          `[lower, higher]` (§ 4). A value the binding or the plan passes is one of them, and
+          so is each item of a list input; a default is one of the values. An input with
+          `values` stands at the place of a closed list of the format, such as `better`, only
+          where each of its values is a value of that list. Absent, the input takes any text,
+          also at the place of a closed list.
       - name: local
         type: Optional<Boolean>
         summary: >-
@@ -979,8 +1041,11 @@ types:
         declared input `<name>`, or the default of that input. A reference is the whole of a
         value, and no text stands beside it: it stands for a scalar where the input is one
         and for a list where the input declares `list`. An input of the type `string` or `path`
-        stands for text and for a value of a closed list, `integer` for an integer and a
-        decimal, `decimal` for a decimal, `boolean` for a boolean. No key is a reference, and
+        stands for text and for a value of a closed list, one with `values` only where each of
+        its values is a value of that list, `integer` for an integer and a
+        decimal, `decimal` for a decimal, `boolean` for a boolean, and an input of the type
+        `conditions` stands as the whole value of `observation.conditions` of a plan, a map
+        from a target class to its conditions, and nowhere else. No key is a reference, and
         the `preset` block holds none. A name by which one entry of a preset names another
         entry of the same preset is written out and is no reference: the `assessment` and the
         `measurement` of a requirement and the statements it `serves`. A measurement of a

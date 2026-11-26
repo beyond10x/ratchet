@@ -58,8 +58,13 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 [`spec/domains/specification.yaml`](../spec/domains/specification.yaml)).
 
 - The `preset` block has a `name`, a `version` and the declared `inputs`. An input has a type
-  (`string`, `integer`, `decimal`, `boolean` or `path`), may be a list, is required or has a
-  default, and is never local.
+  (`string`, `integer`, `decimal`, `boolean`, `path` or `conditions`), may be a list, is
+  required or has a default, and is never local. An input of the type `conditions` is the
+  conditions of a plan, a map from a target class to its conditions: it stands as the whole
+  value of `observation.conditions`, is no list and has no default, and a declaration of an
+  assessor declares none. An input of the type `string` may list the `values` it may have, such
+  as `[lower, higher]`: its default is one of them, and it stands at the place of a closed
+  list of the format only where each of them is a value of that list.
 - An entry refers to an input as `${inputs.<name>}`. The reference is the whole of a value. Inside
   `{...}` or `[...]` it is quoted, `"${inputs.<name>}"`. The spelling is the only one: a value
   that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as
