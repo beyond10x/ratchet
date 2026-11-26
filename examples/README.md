@@ -6,8 +6,10 @@ Worked `ratchet/1` specifications for the first milestone of
 were first written against revision 2 and rewritten to revision 3. The gaps found in those two
 rounds are listed below, [G1 to G25](#gaps-of-revision-2-and-how-revision-3-closed-them) and
 [G26 to G29](#gaps-of-revision-3-and-how-revision-4-closed-them).
-Design-phase documents: nothing here runs, and no tool has validated them beyond YAML, TOML and JSON
-syntax.
+Design-phase documents: nothing here runs. One gate step reads them,
+`sh spec/example-declarations.test.sh`: every assessor they name has a declaration, and each
+measurement names an output, a unit and a scope it declares. No tool has validated them beyond that
+and YAML, TOML and JSON syntax.
 
 How to read them:
 
@@ -185,9 +187,12 @@ answers).
 | no `job_log` in the file | slot B2, B7 (the log is local to the host); § 4 |
 
 **The job log is a local input.** `command-timing@1` declares `job_log` as local (§ 3, § 4), so
-`local-gate-run-time` passes no input for it. The local config of a workstation checkout of this
-example supplies it (§ 5, local config, rule 6). The file is `jobs.jsonl` (slot B2), and the
-directory is an illustration:
+`local-gate-run-time` passes no input for it. The input is not required
+([`command-timing@1.assessor.yaml`](quality/assessors/command-timing@1.assessor.yaml)): the two
+plans that run in `ci` read run time only and have no job log, and a required input without a
+value would make them `not_assessable_here` on every runner. The local config of a workstation
+checkout of this example supplies it (§ 5, local config, rule 6). The file is `jobs.jsonl`
+(slot B2), and the directory is an illustration:
 
 ```toml
 [inputs.local-gate-run-time]
@@ -235,9 +240,6 @@ The UI step takes about 45 s on the forge and passed 9 of 19 local runs at host 
 
 **Left out.**
 
-- Whether `job_log` is a required input of `command-timing@1`. The two plans that run in `ci` read
-  run time only. Where the assessor requires the input, each runner supplies its own under
-  `[inputs]`, and a runner without one returns `not_assessable_here` (§ 5, local config, rule 6).
 - A pinned tool for the UI step. The answer names `rustc` only, so that plan declares the runner
   alone.
 - A tolerance in seconds. `tolerance: {absolute: ...}` exists, and no answer gives one for a
@@ -466,8 +468,9 @@ workstation checkout of example 5.
   not a commit, so the entry resolves to nothing.
 - The second catalog source has no `git`: it is the directory `quality/assessors` of the checkout,
   relative to the root. The declaration of an assessor is a file there, such as
-  `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory is an illustration and
-  is not in this repository.
+  `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory
+  [`quality/assessors/`](quality/assessors/) holds the declaration of each of the nine assessors
+  the examples name, all but `record-series@1`, which is Ratchet's own and has none.
 - `[records] store` names the ref that holds the series, and no path. The records of a local run
   are therefore kept in `.ratchet/records` under the root, as they are without the section (§ 5,
   local config; § 6).
@@ -493,7 +496,7 @@ leaves to the assessor or to the author, unless the last column says otherwise.
 
 | Key | Value | Where it comes from |
 | --- | --- | --- |
-| `assessor` | every id except `ux-eval@1`, `command-timing@1`, `generator-check@1` and `record-series@1` | placeholder |
+| `assessor` | every id except `ux-eval@1`, `command-timing@1`, `generator-check@1` and `record-series@1` | an illustrative id, declared in [`quality/assessors/`](quality/assessors/) |
 | `inputs` | `workflow`, `layout_shift_exclusion_ms` | input names, the assessor's |
 | `subjects.*.kind` | `api-operation` | free label |
 | `audiences` | `end-user`, `api-consumer`, `docs-reader` | free labels |
@@ -508,10 +511,13 @@ leaves to the assessor or to the author, unless the last column says otherwise.
 | `gates.*.stage` | `post-workflow` | free label |
 | `exceptions.*.created` | a date | § 5, prose |
 
-Coverage units are the assessor's, and no YAML names one. § 3 gives the walk for `ux-eval@1` and
-the test for `command-timing@1`. The examples read the others as: the task for `ess-ui-report@1`,
-the crate for `clippy-report@1`, the file for `generator-check@1`, `project-command@1` and
-`secret-scan-report@1`, and the case for `ess-conformance-report@1`.
+Coverage units are the assessor's, and no plan names one: each declaration in
+[`quality/assessors/`](quality/assessors/) states it as `coverage_unit`. § 3 gives the walk for
+`ux-eval@1` and the test for `command-timing@1`. The examples read the others as: the task for
+`ess-ui-report@1`, the crate for `clippy-report@1`, the file for `generator-check@1`,
+`project-command@1` and `secret-scan-report@1`, the case for `ess-conformance-report@1`, and the
+run for `forge-workflow-timing@1`, which reads one finished run of a workflow and whose plan bounds
+no count.
 
 Shapes of revision 4 that no example uses: `statements`, with `meaning` and `serves` on a
 requirement; a `presets` binding; `planted_defects`; `paired`; `executed_ids`; `value` on an

@@ -1,0 +1,14 @@
+format: ratchet-assessor/1
+name: clippy-report
+version: "1"
+command: clippy-report
+targets: [revision]
+conditions: []
+coverage_unit: crate
+coverage: [executed, skipped]
+outputs:
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [rule, path]

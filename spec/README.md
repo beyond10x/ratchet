@@ -37,7 +37,7 @@ ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
 `task check:spec` needs `ess` and `jq`, and fails with a named message when `jq` is missing. It
-runs eleven steps, and `task check` calls it:
+runs twelve steps, and `task check` calls it:
 
 1. `ess specify validate --path spec --strict-requires`;
 2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
@@ -96,7 +96,23 @@ runs eleven steps, and `task check` calls it:
     the check of a copy takes most of the time of the script. It prints
     `presets: <d> of <d> defect(s) refused with the message of their rule`, and its last line is
     `presets: <f> of <f> file(s) valid, <r> of <r> measurement(s) with a row, <c> of <c> broken copies refused`;
-11. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
+11. `sh spec/example-declarations.test.sh`, which reads every file `examples/*.ratchet.yaml`
+    and, for each assessor a plan names but the built-in `record-series@1`, its declaration
+    `<name>@<version>.assessor.yaml` in `examples/quality/assessors/` or, when that directory
+    holds none, in `presets/`: the two catalog sources of `examples/ratchet.toml`. It fails on
+    an assessor without a declaration file, on a measurement that names an output its assessor
+    does not declare, on a unit the output does not declare (`unit_missing`, `unit_mismatch`,
+    `unit_not_declared`), on a scope other than `run` that the output does not list, on a
+    measurement of a plan over `runs_of` that does not keep the unit or the scope of the
+    measurement of its source plan that it names as `output`, and on a directory without an
+    example. It states no number of examples, and it does not check a declaration's own keys
+    and types: `presets.test.sh` does that for `presets/` alone. It then writes one defect per
+    rule into copies of a fixed set of three examples and the four declarations they name, in
+    the ignored `target/example-declarations/`, and fails when a copy is accepted or is refused
+    without the message of its rule. The line of its check is
+    `example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`,
+    and its last line is `example-declarations: <c> of <c> broken copies refused`;
+12. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
     `target/check-spec/`, which fails when the Rust target refuses a declaration. Its line
     `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
 
@@ -282,8 +298,14 @@ from `examples/`, or from the design where no example file uses the form.
 | **A preset holds three of the seven maps.** Beside `format` and `preset` its root holds `statements`, `assessments` and `requirements` (`ratchet.specification.PresetMember`), each a map of the entity that the relation of that name of `QualitySpecification` targets. An entry states no `project`. `subjects`, `gates`, `exceptions` and `presets` are refused. | § 4, "Presets" | `assessments.conformance` (`presets/conformance-cases@1.preset.yaml`) |
 | **A reference to an input is the whole of a value.** `${inputs.<name>}` stands where a scalar or a list stands, with no text beside it, and the type of the input fits the place (`ratchet.specification.InputReference`). Inside a flow collection it is quoted. No key is a reference, and neither is a name by which a requirement names another entry of its preset: `assessment`, `measurement` and the items of `serves` are written out. `<name>` is the key of the input, which is text and may hold a `.`. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. | § 4, "Presets" | `environments: ${inputs.environments}` (`presets/conformance-cases@1.preset.yaml`) |
 
-No gate step reads `examples/*.ratchet.yaml`, and the files are in the form above, not in that
-of the entities. `sh spec/presets.test.sh` reads the `ratchet/1` files of `presets/` and the
+The files `examples/*.ratchet.yaml` are in the form above, not in that of the entities. One gate
+step reads them, `sh spec/example-declarations.test.sh` (step 11): it reads the assessor of each
+plan and the output, the unit and the scope of each measurement against the declarations of
+`examples/quality/assessors/` and `presets/`, and no other key and no type. Its reader takes the
+forms that the next sentences name for `presets.test.sh`, and also a block list whose items are
+scalars or flow collections, as `gates.*.requires` of the examples is written; it skips a line
+that holds only a comment.
+`sh spec/presets.test.sh` reads the `ratchet/1` files of `presets/` and the
 `ratchet-assessor/1` declarations beside them in the same form. It is no YAML reader: it reads
 mappings by indentation and one-line flow collections, and fails on a line of another form, on
 a comment, on a quote inside a plain scalar, on a quoted key and on a key that YAML reads as a

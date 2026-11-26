@@ -685,7 +685,7 @@ An output, `outputs.<name>`:
 | `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |
 | `item_fields` | list of text | no | The names an item may have under `fields`, which a `filter` may read | spec: `AssessorOutput.item_fields` |
 
-The declaration of the first assessor, written from the documents it writes at `edbbc27`. The consumer has no such file yet.
+The declaration of the first assessor, written from the documents it writes at `edbbc27`. The consumer has no such file yet. Files to copy: `examples/quality/assessors/` of this repository holds nine declarations, one for each of the ten assessor ids the examples name but the built-in `record-series@1`, such as `command-timing@1.assessor.yaml` with its local input `job_log`, and `presets/` holds those its presets name. `task check:spec` checks that every output, unit and scope a measurement of an example reads is declared there.
 
 ```yaml
 format: ratchet-assessor/1

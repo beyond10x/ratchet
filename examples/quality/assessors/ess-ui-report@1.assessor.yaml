@@ -1,0 +1,12 @@
+format: ratchet-assessor/1
+name: ess-ui-report
+version: "1"
+command: ess-ui-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: task
+coverage: [executed, skipped, not_run, unsupported]
+outputs:
+  task_completed: {value_type: assertion, kind: exact, scopes: [task]}

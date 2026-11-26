@@ -1,0 +1,17 @@
+format: ratchet-assessor/1
+name: forge-workflow-timing
+version: "1"
+command: forge-workflow-timing
+targets: [workflow_run]
+inputs:
+  workflow: {type: string, required: true}
+conditions: []
+coverage_unit: run
+coverage: [executed]
+outputs:
+  duration:
+    value_type: number
+    kind: sampled
+    scopes: []
+    unit: min
+    boundaries: [run_time, queue_wait]

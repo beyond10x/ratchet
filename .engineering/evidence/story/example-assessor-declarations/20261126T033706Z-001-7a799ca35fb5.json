@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T03:37:06Z",
+  "actor": "human:operator",
+  "artifact": "story:example-assessor-declarations",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-example-assessor-declarations-attack-1",
+    "reference": "spec/example-declarations.test.sh:862",
+    "review": "review-result:adversary-example-assessor-declarations-attack-1",
+    "outcome": "fixed"
+  }
+}

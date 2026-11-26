@@ -100,7 +100,9 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   seven of the artifact and the code family. Record: `.engineering/waves/catalog-factory.md`.
 - `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
   consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
-  stories. They wait for the waves to 0.1.0.
+  stories. They wait for the waves to 0.1.0, except `story:example-assessor-declarations`,
+  taken ahead of them on 2026-11-25 and delivered on 2026-11-26: nine declarations in
+  `examples/quality/assessors/` and their check `spec/example-declarations.test.sh`.
 - `epic:format-gaps-second-format-consumer`: 3 findings from the draft quality definition of
   a second repository (`beyond10x/swell`, a script engine that also compares itself with
   other engines), as three draft stories. They wait for the waves to 0.1.0.

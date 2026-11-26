@@ -1,0 +1,10 @@
+format: ratchet-assessor/1
+name: generator-check
+version: "1"
+command: generator-check
+targets: [revision]
+conditions: []
+coverage_unit: file
+coverage: [executed, skipped]
+outputs:
+  digest: {value_type: digest, kind: exact, scopes: [file]}

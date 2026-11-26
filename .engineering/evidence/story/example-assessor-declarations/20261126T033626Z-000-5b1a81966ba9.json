@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T03:36:26Z",
+  "actor": "human:operator",
+  "artifact": "story:example-assessor-declarations",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot env ESS_TOOLCHAIN=0.98.0 task check on the build node, whole gate by the coordinator on commit cd9b328: exit 0; example-declarations: 31 of 31 broken copies refused, 20 of 20 measurements as declared; presets: 92 of 92 broken copies refused; 11 tests passed",
+    "reference": "spec/example-declarations.test.sh"
+  }
+}
