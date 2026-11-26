@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:musl-static-release
 kind: story
-status: active
+status: implemented
 title: A release holds a static x86_64 musl Linux archive
 relations:
 - decomposes: epic:release-line
@@ -27,10 +27,11 @@ scope:
   path: Taskfile.yml
 - confidence: inferred
   path: rust-toolchain.toml
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T07:10:36Z", actor: "human:operator", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-26T07:10:37Z", actor: "human:operator", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:35Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Context
 

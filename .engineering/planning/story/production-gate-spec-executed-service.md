@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:production-gate-spec-executed-service
 kind: story
-status: active
+status: implemented
 title: A ratchet file as the production gate of a spec-executed service
 summary: 'Seven checks of a consumer''s survey in one example gate: checks 1, 2 and 6 from the catalog, a ninth family of two presets and two declarations for probe assertions and artifact verification.'
 relations:
@@ -24,10 +24,11 @@ scope:
   path: spec/example-declarations.test.sh
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 16
+revision: 17
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 15}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 16}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:33Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 ## Context
 

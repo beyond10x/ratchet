@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T07:54:18Z",
+  "actor": "human:operator",
+  "artifact": "story:cache-condition-one-name",
+  "kind": "story",
+  "revision": 14,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check on the build node, whole gate on commit 29fad28 (the wave with story:musl-static-release merged): exit 0",
+    "reference": ".engineering/waves/0.1.0-ahead-1.md"
+  }
+}

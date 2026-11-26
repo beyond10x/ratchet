@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:preset-check-unlisted-forms
 kind: story
-status: active
+status: implemented
 title: The preset check refuses or lists the 14 forms it accepts in silence
 summary: 14 forms of a preset or declaration are accepted and not named under Not checked (2 of them forbidden by the design), and one comparison of the harness has no case.
 relations:
@@ -12,10 +12,11 @@ scope:
   path: presets/README.md
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 13
+revision: 14
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 12}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 13}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:32Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Context
 

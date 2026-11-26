@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:item-field-values
 kind: story
-status: active
+status: implemented
 title: An assessor declaration states the values of an item field
 summary: A closed list of values for an item field, so that a filter on a misspelt value is refused.
 relations:
@@ -19,10 +19,11 @@ scope:
   path: spec/domains/assessor.yaml
 - confidence: inferred
   path: spec/presets.test.sh
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 10}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 11}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:33Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Context
 

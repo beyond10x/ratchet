@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: story:workflow-run-target-identifiers
 kind: story
-status: active
+status: implemented
 title: A workflow_run target names its run and its job
 summary: The specification and the format document list run_id and job for a target of the kind workflow_run, with a § 6 example; identifiers stays an open map.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 6}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 7}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:30Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Context
 

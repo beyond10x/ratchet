@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:value-over-all-runs
 kind: story
-status: active
+status: implemented
 title: A sampled measurement states a value computed over all runs
 summary: No aggregation kind gives one value over all runs, so flake-rate@1 declares none with runs above 1.
 relations:
@@ -17,10 +17,11 @@ scope:
   path: presets
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 10
+revision: 11
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 9}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:04Z", actor: "human:operator", revision: 10}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:32Z", actor: "human:operator", revision: 11, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 ## Context
 

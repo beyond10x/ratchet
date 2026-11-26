@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: story:plan-with-exact-and-sampled-measurements
 kind: story
-status: active
+status: implemented
 title: One plan holds exact and sampled measurements of one run
 summary: Whether a controlled run may carry exact values beside durations, and what its conditions qualify.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 4}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:03Z", actor: "human:operator", revision: 5}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:31Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Context
 

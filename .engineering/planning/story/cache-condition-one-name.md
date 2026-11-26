@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:cache-condition-one-name
 kind: story
-status: active
+status: implemented
 title: The cache condition has one name in a plan and in a record
 summary: A plan writes cache and a record holds cache_profile; no rule joins the two.
 relations:
@@ -23,10 +23,11 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 14
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 13}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 14}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:30Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Context
 

@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T07:54:28Z",
+  "actor": "human:operator",
+  "artifact": "story:item-field-values",
+  "kind": "story",
+  "revision": 11,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-wave-ahead-1-attack-1",
+    "reference": "presets/functional.md",
+    "review": "review-result:adversary-wave-ahead-1-attack-1",
+    "outcome": "no-op"
+  }
+}

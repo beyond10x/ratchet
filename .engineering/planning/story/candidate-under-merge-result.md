@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: story:candidate-under-merge-result
 kind: story
-status: active
+status: implemented
 title: Under merge_result a record names the candidate and the merged tree apart
 summary: candidate is the revision under judgement, target.revision the merge commit that was read.
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-26T05:20:02Z", actor: "human:operator", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-26T07:54:30Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Context
 
