@@ -116,11 +116,14 @@ key to a format; each point names the place in the specification
 ([`spec/domains/`](../spec/domains/)) that lacks it. The points are those of
 [latency.md](latency.md), "Not expressible yet", and the family adds none:
 
-1. **A reference adopted from the evidence of another plan** (point 1 there):
-   `ratchet.specification.RatchetPolicy` names no assessment, so the start time of the
-   reference implementation cannot be the accepted value of the candidate.
+1. **A reference adopted from the evidence of another plan** (point 1 there): answered in the
+   format by the adoption `from: assessment` of `ratchet.specification.RatchetPolicy`, and
+   `start-time@1` holds no plan of the reference implementation, so the start time of the
+   reference implementation is not the accepted value of the candidate yet.
 2. **A requirement over two measurements** (point 2 there):
-   `ratchet.specification.QualityRequirement` names one measurement.
+   `ratchet.specification.Condition.against` names the second measurement and compares the two
+   with no tolerance, so a band over the reference implementation waits for an adoption from
+   its plan (point 1).
 3. **The conditions of a plan as an input** (point 3 there): the input type `conditions` of
    `ratchet.specification.InputType` answers it from `operation-time@2` on, as the whole value
    of the map `conditions` of `ratchet.specification.ObservationPlan`. `start-time@1` still

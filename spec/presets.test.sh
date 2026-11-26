@@ -53,7 +53,9 @@
 #             that is `${inputs.<name>}` alone is refused there: a declaration has no
 #             inputs to refer to. An input of a declaration has no name of
 #             `ratchet.assessor.ReservedArgument`, such as `out`: Ratchet passes those
-#             arguments itself (docs/evidence-format.md § 10, "Reserved names"). An input of
+#             arguments itself (docs/evidence-format.md § 10, "Reserved names"), and no name
+#             of one of its `population_fields`: Ratchet passes each field of a population
+#             filter as `--<field>` ("The population of the plan"). An input of
 #             the type `string` that lists `values` (`InputDeclaration.values`) is read
 #             against them: its default, of a preset or of a declaration, and each item of a
 #             list default is one of the values, and a reference to it at the place of an
@@ -78,7 +80,10 @@
 #             declaration names in `observation_inputs` under a key
 #             is passed by the key of the plan's `observation`: a plan has that key where
 #             the input is required, and passes the input under `inputs` nowhere
-#             (docs/evidence-format.md § 10, "Invocation"). A key of `observation_inputs` is
+#             (docs/evidence-format.md § 10, "Invocation"). `window_length` and
+#             `window_last` are the `length` and the `last` of `observation.window`, and
+#             `window_ends_at`, the instant of the assessment, is there on a time-window plan
+#             and on no other ("The window of the plan"). A key of `observation_inputs` is
 #             one of `ratchet.assessor.ObservationKey` and names an input of the declaration,
 #             and so does each entry of `revision_inputs`.
 #             A measurement names an
@@ -808,7 +813,8 @@ check_catalog() {
 
   # The first value at `path` of the file F, or the first item of the list there, that the
   # list at `vp` of the file VF does not hold; "" where it holds each. With `refs`, where a
-  # plan passes the value, a reference is not read: the binding passes its value.
+  # plan passes the list, an item that is a reference is not read: the binding passes its
+  # value. A scalar reference never comes here: the rule `assessor` reads it as a reference.
   function outside(F, path, VF, vp, refs,    j, x) {
     if (has(F, path SEP "[1]")) {
       for (j = 1; has(F, path SEP "[" j "]"); j++) {
@@ -818,7 +824,7 @@ check_catalog() {
       return ""
     }
     x = text(F, path)
-    return ((refs && given(x)) || holds(VF, vp, x)) ? "" : x
+    return holds(VF, vp, x) ? "" : x
   }
 
   # ---- a page: what Markdown does not show ---------------------------------------------------
@@ -1152,6 +1158,11 @@ check_catalog() {
       # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
       if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
         fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
+      # Nor the name of one of its population fields: Ratchet passes each field of a
+      # population filter as `--<field>` (docs/evidence-format.md § 10, "The population of the
+      # plan").
+      if (fk == "assessor" && n == 2 && s[1] == "inputs" && holds(F, "population_fields", s[2]))
+        fail(F, n_line[i], named(path) "has the name of a population field, which Ratchet passes as `--" s[2] "` from the population filter of the plan (`population_fields` " items(F, "population_fields") "); an assessor declares no input with such a name")
       # An assessor reads the conditions of no plan as an input: only a preset declares an
       # input of the type `conditions` (ratchet.specification.InputDeclaration).
       if (fk == "assessor" && n == 3 && s[1] == "inputs" && s[3] == "type" && n_text[i] == "conditions")
@@ -1196,11 +1207,20 @@ check_catalog() {
           dp = "inputs" SEP keyof[D, "inputs", j]
           if (text(D, dp SEP "required") != "true" || text(D, dp SEP "local") == "true") continue
           # An input that the declaration names in `observation_inputs` is passed by that
-          # key of the `observation` of the plan.
+          # key of the `observation` of the plan. `window_length` and `window_last` are the
+          # `length` and the `last` of its `window`, and `window_ends_at` is the instant a
+          # time-window plan is assessed (docs/evidence-format.md § 10, "The window of the
+          # plan").
           okey = observed_by(D, keyof[D, "inputs", j])
-          if (okey != "") {
-            if (!has(F, path SEP "observation" SEP okey))
-              fail(F, n_line[i], named(path) "has no `observation." okey "`, which `" a "` passes as its required input `" keyof[D, "inputs", j] "` (`observation_inputs`)")
+          if (okey == "window_ends_at") {
+            okind = text(F, path SEP "observation" SEP "kind")
+            if (okind != "time_window" && !given(okind))
+              fail(F, n_line[i], named(path) "is no time-window plan, and `" a "` passes as its required input `" keyof[D, "inputs", j] "` the key `window_ends_at`, the instant a time-window plan is assessed (`observation_inputs`)")
+          } else if (okey != "") {
+            opath = okey
+            if (okey == "window_length" || okey == "window_last") opath = "window" SEP substr(okey, 8)
+            if (!has(F, path SEP "observation" SEP opath))
+              fail(F, n_line[i], named(path) "has no `observation." shown(opath) "`, which `" a "` passes as its required input `" keyof[D, "inputs", j] "` (`observation_inputs`)")
           } else if (!has(F, path SEP dp))
             fail(F, n_line[i], named(path) "passes no `" keyof[D, "inputs", j] "`, which `" a "` requires")
         }
@@ -2906,6 +2926,15 @@ copy declaration-reserved-input
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  out: {type: path, required: false}'
 refused '`inputs.out` has the name of a reserved argument, which Ratchet passes itself' "a declaration has the input out"
 
+# Nor the name of one of its population fields (docs/evidence-format.md § 10, "The population
+# of the plan"): "Each field of `population: {filter}` is passed as `--<field> <value>`, under
+# its name in the declaration's `population_fields`, so an assessor declares no input with such
+# a name."
+copy population-field-as-input
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  service: {type: string, required: false}'
+printf 'population_fields: [service]\n' >> "$c/$conf_d"
+refused '`inputs.service` has the name of a population field, which Ratchet passes as `--service` from the population filter of the plan (`population_fields` [service])' "a declaration declares an input service and lists service under population_fields, so Ratchet would pass --service twice"
+
 # A `filter` names values that the declaration lists for its field under `item_values`
 # (docs/evidence-format.md § 10). A field without such a list stays open: any value is read.
 copy assessor-filter-value
@@ -3055,6 +3084,33 @@ refused '`observation_inputs.warmup` is no key of the observation that Ratchet p
 again revision-input-undeclared
 printf 'revision_inputs: [lists]\n' >> "$c/$known_d"
 refused '`revision_inputs[1]` names the input `lists`, which the declaration does not declare under `inputs`' "a declaration lists under revision_inputs an input it does not declare"
+
+# The window of a time-window plan (docs/evidence-format.md § 10, "The window of the plan"):
+# "`window_length` and `window_last` are the `length` and the `last` of the plan's `window`,
+# each passed where the plan states it [...]; `window_ends_at` is the instant the plan is
+# assessed". The plan states `window: {last: 20}`, and holds no key `window_last` or
+# `window_ends_at` under `observation`. The declaration is a copy of conformance-report@1 as
+# window-report@1, which only the plan of conformance-cases@1 names.
+copy observation-input-window-keys
+window_d='window-report@1.assessor.yaml'
+sed 's/^name: conformance-report$/name: window-report/' "$c/$conf_d" > "$c/$window_d"
+swap "$window_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  last: {type: integer, required: true}\n  ends: {type: string, required: true}'
+printf 'population_fields: [service]\nobservation_inputs: {window_last: last, window_ends_at: ends}\n' >> "$c/$window_d"
+swap "$conf" '    assessor: conformance-report@1' '    assessor: window-report@1'
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10'
+accepts "a time-window plan with window last 20 over a population outside the store, whose assessor takes window_last and window_ends_at as required inputs"
+
+# A required input taken from `window_length`, where the window states only its `last`.
+again observation-input-window-length-absent
+swap "$window_d" '  ends: {type: string, required: true}' '  ends: {type: string, required: true}\n  length: {type: string, required: true}'
+swap "$window_d" 'observation_inputs: {window_last: last, window_ends_at: ends}' 'observation_inputs: {window_last: last, window_ends_at: ends, window_length: length}'
+refused '`assessments.conformance` has no `observation.window.length`, which `window-report@1` passes as its required input `length` (`observation_inputs`)' "a declaration takes a required input from window_length, and the window of the plan states only its last"
+
+# A required input taken from `window_ends_at`, on a plan that is no time-window plan.
+again observation-input-window-end-on-snapshot
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  ends: {type: string, required: true}'
+printf 'observation_inputs: {window_ends_at: ends}\n' >> "$c/$known_d"
+refused '`assessments.known-failures` is no time-window plan, and `case-list@1` passes as its required input `ends` the key `window_ends_at`' "a declaration takes a required input from window_ends_at, and a snapshot plan names it"
 
 # -- a window over the runs of another plan ------------------------------------------------------
 
@@ -3407,6 +3463,89 @@ refused '`requirements.adopted-without-assessment` has an adoption `from: assess
 again adoption-assessment-on-trusted-revision
 add_adopt adopted-from-trusted suite failing-cases '{operator: no_new_items}' '{from: trusted_revision, runs: 1, assessment: known-failures, measurement: listed-cases}'
 refused '`requirements.adopted-from-trusted` has an adoption with `assessment`, and `from: trusted_revision`: `assessment` and `measurement` stand on `from: assessment` alone' "an adoption from the trusted revision that names an assessment"
+
+# -- forms of the rules of wave ahead 2 that no case above holds ---------------------------------
+#
+# Each case kills a mutant of a rule above that every other case leaves green.
+
+# An adoption from the trusted revision that names a measurement and no assessment: the second
+# half of the rule `adoption` on `from`.
+copy adoption-measurement-on-trusted-revision
+add_adopt adopted-measurement-from-trusted known-failures listed-cases '{operator: no_new_items}' '{from: trusted_revision, runs: 1, measurement: listed-cases}'
+refused '`requirements.adopted-measurement-from-trusted` has an adoption with `measurement`, and `from: trusted_revision`: `assessment` and `measurement` stand on `from: assessment` alone' "an adoption from the trusted revision that names a measurement"
+
+# `against` with `lte` and no `value`: the limit is the other measurement (docs/design.md § 3
+# "Comparisons"). Both measurements count `cases`.
+copy compare-against-lte
+printf '  failed-not-above-passed:\n    meaning: No more cases fail than pass.\n    assessment: conformance\n    measurement: failed\n    condition: {operator: lte, against: {assessment: conformance, measurement: passed}, unit: cases}\n' >> "$c/$conf"
+accepts "a requirement with lte against a measurement of the same plan in the same unit, without a value"
+
+# `within` without `min`, and `max` on another operator than `within`.
+range_copy compare-range-without-min
+add_range range-without-min '{operator: within, max: 60, unit: s}'
+refused '`requirements.range-without-min` has the operator `within` and no `min`, its lower bound' "a range without min"
+
+again compare-max-on-gte
+add_range max-on-gte '{operator: gte, value: 50, max: 60, unit: s}'
+refused '`requirements.max-on-gte` has a `max`, and the operator `gte`: `min` and `max` stand on `within` alone' "max on the operator gte"
+
+# The invariant is `min <= max`: equal bounds hold, and the bounds compare as numbers, so 9 is
+# below 10.
+range_copy compare-within-equal-and-numeric-bounds
+add_range equal-bounds '{operator: within, min: 50, max: 50, unit: s}'
+add_range numeric-bounds '{operator: within, min: 9, max: 10, unit: s}'
+accepts "a range whose min equals its max, and a range from 9 to 10"
+
+# `within` takes a number or a set, and not an assertion.
+copy compare-within-on-an-assertion
+add_case_holds '{case-1: "the default timeout"}'
+add_range holds-in-range '{operator: within, min: 0, max: 1}'
+swap "$conf" '    measurement: step-time' '    measurement: case-holds'
+refused '`requirements.holds-in-range` has the operator `within`, which takes a number or the number of items of a set, and the output `case_holds` of `conformance-report@1` has the value type `assertion`' "within on an assertion"
+
+# A plan passes a reference to an input of its assessor that lists `values`, as one value and as
+# an item of a list: the binding passes the value, so it is not read against them.
+copy plan-reference-to-input-with-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  mode: {type: string, required: false, values: [strict, lenient]}\n  modes: {type: string, list: true, required: false, values: [strict, lenient]}'
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    mode: {type: string, required: false}'
+swap "$known" '    inputs:' '    inputs:\n      mode: ${inputs.mode}\n      modes: ["${inputs.mode}"]'
+accepts "a plan passes a reference to an input with values, alone and as an item of a list"
+
+# A list default and a list literal with an item that is none of the values.
+copy input-list-default-outside-values
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    directions: {type: string, list: true, required: false, values: [lower, higher], default: [lower, sideways]}'
+refused '`preset.inputs.directions.default` holds the item `sideways`, which is none of the values `[lower, higher]` of the input `directions`' "the list default of an input holds an item that is none of its values"
+
+again plan-list-literal-outside-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  modes: {type: string, list: true, required: false, values: [strict, lenient]}'
+swap "$known" '    inputs:' '    inputs:\n      modes: [strict, loose]'
+refused '`assessments.known-failures.inputs.modes` holds the item `loose`, which is none of the values `[strict, lenient]` that `case-list@1` declares for the input `modes`' "a plan passes a list with an item that is none of the values of the input of its assessor"
+
+# A count of the coverage is compared as a number without a unit: with a limit, in a condition
+# that states a unit, against a number in `cases`, and adopted from a number in `cases`.
+copy coverage-count-limit
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-at-least:\n    meaning: At least ten cases are executed.\n    assessment: conformance\n    measurement: executed\n    condition: {operator: gte, value: 10}\n' >> "$c/$conf"
+accepts "a requirement with gte and the value 10 on the count executed of the coverage"
+
+copy coverage-count-condition-unit
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-in-cases:\n    meaning: At least ten cases are executed.\n    assessment: conformance\n    measurement: executed\n    condition: {operator: gte, value: 10, unit: cases}\n' >> "$c/$conf"
+refused '`requirements.executed-in-cases` has a condition in the unit `cases`, and the coverage count `coverage.executed` of `conformance-report@1` declares none (`unit_not_declared`)' "a condition on a coverage count states a unit"
+
+again coverage-count-against-cases
+printf '  failed-not-above-executed:\n    meaning: No more cases fail than are executed.\n    assessment: conformance\n    measurement: failed\n    condition: {operator: lte, against: {assessment: conformance, measurement: executed}, unit: cases}\n' >> "$c/$conf"
+refused '`requirements.failed-not-above-executed` has `against` `assessments.conformance.measurements.executed` in the unit `none`, and the output `failed` of `conformance-report@1` declares `cases` (`against_unit_mismatch`)' "against a coverage count from a number in cases"
+
+again coverage-count-adopted-from-cases
+printf '  executed-adopted:\n    meaning: The number of executed cases keeps to its adopted value.\n    assessment: conformance\n    measurement: executed\n    reference:\n      kind: accepted_value\n      adoption: {from: assessment, assessment: conformance, measurement: failed}\n' >> "$c/$conf"
+refused '`requirements.executed-adopted` adopts from `assessments.conformance.measurements.failed` in the unit `cases`, and the coverage count `coverage.executed` of `conformance-report@1` declares `none`' "a coverage count adopted from a number in cases"
+
+# A pass rate is a number on both sides of `against` and of an adoption.
+rate_copy pass-rate-against-and-adopted
+printf '  pass-rate-not-below-itself:\n    meaning: The pass rate is not below the pass rate.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, against: {assessment: conformance, measurement: pass-rate}}\n' >> "$c/$conf"
+printf '  pass-rate-adopted:\n    meaning: The pass rate keeps to its adopted value.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 0.05}\n      adoption: {from: assessment, assessment: conformance, measurement: pass-rate}\n' >> "$c/$conf"
+accepts "a pass rate against a pass rate, and a pass rate adopted from a pass rate"
 
 # -- rows ----------------------------------------------------------------------------------------
 

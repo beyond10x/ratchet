@@ -100,7 +100,7 @@ tasks:
         exit "$status"
 
   check:spec:
-    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, check the preset catalog presets/ against it and against the pages of the catalog, check that every assessor examples/*.ratchet.yaml names has a declaration, that each measurement names an output, a unit and a scope it declares, and that the use and the digest of each preset binding of an example name a preset file of presets/ and its SHA-256, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq and sha256sum.
+    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, check the preset catalog presets/ against it and against the pages of the catalog, check that every assessor examples/*.ratchet.yaml names has a declaration, that each measurement names an output, a unit and a scope it declares, and that the use and the digest of each preset binding of an example name a preset file of presets/ and its SHA-256, check that docs/design.md and the pages of presets/ call no form inexpressible that the specification declares, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq and sha256sum.
     cmds:
       - |
         command -v jq > /dev/null 2>&1 || { echo "check:spec: jq is not installed, and spec/record-examples.test.sh reads the JSON examples with it"; exit 1; }
@@ -115,6 +115,7 @@ tasks:
       - sh spec/gate-inputs.test.sh
       - sh spec/presets.test.sh
       - sh spec/example-declarations.test.sh
+      - sh spec/design-drift.test.sh
       - |
         set -eu
         out=target/check-spec

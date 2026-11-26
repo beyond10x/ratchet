@@ -37,7 +37,7 @@ ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
 `task check:spec` needs `ess` and `jq`, and fails with a named message when `jq` is missing. It
-runs twelve steps, and `task check` calls it:
+runs thirteen steps, and `task check` calls it:
 
 1. `ess specify validate --path spec --strict-requires`;
 2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
@@ -82,13 +82,16 @@ runs twelve steps, and `task check` calls it:
     statements; an assessment passes the inputs its assessor requires, with the declared types,
     also for each item of a list, and names a target kind the assessor takes; an input that the
     declaration names in `observation_inputs` is passed by that key of the plan's
-    `observation` and not under `inputs`, and a key of `observation_inputs` is one of
+    `observation` (`window_length` and `window_last` by the `length` and the `last` of its
+    `window`, `window_ends_at` on a time-window plan alone) and not under `inputs`, and a key
+    of `observation_inputs` is one of
     `ratchet.assessor.ObservationKey` and names a declared input, as an entry of
     `revision_inputs` does; a measurement
     names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
     that the declaration of its assessor declares, and a plan a condition and a population
     field that it declares; the cache condition is `cache_profile` and never `cache`, in a plan
-    and in a declaration, an input of a declaration has no reserved name such as `out`, a key
+    and in a declaration, an input of a declaration has no reserved name such as `out` and
+    not the name of one of its population fields, a key
     of `item_values` is a field of `item_fields` of its output and a value of a `filter` one
     the output lists there, an exact measurement aggregates with `sum` or not at all, and a
     sampled measurement of a plan whose `runs` is a literal above 1 states an `aggregation` or
@@ -127,7 +130,14 @@ runs twelve steps, and `task check` calls it:
     without the message of its rule. The line of its check is
     `example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`,
     and its last line is `example-declarations: <c> of <c> broken copies refused`;
-12. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
+12. `sh spec/design-drift.test.sh`, which fails when `docs/design.md` or a page of `presets/`
+    states a sentence that calls inexpressible a form the specification declares: a reference
+    adopted from another plan (`ratchet.specification.AdoptionSource` `assessment`) and a
+    requirement over two measurements (`ratchet.specification.Condition.against`). It reads
+    each sentence while the specification declares its form, and names each one that
+    disagrees with its file. Its last line is
+    `design-drift: <n> of <n> sentences agree with the specification`;
+13. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
     `target/check-spec/`, which fails when the Rust target refuses a declaration. Its line
     `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
 

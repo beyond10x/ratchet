@@ -187,9 +187,12 @@ key to a format; each point names the place in the specification
 ([`spec/domains/`](../spec/domains/)) that lacks it.
 
 1. **A reference adopted from the evidence of another plan.** The accepted set of the
-   candidate should be the set of the binding for the reference implementation.
-   `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   candidate should be the set of the binding for the reference implementation. Answered in
+   the format: `ratchet.specification.AdoptionSource` has the value `assessment`, and
+   `ratchet.specification.RatchetPolicy` names the plan and the measurement of the same
+   specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). No preset of the family
+   holds a plan of the reference implementation, so none adopts from one yet.
 2. **A requirement over two sets.** "Every exposed name is documented" compares the set of the
    scrape with the set of the list. The program of `metrics-scrape@1` makes the comparison and
    returns its two sides as two outputs, and the list is an input of the assessor and no

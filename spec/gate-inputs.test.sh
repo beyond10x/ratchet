@@ -217,6 +217,22 @@ edit "$doc" '
   { print }'
 expect_message record-examples "\`run\` is not a field of ratchet.evidence.ProofRecord" "the example of § 12 holds a member \`run\`, which ProofRecord does not declare"
 
+copy example-format-unknown
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 6\. /) }
+  s && $0 == "  \"format\": \"ratchet-evidence/1\"," && ++seen == 2 { print "  \"format\": \"ratchet-evidence/2\","; next }
+  { print }'
+expect_message record-examples "§ 6 example 4 has a shape or a \`format\` with no root type" "§ 6 example 4, the second object of § 6, states the format ratchet-evidence/2, which no root type of the script names"
+
+copy proof-example-added
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 12\. /) }
+  s && /^```json$/ { inside = 1 }
+  inside { block = block $0 "\n" }
+  { print }
+  inside && /^```$/ { inside = 0; printf "\n%s", block }'
+expect_message record-examples "§ 12 of docs/evidence-format.md holds 2 example(s), and spec/record-examples.test.sh states 1" "§ 12 holds a second proof record, and the script states 1"
+
 if [ "$accepted" -gt 0 ]; then
   echo "gate-inputs: $((cases - accepted)) of $cases broken inputs refused, $accepted accepted"
   exit 1

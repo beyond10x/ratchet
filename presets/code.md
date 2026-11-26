@@ -271,12 +271,18 @@ key to a format; each point names the place in the specification
 
 1. **A reference adopted from the evidence of another plan.** The accepted number of
    hand-written lines of the candidate should be that of the reference implementation.
-   `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   Answered in the format: `ratchet.specification.AdoptionSource` has the value `assessment`,
+   and `ratchet.specification.RatchetPolicy` names the plan and the measurement of the same
+   specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). No preset of the family
+   holds a plan of the reference implementation, so none adopts from one yet.
 2. **A requirement over two measurements.** "At least half of the lines are generated"
-   compares two measurements. `ratchet.specification.QualityRequirement` names one
-   ([functional.md](functional.md), point 2). A program could return the share as an output
-   of its own; `line-count@1` returns the two numbers the share is made of.
+   compares two measurements. Answered in the format:
+   `ratchet.specification.Condition.against` names the second
+   ([functional.md](functional.md), point 2), so `generated` with `gte` against `handwritten`
+   in the unit `lines` states it, from the two numbers `line-count@1` returns. Neither
+   `code-lines@1` nor `code-lines@2` holds that requirement, and a version that does is not
+   written.
 3. **The conditions of a plan as an input.** As for the latency family
    ([latency.md](latency.md), "Not expressible yet", point 3): up to `operation-time@1` an input
    stood for a scalar or a list of scalars and for no map, so a binding could not pass the

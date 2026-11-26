@@ -432,13 +432,13 @@ check() {
       cc = (substr(O, 1, 9) == "coverage." && !has(D, op) && holds(D, "coverage", substr(O, 10)))
       if (!cc && (O == "" || !has(D, op))) { fail(F, line_of(F, mp), named(mp) "names the output `" O "`, which `" A "` does not declare"); continue }
       what = cc ? "the coverage count `" O "` of `" A "`" : "the output `" O "` of `" A "`"
-      has_du = !cc && has(D, op SEP "unit"); du = text(D, op SEP "unit")
+      has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
       has_mu = has(F, mp SEP "unit"); mu = text(F, mp SEP "unit")
       if (has_du && !has_mu) fail(F, line_of(F, mp), named(mp) "has no `unit`, and " what " declares `" du "` (`unit_missing`)")
       else if (has_du && mu != du) fail(F, line_of(F, mp), named(mp) "states the unit `" mu "`, and " what " declares `" du "` (`unit_mismatch`)")
       else if (!has_du && has_mu) fail(F, line_of(F, mp), named(mp) "states the unit `" mu "`, and " what " declares none (`unit_not_declared`)")
       sc = text(F, mp SEP "scope")
-      if (has(F, mp SEP "scope") && sc != "run" && (cc || !holds(D, op SEP "scopes", sc)))
+      if (has(F, mp SEP "scope") && sc != "run" && !holds(D, op SEP "scopes", sc))
         fail(F, line_of(F, mp), named(mp) "has the scope `" sc "`, and " what " does not declare the scope `" sc "`")
       if (failed == before) good++
     }

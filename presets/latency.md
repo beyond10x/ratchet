@@ -319,15 +319,21 @@ key to a format; each point names the place in the specification
 
 1. **A reference adopted from the evidence of another plan.** The accepted p95 of the
    candidate should be the p95 of the reference implementation, measured by the binding for
-   it. `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   it. Answered in the format: `ratchet.specification.AdoptionSource` has the value
+   `assessment`, and `ratchet.specification.RatchetPolicy` names the plan and the measurement
+   of the same specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). A preset of the family
+   measures one implementation, and it names no plan of another binding; a version that holds
+   a plan of the reference implementation beside the candidate's, as `differential-equality@3`
+   does, is not written.
 2. **A requirement over two measurements.** "The p95 of the candidate is at most 10 percent
    above the p95 of the reference implementation" compares two measurements.
    `ratchet.specification.Condition.against` names a second measurement, and `against` compares
    two numbers of one unit, with no tolerance: it states "not above the p95 of the reference
    implementation" and not a band over it ([functional.md](functional.md), point 2). The band
-   of 10 percent over the binding for the reference implementation waits for a reference from
-   another plan (point 1), which a tolerance then applies to.
+   of 10 percent is an accepted value adopted `from: assessment` from the plan of the reference
+   implementation, with the tolerance `{percent: 10}` (point 1), and it waits for a preset
+   that holds that plan.
 3. **The conditions of a plan as an input.** A project may want a bound on the host load for
    the class `local` and a runner for the class `ci`. `ratchet.specification.ObservationPlan`
    holds `conditions` as a map from a class to its conditions, and up to `operation-time@1` an

@@ -401,12 +401,18 @@ key to a format; each point names the place in the specification
 ([`spec/domains/`](../spec/domains/)) that lacks it.
 
 1. **A reference adopted from the evidence of another plan.** The accepted build time of the
-   candidate should be the build time of the reference implementation.
-   `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   candidate should be the build time of the reference implementation. Answered in the format:
+   `ratchet.specification.AdoptionSource` has the value `assessment`, and
+   `ratchet.specification.RatchetPolicy` names the plan and the measurement of the same
+   specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). No preset of the family
+   holds a plan of the reference implementation, so none adopts from one yet.
 2. **A requirement over two measurements.** "The warm build takes at most a tenth of the cold
-   build" compares two measurements. `ratchet.specification.QualityRequirement` names one
-   ([functional.md](functional.md), point 2).
+   build" compares two measurements. `ratchet.specification.Condition.against` names the
+   second and compares the two as they are, with no factor
+   ([functional.md](functional.md), point 2), and the warm and the cold build are two presets,
+   so a project names the other binding with `against` in its own file. "A tenth" stays
+   outside the format.
 3. **The conditions of a plan as an input.** As for the latency family
    ([latency.md](latency.md), "Not expressible yet", point 3): up to `operation-time@1` an input
    stood for a scalar or a list of scalars and for no map. So each preset fixes the form, a
