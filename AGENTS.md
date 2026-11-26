@@ -75,7 +75,7 @@ you should utilize, and then you should use the ESS synthesizer to actually buil
 | `.engineering/` | AEP planning store (`aep.project/5`, profile `development.standard`): the epics and stories of the first milestone |
 | `ROADMAP.md` | the trajectory: first consumer and its first gap, the next waves by story id, what the next release holds |
 | `website/` | the public documentation site at `https://beyond10x.github.io/ratchet/` (Docusaurus on `@beyond10x/docs-system`, pinned by commit in `package.json`). Its docs pages are `vision.md`, `docs/design.md`, `research/*.md` and `research/responses/*.md`, read in place; `docusaurus.config.ts` gives each its route, title and header (`pages`), the files stay unchanged. `product.json` is the landing page, drawn by `src/pages/index.tsx` (not withProductSite's `landing` option, which ships the build machine's path in the bundle). `.npmrc` sets `allow-git=root`: npm 12 otherwise refuses the Git-pinned dependency. A new file in `research/` (other than `responses/`) needs an entry in `pages` and in `sidebars.ts`; a new file in `docs/` also needs an `include` pattern. A Markdown link to a file the site does not publish fails the build, so link such files by GitHub URL |
-| `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/`, `crates/`, `presets/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths`. Its second job, `gate` (`Repository gate`), reads the class from the first and repeats no path: for the class `code` it installs the rustc of `rust-toolchain.toml`, Node, `task`, `cargo-nextest`, `ess` and `aep` and runs `task check`, then runs the musl binary that `task check` built in an Alpine image pinned by digest (`ALPINE_VERSION`, `ALPINE_SHA256`); for the class `docs-site` it installs `task` and `ess` and runs `task check:spec`, because that task reads `docs/evidence-format.md` and `docs/design.md`; for the class `planning` it ends green without a checkout. `task`, `cargo-nextest`, `ess` and `aep` are downloaded by URL at a pinned version and refused unless their SHA-256 is the one in the step; Node is the major the job `build` names. A step of the job that another class needs gets that class in its `if:`, and `task check:ci-paths` holds which task each class runs. Every file under `crates/` and under `presets/` is `code`, a generated `README.md` and a page of the catalog included. The step that lists the changed files runs `git diff --no-renames`, so a renamed file is listed with the path it had and a file moved out of `crates/` or `presets/` is `code` |
+| `.github/workflows/pages.yml` | `Documentation validation`: classifies the changed files (`.engineering/` and `*.md` outside `website/`, `vision.md`, `docs/`, `research/`, `crates/`, `presets/` are planning: the job ends green without building), builds the site, refuses a machine path in it, writes `.well-known/b10x-site.json` and on `main` uploads the artifact `b10x-project-site`. A new site source goes into its path list with a case in `task check:ci-paths`. Its second job, `gate` (`Repository gate`), reads the class from the first and repeats no path: for the class `code` it installs the rustc of `rust-toolchain.toml`, Node, `task`, `cargo-nextest`, `ess` and `aep` and runs `task check`, then runs the musl binary that `task check` built in an Alpine image pinned by digest (`ALPINE_VERSION`, `ALPINE_SHA256`). Docker resolves `alpine:<ALPINE_VERSION>@sha256:<ALPINE_SHA256>` by the digest alone: the digest selects the image, and `ALPINE_VERSION` is a label nothing checks. A bump changes both, the digest read from the registry for the new tag (the line `Digest:` of `docker buildx imagetools inspect alpine:<tag>`); for the class `docs-site` it installs `task` and `ess` and runs `task check:spec`, because that task reads `docs/evidence-format.md` and `docs/design.md`; for the class `planning` it ends green without a checkout. `task`, `cargo-nextest`, `ess` and `aep` are downloaded by URL at a pinned version and refused unless their SHA-256 is the one in the step; Node is the major the job `build` names. A step of the job that another class needs gets that class in its `if:`, and `task check:ci-paths` holds which task each class runs. Every file under `crates/` and under `presets/` is `code`, a generated `README.md` and a page of the catalog included. The step that lists the changed files runs `git diff --no-renames`, so a renamed file is listed with the path it had and a file moved out of `crates/` or `presets/` is `code` |
 | `.github/workflows/b10x-docs-site.yml` | publishes that artifact to GitHub Pages through `beyond10x/website`'s `project-site.yml`, pinned by commit, for bot-authored pushes to `main` |
 | `.github/workflows/shared-gates.yml` | the organization's shared source gates (`beyond10x/gates`, pinned by commit) |
 | `.github/workflows/release.yml` | `Release`, on a tag `<major>.<minor>.<patch>`, with `contents: read`: `release-check.sh` and `task check`, then the archives of the three Linux targets (the musl one checked with `static-check.sh` and run in the Alpine image of `pages.yml`), `SHA256SUMS` and `notes.md` as the artifact `ratchet-<version>-release`. It creates no release and reads no token (§ "Release"). Its job `Gate` installs the tools of the job `gate` of `pages.yml` by the same steps, less their `if:`; a new version or digest of one, and of the Alpine image, is a change of both files, and `release.test.sh` fails when a step differs |
@@ -327,28 +327,39 @@ The run of step 4 is the only build of a tag. Read a red run before anything els
   section with a date of the calendar and at least one change line under a heading.
 - `release-package.sh`: `targets` and `assets <version>` name what a release is built for and
   carries; `archive`, `sums` and `notes` write the archive, `SHA256SUMS` and the notes. A new
-  target is one word in `targets` there and one entry in the matrix of the workflow.
+  gnu target is one word in `targets` there and one entry in the matrix of the workflow. A
+  musl target is more: the static check and the run in Alpine of `Package` stand under a
+  shell `if` that names `x86_64-unknown-linux-musl` alone, `release-verify.sh` checks the one
+  `static_target`, and `rust-toolchain.toml` and the jobs `gate` install that one target; a
+  second musl target changes each of them and `release.test.sh`.
 - `release-verify.sh <version>`: the checks of step 6. With `--description <file> --assets
   <directory>` it reads a description in the form `gh release view <version> --json
-  assets,author,isDraft,isPrerelease,tagName` and the assets from disk, and calls no `gh`.
+  assets,author,isDraft,isPrerelease,tagName` and the assets from disk, and calls no `gh`. It
+  verifies the releases from 0.0.4 on: one published before the musl archive, such as 0.0.3,
+  lacks an asset and is refused.
 - `static-check.sh <binary>`: the binary is static. It exits 0 when `readelf -d` shows no
   `NEEDED` entry and `readelf -l` no `INTERP` program header, and 1 with one line per such
-  entry, naming the library or the interpreter. `task check:static`, the job `Package` and
-  `release-verify.sh` run it on the musl binary.
+  entry, naming the library or the interpreter. A call of `readelf` that fails, or that writes
+  a `readelf: Error:` line and exits 0 as GNU readelf does on a truncated file, is refused
+  with that line. `task check:static`, the job `Package` and `release-verify.sh` run it on the
+  musl binary.
 - `release.test.sh` runs the four on fixtures with a stub binary, a stand-in for `gh`
   that answers only the calls `release-verify.sh` is meant to make, and a stand-in for
-  `readelf` that prints recorded output of a static binary, of one with a `NEEDED` entry and of
-  one with an `INTERP` header. It reads the workflow as a
+  `readelf` that prints recorded output of a static binary, of one with a `NEEDED` entry, of
+  one with an `INTERP` header with and without its interpreter, and of a file `readelf` reads
+  with an error. It reads each refusal of a script whose header promises standard error there
+  alone. It runs `task check:static` in a directory of its own with a stand-in for `cargo`.
+  It reads the workflow as a
   structure: the trigger, the permissions, `needs` and the runner of each job, the commands,
   the names and paths of the artifacts, and the steps that install the tools of the gate,
   which equal those of `pages.yml`, the toolchain of both jobs `gate` with the targets of
   `rust-toolchain.toml`, and the run in Alpine of `Package` and of the job `gate` of
   `pages.yml`, by the same pin. Its cases stand in groups, and a group reads nothing
-  another group wrote but the archives. Its last part are mutants: a copy of the workflow or
-  of a script with one change, each refused by a case of the group named with it. A mutant
-  whose line was rewritten fails until its expression is written anew, and a new refusal of
-  a script gets a case and a mutant. It reaches no network, builds nothing and makes no tag,
-  and needs GNU `date`.
+  another group wrote but the archives. Its last part are mutants: a copy of the workflow, of
+  a script or of `Taskfile.yml` with one change, each refused by a case of the group named
+  with it. A mutant whose line was rewritten fails until its expression is written anew, and
+  a new refusal of a script gets a case and a mutant. It reaches no network, builds nothing
+  and makes no tag, and needs `task` and GNU `date`.
 
 ## Never
 
