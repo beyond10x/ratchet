@@ -7,7 +7,7 @@ suite, and it is no load test. Three presets judge the timing from the report of
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`operation-time@1`](operation-time@1.preset.yaml) | The time of each operation from the request to the answer: p50, p95 and p99 | An imported timing report, [`timing-report@1`](timing-report@1.assessor.yaml) |
-| [`event-time@1`](event-time@1.preset.yaml) | The time from a request to the event it causes, per operation: p95 | The same report |
+| [`event-time@1`](event-time@1.preset.yaml) and [`event-time@2`](event-time@2.preset.yaml) | The time from a request to the event it causes, per operation: p95 | The same report; `@2` names [`timing-report@2`](timing-report@2.assessor.yaml), which is passed the workload, the runs and the fewest samples of the plan |
 | [`workload-throughput@1`](workload-throughput@1.preset.yaml) | The requests answered per second | The same report |
 
 Every measurement of the family is sampled and has no default tolerance: the tolerance, the
@@ -189,6 +189,25 @@ presets:
       tolerance_percent: 15
 ```
 
+## `event-time@2`
+
+`event-time@1` that names `timing-report@2`. That declaration maps the keys `workload`, `runs`
+and `min_samples` of the plan's `observation` to its inputs of those names
+(`observation_inputs: {workload: workload, runs: runs, min_samples: min_samples}`), so Ratchet
+passes the program the workload, the number of runs and the fewest samples of the plan
+([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation"). The plan writes
+the workload once, under `observation`, and passes no `workload` under `inputs`: a plan that
+passes it there too is refused (`spec/presets.test.sh`, rule `assessor`). The program refuses
+a report that names another workload, or holds fewer runs than `runs`, and writes on each
+value the number of runs it aggregated over as `runs`, beside `samples`, so a report of one
+run does not stand for a plan with `runs: 3`. The inputs of the preset, the requirement and
+the binding are those of `event-time@1`, with `use: event-time@2`. The files `@1` stay as they
+were released.
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `event-time@2/events/delay` | Lower | `ms` | The input `tolerance_percent`; required, no default | `timing-report@2`, output `duration`, boundary `request_start_to_event_observed`, the 95th percentile per operation over the runs the result names as `runs` |
+
 ## `workload-throughput@1`
 
 The requests answered per second do not fall below the accepted value by more than the
@@ -269,14 +288,15 @@ key to a format; each point names the place in the specification
    `unsupported` and has no bound for `failed`. The presets leave a failed request out of the
    samples, and a project judges the failures with
    [`conformance-cases@1`](functional.md).
-6. **The inputs that hold the observation.** Ratchet passes an assessor its declared inputs and
-   nothing of the `observation` of the plan
-   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation"; § 9 says
-   that the contract does not say how an assessor learns the `workload`, the `runs` and the
-   `min_samples` of a plan). So a
-   plan names the workload twice, as `observation.workload` and as the input `workload`.
-   `ratchet.assessor.Assessor` has `target_input` for the target and no member that names the
-   input of the workload, and nothing checks that the two are the same in a plan that a
-   project writes by hand. The program is passed neither `runs` nor `min_samples`: the tool
-   of the project makes the runs, and the program aggregates over the runs its report holds
-   and writes the number of samples behind each value.
+6. **The inputs that hold the observation.** Up to `timing-report@1`, Ratchet passes an
+   assessor its declared inputs and nothing of the `observation` of the plan. So a plan of
+   `operation-time@1`, `event-time@1` and `workload-throughput@1` names the workload twice, as
+   `observation.workload` and as the input `workload`, nothing checks that the two are the
+   same in a plan that a project writes by hand, and the program is passed neither `runs` nor
+   `min_samples`: it aggregates over the runs its report holds, and no record carries the
+   number of runs behind a percentile. `observation_inputs` of
+   `ratchet.assessor.Assessor` answers it from `event-time@2` on: `timing-report@2` maps the
+   keys `workload`, `runs` and `min_samples` of the plan to its inputs, the plan writes the
+   workload once, and a result carries `runs`
+   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation").
+   `operation-time@1` and `workload-throughput@1` keep `timing-report@1`.

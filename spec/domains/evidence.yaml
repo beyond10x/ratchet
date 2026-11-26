@@ -111,8 +111,8 @@ types:
         type: Optional<ratchet.specification.Revision>
         summary: >-
           The repository revision the target was read at, where there is one. The assessor
-          writes the revision it is given and looks none up; absent for `document`
-          (format § 10).
+          writes the revision it is given and looks none up; absent for `document`, and for
+          `build` the revision the artifact was built from (format § 10).
       - name: identifiers
         type: Optional<Map<String, String>>
         summary: >-
@@ -120,7 +120,8 @@ types:
           `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For the kind
           `document`: `digest`, `digest_form`, and `path` where the document is a file of the
           tree. A document outside the tree has no `path`: its digest identifies it. For the
-          kind `workflow_run`: `run_id`, the forge's id of the run, as text, and `job`,
+          kind `build`: `artifact_digest`, the digest of the bytes of the artifact. For the kind
+          `workflow_run`: `run_id`, the forge's id of the run, as text, and `job`,
           `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two
           jobs of one run are two records with the same `run_id`. The map stays open: an
           assessor may write a further name (format § 1, § 3, E5).
@@ -133,6 +134,10 @@ types:
     invariants:
       - any: ["kind != document", "defined(identifiers)"]
       - any: ["kind != document", "not defined(revision)"]
+      # A `build` target: the revision the artifact was built from, and the digest of the
+      # artifact under `identifiers.artifact_digest` (format § 10 "Invocation").
+      - any: ["kind != build", "defined(revision)"]
+      - any: ["kind != build", "defined(identifiers)"]
 
   - name: ratchet.evidence.ResolvedInput
     kind: struct
@@ -140,8 +145,8 @@ types:
       summary: >-
         The resolved value of one input of the plan that is not local and is not the target
         (format § 3, § 10): the value the plan passed, after defaults, and for a path that was
-        read the digest of the file. An input file outside the tree has the digest and no
-        `value`.
+        read the digest of the file, and for a report that states its revision that revision.
+        An input file outside the tree has the digest and no `value`.
     fields:
       - name: value
         type: Optional<Json>
@@ -156,10 +161,18 @@ types:
         summary: >-
           Which form of the file the digest is over, `bytes` in version 1; a label compared for
           equality (format § 2). Present exactly with `digest`.
+      - name: revision
+        type: Optional<ratchet.specification.Revision>
+        summary: >-
+          The revision the file states it was produced from, for an input that the declaration
+          names in `revision_inputs`, such as an imported report: the assessor reads it from
+          the file and writes it here (format § 10 "The revision").
     invariants:
       - any: ["defined(value)", "defined(digest)"]
       - any: ["not defined(digest)", "defined(digest_form)"]
       - any: ["defined(digest)", "not defined(digest_form)"]
+      # A revision is read from a file, so the input has the digest of that file.
+      - any: ["not defined(revision)", "defined(digest)"]
 
   - name: ratchet.evidence.HostLoad
     kind: struct
@@ -356,7 +369,7 @@ types:
         One result at the scope where it was observed (§ 6; format § 3): the output of the
         assessor it belongs to, its kind and value type, and the members of that value type,
         written beside `value_type` and not one level down. A number has `value`, `unit`,
-        `at_least`, `samples` and `aggregation`; an identity set `key` and `items`; a digest
+        `at_least`, `samples`, `runs` and `aggregation`; an identity set `key` and `items`; a digest
         `digest`; an assertion `holds`. A result is complete or incomplete: a complete one has
         the value of its type and no `incomplete`; an incomplete one has `incomplete`, and
         either no value or less than the whole one, a number with `at_least` or the items of a
@@ -414,6 +427,13 @@ types:
           every number whose `kind` is `sampled` (format § 3). For a measurement that states
           `over_all_runs`, the number of runs the assessor computed the one value over; such a
           result has no `aggregation`.
+      - name: runs
+        type: Optional<Integer>
+        summary: >-
+          The number of runs the value was aggregated over, beside `samples`, which counts the
+          samples of all those runs, such as the requests behind a percentile. A result of a
+          plan whose assessor maps `runs` under `observation_inputs` carries it (format § 3,
+          § 10). Only on a number.
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
         summary: The aggregation the value already is, in the plan's shape.
@@ -442,6 +462,7 @@ types:
       - any: ["value_type == number", "not defined(at_least)"]
       - any: ["value_type == number", "not defined(samples)"]
       - any: ["value_type == number", "not defined(aggregation)"]
+      - any: ["value_type == number", "not defined(runs)"]
       - any: ["value_type == identity_set", "not defined(key)"]
       - any: ["value_type == identity_set", "not defined(items)"]
       - any: ["value_type == digest", "not defined(digest)"]

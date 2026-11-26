@@ -59,7 +59,14 @@
 #             of the declaration that is not local, and its value has the declared type: a
 #             literal by its YAML kind, a reference by the type of the input of the preset
 #             (an `integer` also where a `decimal` is declared), and so each item of a list.
-#             Every required input that is not local is passed. A measurement names an
+#             Every required input that is not local is passed. An input that the
+#             declaration names in `observation_inputs` under a key
+#             is passed by the key of the plan's `observation`: a plan has that key where
+#             the input is required, and passes the input under `inputs` nowhere
+#             (docs/evidence-format.md § 10, "Invocation"). A key of `observation_inputs` is
+#             one of `ratchet.assessor.ObservationKey` and names an input of the declaration,
+#             and so does each entry of `revision_inputs`.
+#             A measurement names an
 #             output of the declaration, the kind of that output (`kind_mismatch`), its unit
 #             or none where it has none, the scope `run` or one the output declares, a
 #             boundary the output declares (`run_time` and `queue_wait`, which are Ratchet's,
@@ -378,6 +385,14 @@ check_catalog() {
   function holds(file, path, x,    j) {
     for (j = 1; has(file, path SEP "[" j "]"); j++) if (text(file, path SEP "[" j "]") == x) return 1
     return 0
+  }
+  # The key of `observation_inputs` of the declaration `d` that names the input `x`, or "".
+  function observed_by(d, x,    j, k) {
+    for (j = 1; j <= nkeys[d, "observation_inputs"]; j++) {
+      k = keyof[d, "observation_inputs", j]
+      if (text(d, "observation_inputs" SEP k) == x) return k
+    }
+    return ""
   }
   function variants(type,    i, s) {
     s = ""
@@ -1042,6 +1057,18 @@ check_catalog() {
       # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
       if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
         fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
+      # A key of `observation_inputs` is a key of the observation that Ratchet passes, and
+      # names an input of the declaration (docs/evidence-format.md § 10, "Invocation").
+      if (fk == "assessor" && n == 2 && s[1] == "observation_inputs") {
+        if (!(("ratchet.assessor.ObservationKey", s[2]) in variant))
+          fail(F, n_line[i], named(path) "is no key of the observation that Ratchet passes (ratchet.assessor.ObservationKey: " variants("ratchet.assessor.ObservationKey") ")")
+        if (!has(F, "inputs" SEP n_text[i]))
+          fail(F, n_line[i], named(path) "names the input `" n_text[i] "`, which the declaration does not declare under `inputs`")
+      }
+      # An entry of `revision_inputs` names an input of the declaration
+      # (docs/evidence-format.md § 10, "The revision").
+      if (fk == "assessor" && n == 2 && s[1] == "revision_inputs" && s[2] ~ /^\[[0-9]+\]$/ && !has(F, "inputs" SEP n_text[i]))
+        fail(F, n_line[i], named(path) "names the input `" n_text[i] "`, which the declaration does not declare under `inputs`")
       # The values of an item field are listed under a field of `item_fields`
       # (docs/evidence-format.md § 10).
       if (fk == "assessor" && n == 4 && s[1] == "outputs" && s[3] == "item_values" && !holds(F, "outputs" SEP s[2] SEP "item_fields", s[4]))
@@ -1068,7 +1095,14 @@ check_catalog() {
         D = declaration[a]
         for (j = 1; j <= nkeys[D, "inputs"]; j++) {
           dp = "inputs" SEP keyof[D, "inputs", j]
-          if (text(D, dp SEP "required") == "true" && text(D, dp SEP "local") != "true" && !has(F, path SEP dp))
+          if (text(D, dp SEP "required") != "true" || text(D, dp SEP "local") == "true") continue
+          # An input that the declaration names in `observation_inputs` is passed by that
+          # key of the `observation` of the plan.
+          okey = observed_by(D, keyof[D, "inputs", j])
+          if (okey != "") {
+            if (!has(F, path SEP "observation" SEP okey))
+              fail(F, n_line[i], named(path) "has no `observation." okey "`, which `" a "` passes as its required input `" keyof[D, "inputs", j] "` (`observation_inputs`)")
+          } else if (!has(F, path SEP dp))
             fail(F, n_line[i], named(path) "passes no `" keyof[D, "inputs", j] "`, which `" a "` requires")
         }
       }
@@ -1101,6 +1135,8 @@ check_catalog() {
         D = declaration[a]; dp = "inputs" SEP s[4]
         if (!has(D, dp)) { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` does not declare"); continue }
         if (text(D, dp SEP "local") == "true") { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` declares local: the local config supplies it (`local_input_in_specification`)"); continue }
+        okey = observed_by(D, s[4])
+        if (okey != "") { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` takes from the key `" okey "` of the plan'"'"'s `observation` (`observation_inputs`); the plan writes the value once, under `observation`"); continue }
         dt = text(D, dp SEP "type"); dl = (text(D, dp SEP "list") == "true")
         x = n_text[i]
         if (n_kind[i] != "map" && n_kind[i] != "list" && (index(x, "${") > 0 || index(x, "{inputs.") > 0)) {
@@ -2666,6 +2702,40 @@ again assessor-input-list-in-a-list
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
 refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
+
+# -- the inputs that hold the observation --------------------------------------------------------
+#
+# A declaration names under `observation_inputs` the input that Ratchet passes the value of a
+# key of the plan's `observation` as (docs/evidence-format.md § 10, "Invocation"). The plan
+# writes that value once, under `observation`, and passes nothing to the input under `inputs`.
+# A declaration writes `observation_inputs` at its end, where `outputs` ends.
+
+copy observation-input-passed-twice
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  workload: {type: string, required: true}'
+printf 'observation_inputs: {workload: workload}\n' >> "$c/$conf_d"
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      workload: ${inputs.subject}'
+swap "$conf" "$passes" "$passes"'\n      workload: ${inputs.subject}'
+refused '`assessments.conformance.inputs.workload` passes the input `workload`, which `conformance-report@1` takes from the key `workload` of the plan'"'"'s `observation` (`observation_inputs`)' "a plan passes under inputs the input that its assessor takes from observation.workload"
+
+again observation-input-absent
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  runs: {type: integer, required: true}'
+printf 'observation_inputs: {runs: runs}\n' >> "$c/$differ_d"
+refused '`assessments.comparison` has no `observation.runs`, which `comparison-report@1` passes as its required input `runs` (`observation_inputs`)' "a declaration takes a required input from observation.runs, and the plan has no runs"
+
+copy observation-input-undeclared
+printf 'observation_inputs: {workload: workload}\n' >> "$c/$conf_d"
+refused '`observation_inputs.workload` names the input `workload`, which the declaration does not declare under `inputs`' "a declaration takes from observation.workload an input it does not declare"
+
+again observation-input-key
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  warmup: {type: integer, required: false}'
+printf 'observation_inputs: {warmup: warmup}\n' >> "$c/$differ_d"
+refused '`observation_inputs.warmup` is no key of the observation that Ratchet passes (ratchet.assessor.ObservationKey: ' "a declaration takes an input from the key warmup, which is no observation key"
+
+# A declaration names under `revision_inputs` the inputs whose file states the revision it was
+# produced from (docs/evidence-format.md § 10, "The revision"); each is one of its inputs.
+again revision-input-undeclared
+printf 'revision_inputs: [lists]\n' >> "$c/$known_d"
+refused '`revision_inputs[1]` names the input `lists`, which the declaration does not declare under `inputs`' "a declaration lists under revision_inputs an input it does not declare"
 
 # -- a window over the runs of another plan ------------------------------------------------------
 

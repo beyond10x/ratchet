@@ -7,7 +7,7 @@ about a build:
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`image-size@1`](image-size@1.preset.yaml) | The size of a container image and the number of its layers | An imported inspection of the image, [`image-inspection@1`](image-inspection@1.assessor.yaml) |
-| [`binary-size@1`](binary-size@1.preset.yaml) | The size of one built file | The file itself, [`file-size@1`](file-size@1.assessor.yaml) |
+| [`binary-size@1`](binary-size@1.preset.yaml) and [`binary-size@2`](binary-size@2.preset.yaml) | The size of one built file | The file itself, [`file-size@1`](file-size@1.assessor.yaml); `@2` names [`file-size@2`](file-size@2.assessor.yaml), which reads it as a target of the kind `build` |
 | [`dependency-count@1`](dependency-count@1.preset.yaml) | The number of dependencies the project names, and the number its resolved graph holds | An imported dependency graph, [`dependency-graph@1`](dependency-graph@1.assessor.yaml) |
 | [`dependency-advisories@1`](dependency-advisories@1.preset.yaml) | The published advisories that apply to a dependency | An imported report of an advisory scan, [`advisory-report@1`](advisory-report@1.assessor.yaml) |
 
@@ -152,6 +152,27 @@ presets:
       environments: [ci]
       tolerance_bytes: 4096
 ```
+
+## `binary-size@2`
+
+`binary-size@1` whose plan names a target of the kind `build`, and the assessor
+`file-size@2`. That declaration takes `targets: [build]` and names its input `binary` as
+`target_input`, the path of the artifact
+([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation"). Ratchet passes
+`--revision`, the revision the artifact was built from, and the program writes it as
+`target.revision`, the SHA-256 of the file as `candidate` and under
+`target.identifiers.artifact_digest`, and does not repeat the file under `inputs`
+([`docs/evidence-format.md`](../docs/evidence-format.md) § 6, example 9). The inputs, the
+requirement, what the program measures and the binding are those of `binary-size@1`, with
+`use: binary-size@2`. The files `@1` stay as they were released.
+
+That the file was built from that revision is the project's statement: the binding names a
+path that its build at that revision writes. Nothing reads a record of the build or a pinned
+digest of the file.
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `binary-size@2/binary/size` | Lower | `bytes` | The input `tolerance_bytes`, absolute; default 0 | `file-size@2`, output `size`, of the target of the kind `build` |
 
 ## `dependency-count@1`
 
@@ -312,10 +333,13 @@ key to a format; each point names the place in the specification
    an exact set would then stop qualifying with every new day, so `advisory-report@1` declares
    none.
 4. **A target that is a build.** What the family judges is a built thing, and
-   `ratchet.specification.TargetKind` has `build` for it. The invocation contract covers a
-   target of the kind `revision` or `document`
-   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 9), and
-   `ratchet.assessor.ReservedArgument` has `revision` and no argument that passes the artifact
-   of a build. So each plan of the family names the kind `revision`, the built file is an
-   input, and the program writes its digest under `target.identifiers.artifact_digest`.
-   Nothing checks that the file was built from the revision.
+   `ratchet.specification.TargetKind` has `build` for it. Up to `binary-size@1` each plan of
+   the family names the kind `revision`, the built file is an input, and the program writes
+   its digest under `target.identifiers.artifact_digest`, and the kind `build` answers it
+   from `binary-size@2` on: `ratchet.assessor.Assessor.target_input` names the input of the
+   artifact for a `build` target, Ratchet passes `--revision`, the revision it was built
+   from, and the record holds the digest of the artifact as `candidate`
+   ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "Invocation").
+   `image-size@1`, `dependency-count@1` and `dependency-advisories@1` keep the kind
+   `revision`. Nothing checks that the file was built from the revision: that is the
+   project's statement ([`docs/evidence-format.md`](../docs/evidence-format.md) § 9).

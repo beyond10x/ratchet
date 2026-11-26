@@ -67,6 +67,15 @@ What the program of `conformance-report@1` returns for a run:
   `skipped`, refused cases are `unsupported`, and a case the report lists without a result is
   `not_run`.
 
+[`conformance-report@2`](conformance-report@2.assessor.yaml) is `conformance-report@1` with
+`revision_inputs: [report]`: its program reads the revision the report states it was produced
+from, writes it as `inputs.report.revision`, and refuses a report that states none, and
+`ratchet assess` refuses a report of another revision than the candidate's
+([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "The revision"; no release
+builds that command yet). A report left
+from a run of another revision then does not count as the candidate's. No preset names it
+yet: a later version of `conformance-cases` does. The file `@1` stays as it was released.
+
 ```yaml
 presets:
   functional:

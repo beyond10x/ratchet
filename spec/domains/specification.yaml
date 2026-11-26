@@ -426,7 +426,7 @@ types:
         The interval of a time-window plan (§ 3 "Time windows"): `{length: 7d}`, `{last: 20}`,
         or both, and then the window holds the newest `last` items inside `length`. The window
         ends when the plan is assessed; the evidence records the exact bounds. A gate that
-        should judge the last run declares `{last: 1}` (§ 5). No example uses the shape yet.
+        should judge the last run declares `{last: 1}` (§ 5). Format § 10 shows `{length: 7d}`.
     fields:
       - name: length
         type: Optional<ratchet.specification.WindowLength>

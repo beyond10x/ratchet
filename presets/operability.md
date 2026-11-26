@@ -184,5 +184,7 @@ key to a format; each point names the place in the specification
    another. `executed_ids` there names an exact set, which a run with one more expectation
    no longer is.
 4. **The input that holds the workload.** As for the latency family
-   ([latency.md](latency.md), "Not expressible yet", point 6): `ratchet.assessor.Assessor`
-   has no member that names it.
+   ([latency.md](latency.md), "Not expressible yet", point 6): `ratchet.assessor.Assessor` has
+   `observation_inputs`, which maps the key `workload` of the plan's `observation` to an input
+   of the declaration, and no preset of the family uses it yet: `metrics-scrape@1` takes the
+   workload as an input that the plan passes under `inputs`.

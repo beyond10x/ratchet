@@ -49,7 +49,7 @@ Every digest is SHA-256 over bytes as they were written (U9). The format fixes n
 
 The column **From** says where a field comes from. `spec`: the field is in the specification with this meaning, and only its place in the JSON may differ. `changed`: it is in the specification with another name, type, or number. `new`: the specification does not have it. `§` is a section of the design. Specification types are in the domain `ratchet.evidence` unless they say otherwise.
 
-There are 80 fields: 48 `spec`, 7 `changed`, 25 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
+There are 82 fields: 48 `spec`, 7 `changed`, 27 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
 
 ### Top level
 
@@ -83,8 +83,8 @@ There are 80 fields: 48 `spec`, 7 `changed`, 25 `new`. The fields of an assessor
 | `kind` | text | yes | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, or `document` | changed: `ResolvedTarget.kind`; `document` is a new value (E1) |
 | `class` | text | yes | Where the evidence was produced: `local`, `ci`, `ephemeral`, `staging`, or `production` | spec: `ResolvedTarget.class` |
 | `selection` | text | no | `candidate` or `merge_result`. Absent: the evidence is attributable to no candidate (§ 3). Under `merge_result`, `candidate` is the revision under judgement and `revision` the merged tree that was read, two different commits. | spec: `ResolvedTarget.selection` |
-| `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. | spec: `ResolvedTarget.revision` |
-| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). For `workflow_run`: `run_id`, the forge’s id of the run, as text, and `job`, `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two jobs of one run are two records with the same `run_id`. The map stays open (E5). | spec: `ResolvedTarget.identifiers` |
+| `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. For `build`: the revision the artifact was built from, which Ratchet passes as `--revision` (§ 10); the record holds it. | spec: `ResolvedTarget.revision` |
+| `identifiers` | map from text to text | for `document` and `build` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `build`: `artifact_digest`, the digest of the bytes of the artifact, which is `candidate` too. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). For `workflow_run`: `run_id`, the forge’s id of the run, as text, and `job`, `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two jobs of one run are two records with the same `run_id`. The map stays open (E5). | spec: `ResolvedTarget.identifiers` |
 | `window` | object | exactly for a time-window plan | The window that was read (§ 3) | spec: `ResolvedTarget.window` |
 
 ### `evidence.target.window`
@@ -104,6 +104,7 @@ There are 80 fields: 48 `spec`, 7 `changed`, 25 `new`. The fields of an assessor
 | `value` | text, count, boolean, or a list of these | yes, unless it is a path outside the tree | The value the plan passed, after defaults. A path and a decimal are text. | new: § 4 inputs |
 | `digest` | digest | for a path that was read | The file digest of the file at that path | new: U9 |
 | `digest_form` | text | with `digest` | `bytes` (§ 2) | new: U9 |
+| `revision` | text | no | The revision the file states it was produced from, for an input that the declaration names in `revision_inputs`, such as an imported report (§ 10). The input then has `digest` too. | new: a report of another revision |
 
 ### `evidence.conditions`
 
@@ -168,6 +169,7 @@ A result of the value type `number`:
 | `unit` | text | exactly when the assessor declares a unit for the output | The unit (§ 3) | spec: `NumberValue.unit` |
 | `at_least` | boolean | no | `true`: the value is a lower bound (U6). Absent means `false`. | spec: `NumberValue.at_least` |
 | `samples` | count | with `aggregation`, and for a sampled result | The number of samples or runs behind the value | changed: `AssessmentRun.samples` is one number per run |
+| `runs` | count | no | The number of runs the value was aggregated over, where `samples` counts the samples of all those runs, such as the requests behind a percentile. A result of a plan whose assessor maps `runs` under `observation_inputs` carries it (§ 10) | new: the runs of a plan behind one value |
 | `aggregation` | object | no | The aggregation the value already is, in the plan’s shape: `{kind: percentile, parameter: 95}` (§ 3) | new: § 3 measurement kind, § 6 |
 
 A result of the value type `identity_set`:
@@ -614,6 +616,33 @@ Two results of one output and one scope item in two condition cells: the output 
 ]
 ```
 
+A run of a target of the kind `build`: the plan `binary` of the preset `binary-size@2`, bound under the name `binary`, whose assessor `file-size@2` names its input `binary` as `target_input` (§ 10, “Invocation”). Ratchet passes `--revision`, the commit the artifact was built from, and the assessor writes it as `target.revision`. `candidate` is the digest of the bytes of the artifact, the same as `target.identifiers.artifact_digest`, and the artifact is not repeated under `inputs`. The names, the ids, the digest, and the size are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "service",
+    "assessment": "binary.binary",
+    "assessor": "file-size@2",
+    "candidate": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+    "target": {
+      "kind": "build",
+      "class": "ci",
+      "selection": "candidate",
+      "revision": "7d1e3a5c9b0f2468ace13579bdf02468ace13579",
+      "identifiers": {"artifact_digest":"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"}
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"file","executed":1},
+    "results": [
+      {"output":"size","kind":"exact","scope":"run","value_type":"number","value":"8421376","unit":"bytes"}
+    ]
+  }
+}
+```
+
 ## 7. Mapping from the uxui draft
 
 The draft is `ratchet-evidence/draft` as `docs/ux-static.md` and `engine/static/src/record.rs` define it on the consumer’s branch `ux-static`. The branch is not pushed, so nothing here links to it. `results[]` is short for `evidence.results[]`.
@@ -715,7 +744,7 @@ From revision 2, in [`spec/domains/evidence.yaml`](https://github.com/beyond10x/
 
 From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml) and the CLI binding:
 
-23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`. **Done:** the specification takes the names of the declaration. `Assessor` has `format`, `name`, `version`, `command`, `targets`, `target_input`, `inputs` (a map from an input name to `ratchet.specification.InputDeclaration`, which no longer has a `name`), `conditions`, `coverage_unit`, `coverage`, `outputs` (a map from an output name to `ratchet.assessor.AssessorOutput`), and `population_fields`. The invariant is on `AssessorOutput`, and one more is on `Assessor`: `target_input` is present exactly when `targets` holds `document`.
+23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`. **Done:** the specification takes the names of the declaration. `Assessor` has `format`, `name`, `version`, `command`, `targets`, `target_input`, `inputs` (a map from an input name to `ratchet.specification.InputDeclaration`, which no longer has a `name`), `conditions`, `coverage_unit`, `coverage`, `outputs` (a map from an output name to `ratchet.assessor.AssessorOutput`), and `population_fields`. The invariant is on `AssessorOutput`, and one more is on `Assessor`: `target_input` is present where `targets` holds `document`, and admitted only where it holds `document` or `build` (§ 10, “Invocation”).
 24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run. **Left out of 0.1.0**, as item 15 is: ESS has no such projection. `Assessor.format` is declared with the invariant `format == "ratchet-assessor/1"`.
 25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as. **Done in part:** the six reserved arguments are the enum `ratchet.assessor.ReservedArgument`, and the four meanings of an exit status are `ratchet.assessor.AssessorExit` (`ended`, `refused_inputs`, `wrong_invocation`, `broke`). The comment on `assess` in `spec/cli.yaml` and the comment on `AssessorExit` say which completion each is recorded as. **Left out of 0.1.0:** that table as a declaration. ESS declares no map from the values of one enum to those of another, so the CLI implements it from the comment.
 
@@ -739,8 +768,10 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 - **Raw samples.** A result is one value. An assessor that aggregates names the aggregation and the number of samples.
 - **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
 - **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
-- **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision` or `document` and the selection `candidate`. It does not say how an assessor learns the observation of a plan (`scenarios`, `workload`, `command`, `runs`, `min_samples`), a `merge_result` selection, a plan without a selection, or a target of another kind. The first assessor needs none of these.
+- **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision`, `document` or `build` and the selection `candidate`, and a time-window plan without a selection; an assessor learns the keys of the plan’s observation and its window through `observation_inputs`, and the fields of its population filter as arguments. It does not say how an assessor learns a `merge_result` selection or a target of another kind. The first assessor needs none of these.
+- **A proof that an artifact was built from its revision.** For a target of the kind `build`, that the artifact was built from the revision Ratchet passes is the project’s statement: the plan names a path that its build at that revision writes (§ 10). A record that the build writes, or a digest of the artifact that the plan pins, would let a reader check it; version 1 has neither.
 - **A digest pin on a declaration.** Where a declaration is found is decided (2026-11-24): the file `<name>@<version>.assessor.yaml` in a source of `[catalog] sources` of the local config, and a source without `git` is a directory relative to the root (design § 5, “Local config”). Whether a plan pins the declaration by digest, as a binding pins a preset (design § 4), is not.
+- **The digest of the sources of a report.** A report named in `revision_inputs` states the revision it was produced from (§ 10), and not the digest of the sources it was produced from, which would also tell a report of the same revision made from changed files that are not committed. That needs the list of the sources, which no declaration names.
 
 ## 10. The assessor contract
 
@@ -757,14 +788,19 @@ Ratchet runs the assessor’s command once per run of a plan. The working direct
 | `--root` | The root of the tree that is assessed: the checkout, or the scratch copy that `ratchet prove` makes | Always | Nothing. Paths in `evidence` are relative to it (§ 1). |
 | `--class` | The target class of this run | Always | `evidence.target.class` |
 | `--out` | The file that the document is written to | Always | Nothing |
-| `--revision` | The commit id of the tree | For a target of the kind `revision` | `evidence.candidate` and `evidence.target.revision` |
+| `--revision` | The commit id of the tree; for a target of the kind `build`, the revision the artifact was built from | For a target of the kind `revision` or `build` | `evidence.candidate` and `evidence.target.revision`; for `build`, `evidence.target.revision` alone |
 | `--<input>` | The value of an input that the assessor declares: from the plan after defaults, or from the local config for a local input | For each input that has a value | `evidence.inputs.<input>`, or `run.local_inputs.<input>` for a local input |
 
 - **Values.** Text is passed as it is, and a count or a decimal as decimal text. A boolean is `true` or `false`, and a list is one argument of JSON, as for the `ratchet` commands (design § 5). A path that is not local is passed as the plan wrote it, relative to the root.
+- **The observation of the plan.** Ratchet passes the value of each key named in `observation_inputs` as that input: a declaration maps a key of the plan’s `observation`, one of `scenarios`, `workload`, `command`, `runs`, and `min_samples`, or a key of the window below (`ratchet.assessor.ObservationKey`), to an input it declares, such as `{workload: workload, runs: runs}`. The plan writes the value once, under `observation`, and passes no value to that input under `inputs`; a plan that does is refused. The input is passed and written under `inputs` like every other. An assessor that maps `runs` writes, on each number it aggregates over the runs of the plan, the number of runs as `runs` beside `samples` (§ 3), so a report of one run does not stand for a plan with `runs: 3`.
+- **The window of the plan.** A time-window plan over a population outside the record store (design § 3, “Time windows”) passes its window through three more keys of `observation_inputs`: `window_length` and `window_last` are the `length` and the `last` of the plan’s `window`, each passed where the plan states it, `window_length` as the plan writes it, such as `7d`; `window_ends_at` is the instant the plan is assessed, at which the window ends, as a time in UTC (§ 1). A record’s `target.window` lies inside the window passed: its `ends_at` is not after `window_ends_at`, and its `starts_at` is not before `window_ends_at` less `window_length`.
+- **The population of the plan.** Each field of `population: {filter}` is passed as `--<field> <value>`, under its name in the declaration’s `population_fields`, so an assessor declares no input with such a name. `population: {filter: {service: portal}}` gives `--service portal`.
+- **A plan without a selection.** A time-window plan without a `selection` is passed no `--revision`: its evidence is attributable to no candidate, so the assessor writes no `candidate` and no `target.selection` (§ 4 rule 1).
 - **Reserved names.** An assessor declares no input named `project`, `assessment`, `root`, `class`, `out`, or `revision`.
-- **Nothing else.** Ratchet passes no argument beside these. A new reserved argument is a new version of the declaration format, so an assessor can refuse an argument that it does not know.
+- **Nothing else.** Ratchet passes no argument beside these and the fields of a population filter. A new reserved argument is a new version of the declaration format, so an assessor can refuse an argument that it does not know.
 - **The target of the kind `document`** is an input: the declaration names it as `target_input`. The assessor reads the file, writes the digest of its bytes as `candidate` and under `target.identifiers`, and does not repeat it under `inputs`. The target may lie outside the root, as a generated variant in a scratch directory does. It then has no `path` (§ 1, Q8). The same holds for another input file outside the root: its entry under `inputs` has the digest and no `value`. A plan names its paths relative to the root, so only a caller other than the CLI passes such a file.
-- **The revision** (Q9). The assessor writes the revision it is given and looks none up. For a `document`, Ratchet passes none and `target.revision` is absent: the digests identify the document and the inputs, so the same files give the same document at every commit. The CLI never fills a member of a document that an assessor wrote, because the record id is over the bytes of the file (E4).
+- **The target of the kind `build`** is an input too: a declaration whose `targets` holds `build` may name the input that holds the path of the artifact as `target_input`. Ratchet passes `--revision`, the revision the artifact was built from. The assessor writes it as `target.revision`, writes the digest of the bytes of the artifact as `candidate` and under `target.identifiers.artifact_digest`, and does not repeat the artifact under `inputs` (§ 6, example 9). That the artifact was built from that revision is the project’s statement: the plan names a path its build at that revision writes (§ 9).
+- **The revision** (Q9). The assessor writes the revision it is given and looks none up. A report that an input names is the exception, where the declaration lists that input in `revision_inputs`: the assessor reads the revision from the report and writes it as `inputs.<input>.revision`, and `ratchet assess` refuses a report whose revision is not the candidate’s, with a cause that names both. So a report left from a run of another revision does not count as the candidate’s. For a `document`, Ratchet passes none and `target.revision` is absent: the digests identify the document and the inputs, so the same files give the same document at every commit. The CLI never fills a member of a document that an assessor wrote, because the record id is over the bytes of the file (E4).
 - **Without the CLI.** An assessor may give `--root`, `--class`, and `--out` a default, as the first assessor does (the working directory, `local`, and the standard output), so that it runs by hand.
 
 The first assessor at `edbbc27` takes this call, run in the root, and writes the document of § 6:
@@ -782,7 +818,7 @@ The assessor gives no verdict, and its exit status is not one: a document with 4
 | Exit status | Means | Document | The CLI records |
 | --- | --- | --- | --- |
 | 0 | The run ended, and the document is at `--out` | From the assessor | That document, after it checks the rules of § 4 and the declaration. A missing document or one that breaks a rule is recorded as the last row is. |
-| 1 | The assessor refuses its inputs: a file is unreadable or malformed, or the inputs do not belong together (Q12) | None | A run with `completion: refused_inputs` (E9) |
+| 1 | The assessor refuses its inputs: a file is unreadable or malformed, the inputs do not belong together (Q12), or a report named in `revision_inputs` that states no revision is passed | None | A run with `completion: refused_inputs` (E9) |
 | 2 | The invocation is wrong: an argument the assessor does not know, a required one missing, a value that a reserved argument cannot have | None | A run with `completion: stopped_by_infrastructure`. The declaration and the program do not match. |
 | Any other, or a signal | The assessor or a tool under it broke | None | A run with `completion: stopped_by_infrastructure` |
 
@@ -805,8 +841,10 @@ One YAML document per assessor and version (E8). `ratchet validate` checks a pla
 | `version` | text | yes | The part after the `@` | spec: `Assessor.version` |
 | `command` | text | for an assessor that Ratchet runs | The program. `[tools]` of the local config says how it is started on one machine (design § 5). | new: § 4, a project command |
 | `targets` | list of text | yes | The target kinds it supports | changed: `Assessor.supported_targets` |
-| `target_input` | text | exactly when `targets` holds `document` | The input that holds the path of the target document | new: Q10 |
+| `target_input` | text | when `targets` holds `document`; may when it holds `build`, and with no other kind | The input that holds the path of the target document, or of the artifact of a target of the kind `build` | new: Q10 |
 | `inputs` | map from an input name to an input | no | Each input: `type` (`string`, `integer`, `decimal`, `boolean`, or `path`), `list`, `required`, `default`, and `local` (design § 4) | changed: `Assessor.configuration_inputs` is a list |
+| `observation_inputs` | map from an observation key to text | no | For a key of the plan’s `observation`, the input of `inputs` that Ratchet passes its value as. A key is `scenarios`, `workload`, `command`, `runs`, or `min_samples`, and for a time window `window_length`, `window_last`, or `window_ends_at` (Invocation above). Absent: the assessor is passed nothing of the observation. | new: the observation of a plan |
+| `revision_inputs` | list of text | no | The inputs whose file states the revision it was produced from, such as an imported report. The assessor reads that revision and writes it as `inputs.<input>.revision` (§ 3); a file named here that states no revision is refused (Invocation, Exit status above). | new: a report of another revision |
 | `conditions` | list of text | no | The conditions it declares beside `host_load_per_cpu`, `tools`, and `runner`. Absent or empty: it declares none (§ 3, Q13). | spec: `Assessor.conditions` |
 | `coverage_unit` | text | yes | The one unit its coverage counts count | spec: `Assessor.coverage_unit` |
 | `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. It leaves a count it does not report out of its documents, where that count is not known (rule 4); a count it reports may be a lower bound under `at_least` (§ 5, U6). | spec: `Assessor.coverage` |
@@ -878,6 +916,57 @@ assessments:
         {kind: exact, output: a11y.accessible_names@1, scope: page, unit: nodes, better: lower}
       new-findings:
         {kind: exact, output: findings, scope: page, identity: [rule, node_path]}
+```
+
+An assessor of a population outside the record store, such as production telemetry (design § 3, “Time windows”), learns its window and its population as Invocation above says. Its declaration maps the three keys of the window and `min_samples` to inputs of its own and lists the fields a plan may filter its population by. The names and the values are illustrations.
+
+```yaml
+format: ratchet-assessor/1
+name: telemetry-latency
+version: "1"
+command: telemetry-latency
+targets: [telemetry_population]
+inputs:
+  source: {type: string, required: true}
+  window_length: {type: string, required: false}
+  window_last: {type: integer, required: false}
+  window_ends_at: {type: string, required: true}
+  min_samples: {type: integer, required: true}
+observation_inputs:
+  {window_length: window_length, window_last: window_last, window_ends_at: window_ends_at, min_samples: min_samples}
+conditions: [collector]
+coverage_unit: request
+coverage: [executed]
+outputs:
+  duration:
+    {value_type: number, kind: sampled, scopes: [route], unit: ms}
+population_fields: [service, region]
+```
+
+A time-window plan reads it over the requests of the last seven days to one service in one region. It has no `selection`, so it is passed no `--revision`, and its records hold no `candidate` (§ 4 rule 1). Assessed at `2026-11-26T08:00:00Z`, it calls the assessor with `--source telemetry/eu.yaml --window_length 7d --window_ends_at 2026-11-26T08:00:00Z --min_samples 1000 --service portal --region eu` beside the reserved arguments, and no `--window_last`, because the window states no `last`.
+
+```yaml
+assessments:
+  portal-latency:
+    subject: portal
+    assessor: telemetry-latency@1
+    inputs:
+      source: telemetry/eu.yaml
+    target: {kind: telemetry_population, environments: [production]}
+    observation:
+      kind: time_window
+      window: {length: 7d}
+      population: {filter: {service: portal, region: eu}}
+      min_samples: 1000
+      conditions: {production: {collector: otel-0.110}}
+    measurements:
+      p95:
+        kind: sampled
+        output: duration
+        scope: route
+        aggregation: {kind: percentile, parameter: 95}
+        unit: ms
+        better: lower
 ```
 
 ## 11. Revision 2 (answers to the first implementation)

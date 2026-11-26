@@ -48,13 +48,28 @@ types:
   # assessor writes them as `evidence.project` and `evidence.assessment`), `--root` (paths in
   # `evidence` are relative to it), `--class` (`evidence.target.class`), `--out` (the file the
   # document is written to), and for a target of the kind `revision`, `--revision`
-  # (`evidence.candidate` and `evidence.target.revision`). Beside them Ratchet passes one
-  # `--<input>` per declared input that has a value, and nothing else. An assessor declares no
-  # input with one of these names, and a new reserved argument is a new version of the
-  # declaration format.
+  # (`evidence.candidate` and `evidence.target.revision`); for a target of the kind `build`,
+  # `--revision` is the revision the artifact was built from (`evidence.target.revision`).
+  # Beside them Ratchet passes one `--<input>` per declared input that has a value, and for a
+  # time-window plan over a population outside the record store one argument per field of its
+  # `population: {filter}`: each field is passed as `--<field> <value>`, under a name of
+  # `Assessor.population_fields`. Nothing else. An assessor declares no input with one of these names or with the name of a
+  # population field, and a new reserved argument is a new version of the declaration format.
   - name: ratchet.assessor.ReservedArgument
     kind: enum
     variants: [project, assessment, root, class, out, revision]
+
+  # format § 10 "Invocation": the keys of a plan's `observation` whose value Ratchet passes as
+  # an input of the assessor, the one that `Assessor.observation_inputs` names for the key. A
+  # closed list: a key outside it is passed to no assessor. `scenarios`, `workload`, `command`,
+  # `runs` and `min_samples` are the members of `ratchet.specification.ObservationPlan` of the
+  # same names. The window of a time-window plan: `window_length` and `window_last` are the
+  # `length` and the `last` of its `window` (`ratchet.specification.WindowSpec`), and
+  # `window_ends_at` is the instant the plan is assessed, at which the window ends (§ 3 "Time
+  # windows"). A record's `target.window` lies inside the window passed.
+  - name: ratchet.assessor.ObservationKey
+    kind: enum
+    variants: [scenarios, workload, command, runs, min_samples, window_length, window_last, window_ends_at]
 
   # format § 10 "Exit status": what an assessor's exit means, and the completion the CLI records
   # for it (`ratchet.evidence.RunCompletion`). The exit status is no verdict: a document with
@@ -174,9 +189,11 @@ entities:
       - name: target_input
         type: Optional<String>
         summary: >-
-          The input that holds the path of the target document; present exactly when `targets`
-          holds `document`. The assessor writes the digest of that file as `candidate` and
-          under `target.identifiers`, and does not repeat it under `inputs`.
+          The input that holds the path of the target document, or of the artifact of a target
+          of the kind `build`; present where `targets` holds `document`, and admitted only
+          where `targets` holds `document` or `build`. The assessor writes the digest of that
+          file as `candidate` and under `target.identifiers` (`artifact_digest` for `build`),
+          and does not repeat it under `inputs`.
       - name: inputs
         type: Optional<Map<String, ratchet.specification.InputDeclaration>>
         summary: >-
@@ -185,6 +202,26 @@ entities:
           `local` is not passed by the plan; the local config supplies it under
           `[inputs.<assessment>]`, such as `job_log` of `command-timing@1` (§ 3, § 5 rule 6).
           No input is named as a `ReservedArgument`.
+      - name: observation_inputs
+        type: Optional<Map<String, String>>
+        summary: >-
+          A map from a key of the plan's `observation`, a value of
+          `ratchet.assessor.ObservationKey`, to the name of an input it declares under
+          `inputs`. Ratchet passes the value of that key of the plan as that input, so the plan
+          writes it once, under `observation`, and passes no value to that input under
+          `inputs`; an input named here is no reserved argument, and Ratchet passes it as
+          `--<input>` like every other (format § 10 "Invocation"). A result of a plan whose
+          assessor maps `runs` carries `runs`.
+      - name: revision_inputs
+        type: Optional<List<String>>
+        summary: >-
+          The inputs whose file states the revision it was produced from, such as an imported
+          report: names of `inputs`. The assessor reads that revision from the file and writes
+          it as `evidence.inputs.<input>.revision`. A file named here that states no revision
+          is refused: the assessor exits 1, which the CLI records as `refused_inputs` (format
+          § 10 "Exit status", E9). A file whose revision is not the candidate's is refused by
+          `ratchet assess`, with a cause that names both. The digest of the sources a file was
+          produced from is left out (format § 9).
       - name: conditions
         type: Optional<List<String>>
         summary: >-
@@ -214,12 +251,15 @@ entities:
         summary: >-
           The fields a time-window plan's `population: {filter}` may name, for an assessor that
           reads a population outside the record store, such as `service` and `region` of
-          production telemetry (§ 3 "Time windows", value lists).
+          production telemetry (§ 3 "Time windows", value lists). Each field of the plan's
+          filter is passed as `--<field> <value>` (format § 10 "Invocation"), so the
+          declaration declares no input with such a name.
     invariants:
       - "format == \"ratchet-assessor/1\""
       - any:
           - "not defined(target_input)"
           - exists: {in: targets, as: t, that: "t == document"}
+          - exists: {in: targets, as: t, that: "t == build"}
       - any:
           - "defined(target_input)"
           - not:

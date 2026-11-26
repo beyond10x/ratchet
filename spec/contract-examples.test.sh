@@ -1,29 +1,30 @@
 #!/bin/sh
-# Every key of the two YAML examples of docs/evidence-format.md § 10 is a declared field of the
+# Every key of the YAML examples of docs/evidence-format.md § 10 is a declared field of the
 # type it stands in (spec/domains/*.yaml).
 #
 # spec/record-fields.test.sh and spec/record-types.test.sh compare the field tables of § 10 with
 # the specification, and spec/record-examples.test.sh reads the JSON examples of § 6. Nothing
-# else reads the two YAML examples, so a field renamed in the table and in the specification
+# else reads the YAML examples, so a field renamed in the table and in the specification
 # leaves the declaration of the first assessor behind.
 #
-# The examples and their root types:
-#   1  the declaration of an assessor: a mapping whose `format` is `ratchet-assessor/1` is a
-#      `ratchet.assessor.Assessor`
-#   2  a part of a `ratchet/1` file. That file is not the declared entities written out
-#      (spec/README.md, "How a `ratchet/1` file differs from the declared entities"), so the
-#      member at its root is read by the table `file_member` below: `assessments` is a map from
-#      a name to a `ratchet.specification.AssessmentPlan`. Another member at the root fails.
+# The examples and their root types, by the shape of each (1 and 3 are declarations, 2 and 4
+# parts of a `ratchet/1` file):
+#   a declaration of an assessor: a mapping whose `format` is `ratchet-assessor/1` is a
+#     `ratchet.assessor.Assessor`
+#   a part of a `ratchet/1` file. That file is not the declared entities written out
+#     (spec/README.md, "How a `ratchet/1` file differs from the declared entities"), so the
+#     member at its root is read by the table `file_member` below: `assessments` is a map from
+#     a name to a `ratchet.specification.AssessmentPlan`. Another member at the root fails.
 #
 # A key is read from the root type along its path: it is a declared field of the struct or
 # entity there, a name in a declared map, or lies under a field of the type `Json`. Not checked:
 # the values, the fields a type requires and its invariants.
 #
-# This is no YAML reader. It reads the forms the two examples use and fails on a line of another
+# This is no YAML reader. It reads the forms the examples use and fails on a line of another
 # form: a mapping by indentation (`key:` and `key: value`), a flow mapping `{key: value, ...}`
 # on one line, a flow list `[...]` on one line, and plain or quoted scalars.
 #
-# § 10 holds 2 examples, each a block fenced `yaml`; `want_examples` below states the number.
+# § 10 holds 4 examples, each a block fenced `yaml`; `want_examples` below states the number.
 # Another number fails, and so does a block of § 10 fenced otherwise, except `sh` (the
 # invocation, which holds no key), and a document without a section "## 10. ".
 #
@@ -40,7 +41,7 @@ for f in "$root"/spec/domains/*.yaml; do
   [ -r "$f" ] || { echo "contract-examples: cannot read spec/domains/*.yaml" >&2; exit 1; }
 done
 
-awk -v want_examples=2 '
+awk -v want_examples=4 '
   function unopt(t) { return (t ~ /^Optional</) ? substr(t, 10, length(t) - 10) : t }
   function is_struct(t) { return kind[t] == "struct" || kind[t] == "entity" }
   function trim(s) { sub(/^ +/, "", s); sub(/ +$/, "", s); return s }

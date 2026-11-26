@@ -53,7 +53,7 @@ runs twelve steps, and `task check` calls it:
    `docs/evidence-format.md` § 6 with `jq` and fails when a member is not declared, a required
    member is absent, or a value does not have the declared type. Its last line is
    `record-examples: <n> of <n> members of <b> example(s) decode under the specification`;
-6. `sh spec/contract-examples.test.sh`, which reads the two YAML examples of
+6. `sh spec/contract-examples.test.sh`, which reads the YAML examples of
    `docs/evidence-format.md` § 10 and fails when a key is no declared field of the type it
    stands in. Its last line is
    `contract-examples: <k> of <k> keys of <n> example(s) are declared fields`;
@@ -78,7 +78,11 @@ runs twelve steps, and `task check` calls it:
     preset holds no gate, no exception, no local input and no reference to an input it does not
     declare, and a requirement writes out the names of its assessment, its measurement and its
     statements; an assessment passes the inputs its assessor requires, with the declared types,
-    also for each item of a list, and names a target kind the assessor takes; a measurement
+    also for each item of a list, and names a target kind the assessor takes; an input that the
+    declaration names in `observation_inputs` is passed by that key of the plan's
+    `observation` and not under `inputs`, and a key of `observation_inputs` is one of
+    `ratchet.assessor.ObservationKey` and names a declared input, as an entry of
+    `revision_inputs` does; a measurement
     names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
     that the declaration of its assessor declares, and a plan a condition and a population
     field that it declares; the cache condition is `cache_profile` and never `cache`, in a plan
@@ -126,9 +130,9 @@ runs twelve steps, and `task check` calls it:
     `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
 
 Each script states how much it reads and fails on another number, so that a section, a table
-or an example which an edit moves out of the form the script looks for is not skipped: 80 field
-rows in 13 tables of § 3 and 21 in 2 tables of § 10 (`record-fields`, `record-types`, a number
-per table), 8 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
+or an example which an edit moves out of the form the script looks for is not skipped: 82 field
+rows in 13 tables of § 3 and 23 in 2 tables of § 10 (`record-fields`, `record-types`, a number
+per table), 9 examples in § 6 (`record-examples`), 4 examples in § 10 (`contract-examples`), 2
 places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
 table or an example that is added or removed needs the new number in the script.
 `presets.test.sh` states no number of the catalog, because the catalog grows by a family at a
