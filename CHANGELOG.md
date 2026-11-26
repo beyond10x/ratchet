@@ -6,6 +6,8 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-11-26
+
 ### Added
 
 - A release holds a third archive, `ratchet-<version>-x86_64-unknown-linux-musl.tar.gz`, a static `ratchet` that runs on a Linux host with any C library or none, such as one whose glibc is older than the build runner's: `.github/scripts/static-check.sh` refuses a binary with a `NEEDED` entry or an `INTERP` program header, `task check:static` builds the musl binary and runs it with an empty environment, the forge runs it in an Alpine image pinned by digest, and `release-verify.sh` checks it in a published release; there is no musl archive for `aarch64`, and the two glibc archives stay
