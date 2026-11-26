@@ -150,6 +150,14 @@
 #             measurements of one run"). The design refuses no mix, so no rule reads it: the
 #             copy `valid-plans` holds a sampled pass rate beside the exact counts of a
 #             snapshot plan, and it is accepted
+#   adoption  an adoption `{from: assessment, assessment: <plan>, measurement: <measurement>}`
+#             (docs/design.md § 5 "The ratchet policy") names an assessment of the preset and a
+#             measurement of it, and that measurement has the value type and the unit of the
+#             requirement's measurement, read from the outputs the two declarations declare,
+#             as for `against` under `compare`. It names both, and `assessment` and
+#             `measurement` stand on `from: assessment` alone: the invariants of
+#             `ratchet.specification.RatchetPolicy`. The adopted plan may be the requirement's
+#             own
 #   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
@@ -208,12 +216,13 @@
 #     is valid whether or not the command repeats its measurement, which the script cannot see
 #   - the invariants of the types, beside the four of an assessment plan under `series` and
 #     those of a condition that `compare` reads (`within` with its two bounds in order, `min`
-#     and `max` on no other operator, `subset_of` with `against`, a `digest` with `eq`): they
-#     are written in the expression language of ESS, and `ess generate synthesize` writes
-#     them as Rust. So a `digest` beside a `value` on a number, and `against` beside a
-#     `value`, a `digest`, a `min` or a `max`, are left to the decoder, and so are a default
-#     and a `list` on an input of the type `conditions`, and `values` on an input of another
-#     type than `string`, whose default and literals are then not read against `values`
+#     and `max` on no other operator, `subset_of` with `against`, a `digest` with `eq`) and the
+#     four of an adoption that `adoption` reads: they are written in the expression language
+#     of ESS, and `ess generate synthesize` writes them as Rust. So a `digest` beside a
+#     `value` on a number, and `against` beside a `value`, a `digest`, a `min` or a `max`,
+#     are left to the decoder, and so are a default and a `list` on an input of the type
+#     `conditions`, and `values` on an input of another type than `string`, whose default
+#     and literals are then not read against `values`
 #   - a value that an input gives, where a rule reads the value: the binding passes it. These
 #     are the assessor of an assessment, and with it every rule that reads its declaration;
 #     the output of a measurement, and with it the rules on that measurement and on the
@@ -1398,6 +1407,18 @@ check_catalog() {
           if (!has(F, path SEP "reference" SEP "adoption"))
             fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no `reference.adoption`, which says from which runs the value is adopted")
         }
+        # An adoption from another assessment (docs/design.md § 5 "The ratchet policy"): it
+        # names the assessment and the measurement, and the two stand on `from: assessment`
+        # alone. The measurement it names is read below, once the output is known.
+        adp = path SEP "reference" SEP "adoption"
+        afrom = text(F, adp SEP "from")
+        adopted = (afrom == "assessment")
+        if (has(F, adp) && afrom != "" && !given(afrom) && !adopted) {
+          if (has(F, adp SEP "assessment")) fail(F, n_line[i], named(path) "has an adoption with `assessment`, and `from: " afrom "`: `assessment` and `measurement` stand on `from: assessment` alone")
+          if (has(F, adp SEP "measurement")) fail(F, n_line[i], named(path) "has an adoption with `measurement`, and `from: " afrom "`: `assessment` and `measurement` stand on `from: assessment` alone")
+        }
+        if (adopted && !has(F, adp SEP "assessment")) { fail(F, n_line[i], named(path) "has an adoption `from: assessment` and names no `assessment`"); adopted = 0 }
+        if (adopted && !has(F, adp SEP "measurement")) { fail(F, n_line[i], named(path) "has an adoption `from: assessment` and names no `measurement`"); adopted = 0 }
         op = output_of(F, mp)
         if (op == "" && !counted) continue
         # A coverage count is a number without a unit.
@@ -1469,6 +1490,28 @@ check_catalog() {
           # These two read that there is a reference, and not its kind.
           if (vt == "identity_set" && !hc) fail(F, n_line[i], named(path) "compares a set with a reference and has no condition: `no_new_items` or `no_lost_items` says which way is worse")
           if (vt == "number" && !has(F, mp SEP "better")) fail(F, n_line[at[F, mp]], "`" shown(mp) "` states no `better`, and `" shown(path) "` compares it with a reference")
+        }
+        # The measurement an adoption from another assessment names: a measurement of an
+        # assessment of the preset, whose output has the value type and the unit of this one.
+        # It reads a second declaration, so the unit of this output is kept first.
+        if (adopted) {
+          aa = text(F, adp SEP "assessment")
+          am = text(F, adp SEP "measurement")
+          has_ru = (op != "" && has(D, op SEP "unit")); ru = has_ru ? text(D, op SEP "unit") : ""
+          if (given(aa) || given(am)) {
+          } else if (!has(F, "assessments" SEP aa)) {
+            fail(F, n_line[i], named(path) "adopts from the assessment `" aa "`, which the preset does not hold")
+          } else if ((dmp = compared(F, adp)) == "") {
+            fail(F, n_line[i], named(path) "adopts from the measurement `" am "`, which the assessment `" aa "` does not hold")
+          } else if ((dop = output_of(F, dmp)) != "" || counted) {
+            dvt = counted ? "number" : text(D, dop SEP "value_type")
+            if (dvt == "assertion" && text(F, dmp SEP "aggregation" SEP "kind") == "pass_rate") dvt = "number"
+            has_au = (dop != "" && has(D, dop SEP "unit")); au = has_au ? text(D, dop SEP "unit") : ""
+            if (dvt != vt)
+              fail(F, n_line[i], named(path) "adopts from `" shown(dmp) "` of the value type `" dvt "`, and " is)
+            else if (has_au != has_ru || au != ru)
+              fail(F, n_line[i], named(path) "adopts from `" shown(dmp) "` in the unit `" (has_au ? au : "none") "`, and " what " declares `" (has_ru ? ru : "none") "`")
+          }
         }
         # A comparison with another measurement of the preset: `against` names an assessment
         # of the preset and a measurement of it, whose output has the value type of this one
@@ -1603,6 +1646,9 @@ differ2_d='comparison-report@2.assessor.yaml'
 # them, and the rows of the preset stand on the page.
 known2='known-failures@2.preset.yaml'
 conf2_d='conformance-report@2.assessor.yaml'
+# The third version of the comparison, which adopts from another plan: no case edits it, its
+# rows stand on the page, and the two declarations it names are in the set.
+differ3='differential-equality@3.preset.yaml'
 
 # The set: the files a copy holds. They are `README.md`, which every directory of the catalog
 # holds, and the functional family: its presets, the declarations they name and its page. A
@@ -1610,7 +1656,7 @@ conf2_d='conformance-report@2.assessor.yaml'
 # one check of presets/ above and to no copy. The set is a directory of its own,
 # target/presets/set, which is valid alone: the case `harness-unchanged` below fails where it
 # is not. A file of the set that presets/ does not hold stops the run.
-set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $known $known_d $known2 $conf2_d"
+set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $differ3 $known $known_d $known2 $conf2_d"
 set_dir=$work/set
 mkdir "$set_dir"
 for set_file in $set_files; do
@@ -2267,7 +2313,7 @@ mv "$c.new" "$c/$conf"
 refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
 
 again file-last-line-of-one-file-alone
-refused 'presets: 10 of 11 file(s) valid, 16 of 16 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
+refused 'presets: 11 of 12 file(s) valid, 21 of 21 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -3272,6 +3318,12 @@ again compare-against-two-units
 add_range two-units '{operator: lte, against: {assessment: conformance, measurement: failed}, unit: s}'
 refused '`requirements.two-units` has `against` `assessments.conformance.measurements.failed` in the unit `cases`, and the output `duration` of `conformance-report@1` declares `s` (`against_unit_mismatch`)' "against compares two units"
 
+# the median of `step-time` is in `s`, and its value is adopted from `failed`, which counts
+# `cases`
+again adoption-other-unit
+printf '  adopted-in-cases:\n    meaning: The median time of the step is not above the adopted value.\n    assessment: conformance\n    measurement: step-time\n    condition: {operator: lte, value: 60, unit: s}\n    reference:\n      kind: accepted_value\n      tolerance: {percent: 10}\n      adoption: {from: assessment, assessment: conformance, measurement: failed}\n' >> "$c/$conf"
+refused '`requirements.adopted-in-cases` adopts from `assessments.conformance.measurements.failed` in the unit `cases`, and the output `duration` of `conformance-report@1` declares `s`' "an adoption from another assessment in another unit"
+
 # A requirement over two measurements: `against` names a measurement of another plan of the
 # preset. The copies give conformance-report@1 the set `failing_cases` and known-failures@1 a
 # second plan, `suite`, that reads it as `failing-cases`, with its row.
@@ -3317,6 +3369,44 @@ refused '`requirements.without-against` has the operator `subset_of` and no `aga
 again compare-subset-of-on-a-number
 add_compare on-a-number known-failures size '{operator: subset_of, against: {assessment: known-failures, measurement: size}, unit: cases}'
 refused '`requirements.on-a-number` has the operator `subset_of`, which takes an identity set, and the output `count` of `case-list@1` has the value type `number`' "subset_of on a number output"
+
+# A reference adopted from the evidence of another plan (docs/design.md § 5 "The ratchet
+# policy"): `adoption: {from: assessment, assessment: <plan>, measurement: <measurement>}`.
+# The copies of `subset_copy` hold two plans of known-failures@1 whose sets have the value
+# type `identity_set` and no unit.
+# add_adopt <requirement> <assessment> <measurement> <condition> <adoption>: that requirement
+# at the end of known-failures@1, with a reference of the kind `accepted_value`.
+add_adopt() {
+  printf '  %s:\n    meaning: The set keeps to its adopted value.\n    assessment: %s\n    measurement: %s\n    condition: %s\n    reference:\n      kind: accepted_value\n      adoption: %s\n' "$1" "$2" "$3" "$4" "$5" >> "$c/$known"
+}
+
+subset_copy adoption-other-assessment
+add_adopt adopted-from-the-list suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: listed-cases}'
+accepts "the accepted set of the failing cases of one plan is adopted from the listed cases of another plan of the preset"
+
+subset_copy adoption-other-value-type
+add_adopt adopted-from-a-number suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: size}'
+refused '`requirements.adopted-from-a-number` adopts from `assessments.known-failures.measurements.size` of the value type `number`, and the output `failing_cases` of `conformance-report@1` has the value type `identity_set`' "an adoption from a measurement of another value type"
+
+again adoption-assessment-not-held
+add_adopt adopted-from-nowhere suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: nowhere, measurement: cases}'
+refused '`requirements.adopted-from-nowhere` adopts from the assessment `nowhere`, which the preset does not hold' "an adoption from an assessment the preset does not hold"
+
+again adoption-measurement-not-held
+add_adopt adopted-from-unlisted suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: unlisted-cases}'
+refused '`requirements.adopted-from-unlisted` adopts from the measurement `unlisted-cases`, which the assessment `known-failures` does not hold' "an adoption from a measurement its assessment does not hold"
+
+again adoption-without-measurement
+add_adopt adopted-without-measurement suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures}'
+refused '`requirements.adopted-without-measurement` has an adoption `from: assessment` and names no `measurement`' "an adoption from an assessment without a measurement"
+
+again adoption-without-assessment
+add_adopt adopted-without-assessment suite failing-cases '{operator: no_new_items}' '{from: assessment, measurement: listed-cases}'
+refused '`requirements.adopted-without-assessment` has an adoption `from: assessment` and names no `assessment`' "an adoption from an assessment that names none"
+
+again adoption-assessment-on-trusted-revision
+add_adopt adopted-from-trusted suite failing-cases '{operator: no_new_items}' '{from: trusted_revision, runs: 1, assessment: known-failures, measurement: listed-cases}'
+refused '`requirements.adopted-from-trusted` has an adoption with `assessment`, and `from: trusted_revision`: `assessment` and `measurement` stand on `from: assessment` alone' "an adoption from the trusted revision that names an assessment"
 
 # -- rows ----------------------------------------------------------------------------------------
 

@@ -843,6 +843,12 @@
                       "kind": "string"
                     }
                   },
+                  "items_not_judged": {
+                    "kind": "list",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
                   "meanings": {
                     "kind": "optional",
                     "of": {
@@ -1364,6 +1370,12 @@
                         "kind": "string"
                       }
                     },
+                    "items_not_judged": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
                     "meanings": {
                       "kind": "optional",
                       "of": {
@@ -1879,6 +1891,12 @@
                       }
                     },
                     "exceptions": {
+                      "kind": "list",
+                      "of": {
+                        "kind": "string"
+                      }
+                    },
+                    "items_not_judged": {
                       "kind": "list",
                       "of": {
                         "kind": "string"
@@ -3848,6 +3866,14 @@
                     "of": {
                       "kind": "string"
                     }
+                  },
+                  "plan_state": {
+                    "kind": "enum",
+                    "variants": [
+                      "assessed",
+                      "never_assessed",
+                      "no_run_expected"
+                    ]
                   },
                   "proof": {
                     "kind": "enum",

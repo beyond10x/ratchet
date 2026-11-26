@@ -517,8 +517,10 @@ types:
       - any: ["not defined(last)", "last >= 1"]
 
   # § 3 value lists: run source (`from`), Ratchet, closed. For a population: `trusted_revision`,
-  # the runs on the trusted branch alone, or `any_revision`, the runs of every candidate too. An
-  # adoption takes `trusted_revision` only (`ratchet.specification.AdoptionSource`).
+  # the runs on the trusted branch alone, or `any_revision`, the runs of every candidate too. The
+  # source of an adoption is `ratchet.specification.AdoptionSource`: `same_change`,
+  # `trusted_revision`, or `assessment`, the last qualifying run of another plan on the trusted
+  # revision.
   - name: ratchet.specification.RunSource
     kind: enum
     variants: [trusted_revision, any_revision]
@@ -652,6 +654,20 @@ types:
           it, and only `[local] skip` leaves it out of the runs of a machine (§ 5 "Local
           config", rule 1). Absent means `false`.
 
+  - name: ratchet.specification.NoRunExpected
+    kind: struct
+    naming:
+      summary: >-
+        The statement of a file that no run of a plan is expected yet, and why, such as a
+        command billed by a provider that no one has run (§ 5 "Gate modes"). `ratchet status`
+        shows such a plan as `no_run_expected` and not as `never_assessed`. It changes no
+        verdict: a requirement of the plan in a gate with no qualifying run is insufficient
+        evidence with the cause `evidence_missing`, as any other (§ 5 "Verdicts").
+    fields:
+      - name: reason
+        type: String
+        summary: Why no run is expected yet, in plain words.
+
   # § 3 value lists: Ratchet, closed. The five number operators compare a number or the item
   # count of a set; `no_new_items` and `no_lost_items` compare a set with the accepted set;
   # `holds` takes an assertion.
@@ -760,6 +776,14 @@ types:
     kind: enum
     variants: [generated, accepted_value]
 
+  # § 3 value lists: new items (`new_items`), Ratchet, closed. How a scope item that the
+  # evidence holds and the reference does not is judged (§ 5 "Verdicts"):
+  # `insufficient_evidence`, `reference_missing` for that item, or `not_judged`, left out of the
+  # comparison and listed under `items_not_judged` of the verdict until its value is adopted.
+  - name: ratchet.specification.NewItemRule
+    kind: enum
+    variants: [insufficient_evidence, not_judged]
+
   - name: ratchet.specification.Tolerance
     kind: struct
     naming:
@@ -801,7 +825,7 @@ types:
 
   - name: ratchet.specification.AdoptionSource
     kind: enum
-    variants: [same_change, trusted_revision]
+    variants: [same_change, trusted_revision, assessment]
 
   - name: ratchet.specification.RatchetPolicy
     kind: struct
@@ -814,7 +838,11 @@ types:
         aggregation of the last N qualifying runs on the trusted revision; the default for
         sampled measurements, and N has no default. On a time-window plan `runs` counts
         windows: `runs: 4` is the last four windows an evaluation recorded, and windows that
-        overlap share items (§ 3).
+        overlap share items (§ 3). `{from: assessment, assessment: <plan>, measurement:
+        <measurement>}` takes the value of the named measurement in the last qualifying run
+        of another plan on the trusted revision, such as the set of cases a reference
+        implementation passes; the measurement has the value type and the unit of the
+        requirement's own.
     fields:
       - name: from
         type: ratchet.specification.AdoptionSource
@@ -822,6 +850,21 @@ types:
         type: Optional<Integer>
       - name: aggregation
         type: Optional<ratchet.specification.Aggregation>
+      - name: assessment
+        type: Optional<ratchet.specification.AssessmentName>
+        summary: >-
+          With `from: assessment`, the plan whose run the value is adopted from, a plan of the
+          same specification. Inside a struct, which a relation's `via:` cannot name, so the
+          link has no relation entry; `ratchet validate` resolves it (`unresolved_reference`).
+      - name: measurement
+        type: Optional<ratchet.specification.MeasurementName>
+        summary: >-
+          With `from: assessment`, the measurement of that plan the value is read from.
+    invariants:
+      - any: ["from != assessment", "defined(assessment)"]
+      - any: ["from != assessment", "defined(measurement)"]
+      - any: ["from == assessment", "not defined(assessment)"]
+      - any: ["from == assessment", "not defined(measurement)"]
 
   - name: ratchet.specification.ReferenceDeclaration
     kind: struct
@@ -845,6 +888,15 @@ types:
         summary: >-
           For an accepted value. `ratchet validate` reports a sampled measurement with an
           accepted value and no `adoption`.
+      - name: new_items
+        type: Optional<ratchet.specification.NewItemRule>
+        summary: >-
+          How a scope item that the evidence holds and the reference does not is judged, and
+          only where the reference holds a value per scope item (§ 5 "Verdicts"). Absent means
+          `insufficient_evidence`: the item is `reference_missing`. `not_judged` leaves the
+          item out of the comparison, judges the requirement over the other items and lists
+          the item under `items_not_judged` of the verdict until a value for it is adopted, the
+          first adoption of that item (§ 5 "Reference records").
 
   - name: ratchet.specification.PlantedDefectId
     kind: newtype
@@ -1195,6 +1247,13 @@ entities:
       - name: measurements
         type: Map<String, ratchet.specification.Measurement>
         summary: Keyed by measurement name (`ratchet.specification.MeasurementName`).
+      - name: no_run_expected
+        type: Optional<ratchet.specification.NoRunExpected>
+        summary: >-
+          States that no run of the plan is expected yet, with its `reason` (§ 5 "Gate
+          modes"). The plan stays in observe mode or in report mode until a run exists, and
+          `ratchet status` tells it apart from a plan that was never assessed. Absent, a plan
+          with no run is shown as never assessed.
     invariants:
       - any: ["not defined(observation.population.runs_of)", "assessor == \"record-series@1\""]
       - any: ["assessor != \"record-series@1\"", "defined(observation.population.runs_of)"]

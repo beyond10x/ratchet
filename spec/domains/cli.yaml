@@ -364,6 +364,12 @@ types:
         type: Optional<ratchet.cli.ValueRow>
       - name: reference_stale
         type: Boolean
+      - name: items_not_judged
+        type: List<String>
+        summary: >-
+          The scope items the reference holds no value for and leaves unjudged
+          (`new_items: not_judged`), each until its value is adopted; empty when none (§ 5
+          "Verdicts").
       - name: coverage
         type: Optional<ratchet.cli.CoverageRow>
       - name: conditions
@@ -609,19 +615,32 @@ types:
         type: Optional<ratchet.specification.GateName>
         summary: Only the requirements this gate lists.
 
+  # design § 5 "Gate modes": `assessed`, the record store holds a run of the plan;
+  # `never_assessed`, it holds none; `no_run_expected`, it holds none and the file states
+  # `no_run_expected` with a reason. A plan that ran before and has no run for this revision is
+  # `assessed` with no `verdict`, and a gate gives it `evidence_missing` (§ 5 "Verdicts").
+  - name: ratchet.cli.PlanRunState
+    kind: enum
+    variants: [assessed, never_assessed, no_run_expected]
+
   - name: ratchet.cli.StatusRow
     kind: struct
     naming:
       summary: >-
         One requirement as `ratchet status` shows it (design § 5): verdict, value against limit
-        or reference, when last checked, by which run, in which environment, and whether it is
-        skipped locally.
+        or reference, when last checked, by which run, in which environment, whether its
+        plan was ever assessed, and whether it is skipped locally.
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: verdict
         type: Optional<ratchet.gate.Verdict>
         summary: The last verdict; absent when no run qualifies yet.
+      - name: plan_state
+        type: ratchet.cli.PlanRunState
+        summary: >-
+          Whether the requirement's plan was ever assessed: a plan never assessed, a plan whose
+          file states that no run is expected yet, and a plan that ran (§ 5 "Gate modes").
       - name: skipped_locally
         type: Boolean
         summary: >-

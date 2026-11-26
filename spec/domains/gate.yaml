@@ -250,6 +250,12 @@ entities:
         summary: >-
           The candidate's evidence is better than the reference by more than the tolerance
           (§ 5 rule 4).
+      - name: items_not_judged
+        type: List<String>
+        summary: >-
+          The scope items left out of the comparison because the reference holds no value for
+          them and declares `new_items: not_judged`; the requirement is judged over the other
+          items (§ 5 "Verdicts"). Empty when none.
       - name: coverage
         type: Optional<ratchet.evidence.EvidenceCoverage>
       - name: conditions

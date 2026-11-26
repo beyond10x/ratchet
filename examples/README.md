@@ -519,6 +519,12 @@ workstation checkout of example 5.
 - `[records] store` names the ref that holds the series, and no path. The records of a local run
   are therefore kept in `.ratchet/records` under the root, as they are without the section (§ 5,
   local config; § 6).
+- `tracked` names the directory of the baseline records committed to the tree, `quality/baseline`,
+  relative to the root (§ 5, local config). A command reads the `ratchet-evidence/1` files there
+  beside `.ratchet/records` and the ref, and no run writes there; a record there is evidence an
+  adoption can read and no reference. The first consumer of the formats outside this repository
+  keeps its baseline evidence as tracked files, so a clone holds them; the path is an
+  illustration, and the examples hold no such directory.
 
 ## Decisions D1 to D6
 

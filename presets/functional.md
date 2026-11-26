@@ -6,7 +6,7 @@ implementation does? Three presets judge it from reports a project already produ
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`conformance-cases@1`](conformance-cases@1.preset.yaml) | The result of each case of a conformance or contract suite | An imported conformance report, [`conformance-report@1`](conformance-report@1.assessor.yaml) |
-| [`differential-equality@1`](differential-equality@1.preset.yaml) and [`differential-equality@2`](differential-equality@2.preset.yaml) | The answers of a candidate compared with those of a reference implementation, case by case | An imported comparison report, [`comparison-report@1`](comparison-report@1.assessor.yaml); `@2` names [`comparison-report@2`](comparison-report@2.assessor.yaml), which lists the values of `class` |
+| [`differential-equality@1`](differential-equality@1.preset.yaml), [`differential-equality@2`](differential-equality@2.preset.yaml) and [`differential-equality@3`](differential-equality@3.preset.yaml) | The answers of a candidate compared with those of a reference implementation, case by case | An imported comparison report, [`comparison-report@1`](comparison-report@1.assessor.yaml); `@2` names [`comparison-report@2`](comparison-report@2.assessor.yaml), which lists the values of `class`; `@3` also reads the conformance reports of the two implementations, [`conformance-report@1`](conformance-report@1.assessor.yaml) |
 | [`known-failures@1`](known-failures@1.preset.yaml) and [`known-failures@2`](known-failures@2.preset.yaml) | The list of cases that are known to fail; `@2` also that every failed case of the suite is on it | An imported list of case ids, [`case-list@1`](case-list@1.assessor.yaml); `@2` also the conformance report, [`conformance-report@2`](conformance-report@2.assessor.yaml) |
 
 Every measurement of the family is exact: a count or a set of case ids. Its tolerance is 0, and
@@ -166,6 +166,56 @@ returns are those of `differential-equality@1`, and a project binds it with
 | `differential-equality@2/comparison/allowed-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `comparison-report@2`, output `cases`, the items of the class `allowed` |
 | `differential-equality@2/comparison/different-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input; the limit is the input `different_limit` | `comparison-report@2`, output `cases`, the items of the class `different` |
 
+## `differential-equality@3`
+
+`differential-equality@2` and the requirement that the candidate loses no case the reference
+implementation passes. The plan `comparison` and its four requirements are those of `@2`. Two
+plans over [`conformance-report@1`](conformance-report@1.assessor.yaml) read the conformance
+report of each implementation: `reference-run` that of the reference implementation,
+`candidate-run` that of the candidate. The accepted set of the candidate's `passing-cases` is
+adopted from the reference implementation's, with
+`adoption: {from: assessment, assessment: reference-run, measurement: passing-cases}`: the
+value of that measurement in the last qualifying run of `reference-run` on the trusted revision
+([`docs/design.md`](../docs/design.md) § 5, "The ratchet policy"). It stays fixed until the
+next adoption, as every accepted value does. The files `@1` and `@2` stay as they were
+released.
+
+| Input | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `subject` | string | yes | The subject of the project that is the candidate, such as `orders-api` |
+| `report` | path | yes | The comparison report, relative to the root of the tree |
+| `environments` | list of string | yes | The target classes the plans run in, such as `[ci]` |
+| `different_limit` | integer | yes | The most cases that may be different. It has no default: `0` asks for no difference at all |
+| `reference_report` | path | yes | The conformance report of the reference implementation, relative to the root of the tree |
+| `candidate_report` | path | yes | The conformance report of the candidate, relative to the root of the tree |
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `differential-equality@3/comparison/equal-cases` | Higher: the set loses no case | None: a set of case ids | 0, no input | `comparison-report@2`, output `cases`, the items of the class `equal` |
+| `differential-equality@3/comparison/allowed-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `comparison-report@2`, output `cases`, the items of the class `allowed` |
+| `differential-equality@3/comparison/different-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input; the limit is the input `different_limit` | `comparison-report@2`, output `cases`, the items of the class `different` |
+| `differential-equality@3/reference-run/passing-cases` | None: the source of an adoption | None: a set of case ids | None: no requirement compares it | `conformance-report@1`, output `passing_cases` |
+| `differential-equality@3/candidate-run/passing-cases` | Higher: the set loses no case | None: a set of case ids | 0, no input | `conformance-report@1`, output `passing_cases` |
+
+| Requirement | Measurement | Comparison |
+| --- | --- | --- |
+| `no-equal-case-lost`, `no-new-allowed-case`, `no-new-different-case`, `different-cases-within-limit` | those of `@2` | as in `@2` |
+| `no-reference-case-lost` | `passing-cases` of `candidate-run` | `no_lost_items` against the accepted set, adopted from `passing-cases` of `reference-run` |
+
+```yaml
+presets:
+  differential:
+    use: differential-equality@3
+    digest: sha256:<digest of the preset file>
+    with:
+      subject: orders-api
+      report: target/comparison/report.json
+      environments: [ci]
+      different_limit: 0
+      reference_report: target/conformance/reference.json
+      candidate_report: target/conformance/candidate.json
+```
+
 ## `known-failures@1`
 
 A project that keeps a list of cases known to fail, in a file of its tree, binds this preset
@@ -274,10 +324,11 @@ one in its own file. The family expresses "the candidate against the reference i
 2. **As the protected reference.** A value that means something only against the reference
    implementation, such as the set of cases it passes, is the accepted value of the candidate's
    requirement: `no-case-lost` then says that the candidate passes every case the reference
-   implementation passes. `ratchet/1` can hold that accepted set and cannot say where it comes
-   from (the first point below). Until it can, a project binds `conformance-cases@1` once per
-   implementation, each with its own subject and report, and each is judged against its own
-   accepted values.
+   implementation passes. `ratchet/1` holds that accepted set, and from
+   `differential-equality@3` on it also says where the set comes from: an adoption from the
+   plan of the reference implementation's run (the first point below). With `@1` and `@2`, a
+   project binds `conformance-cases@1` once per implementation, each with its own subject and
+   report, and each is judged against its own accepted values.
 
 ## Not expressible yet
 
@@ -287,10 +338,16 @@ point names the place in the specification
 
 1. **A reference adopted from the evidence of another plan.** The accepted set of the
    candidate's `no-case-lost` should be the set the reference implementation passes, adopted
-   from the run of the binding for the reference implementation.
-   `ratchet.specification.AdoptionSource` has the values `same_change` and `trusted_revision`,
-   and `ratchet.specification.RatchetPolicy` holds `from`, `runs` and `aggregation`: an adoption
-   names no assessment, so it reads the evidence of the requirement's own plan.
+   from the run of the binding for the reference implementation. In the format of release
+   0.0.4, `ratchet.specification.AdoptionSource` has the values `same_change` and
+   `trusted_revision`, and `ratchet.specification.RatchetPolicy` holds `from`, `runs` and
+   `aggregation`: an adoption names no assessment, so it reads the evidence of the
+   requirement's own plan. It is answered from `differential-equality@3` on:
+   `ratchet.specification.AdoptionSource` has the value `assessment`, and
+   `ratchet.specification.RatchetPolicy` names the plan and the measurement the value is
+   adopted from. The candidate's `no-reference-case-lost` adopts its accepted set from the set
+   the plan `reference-run` passes. `differential-equality@1` and `@2` stay as they were
+   released.
 2. **A requirement over two measurements.** "Every failed case is on the known-failure list" and
    "the candidate passes no fewer cases than the reference implementation" each compare two
    measurements. `ratchet.specification.QualityRequirement` names one `assessment` and one
@@ -298,9 +355,11 @@ point names the place in the specification
    matches the failures of the suite. Answered for the known-failure list from `known-failures@2`
    on: `ratchet.specification.Condition.against` names a second measurement of the preset, and
    the operator `subset_of` holds when every failed case is on the list. "No fewer passed cases
-   than the reference implementation" still waits for a reference from another plan (point 1)
-   in a preset: the passed cases of the reference implementation are a measurement of another
-   binding, which `against` names only in a project's own file.
+   than the reference implementation" is answered with point 1, as an accepted value: the plan
+   of the reference implementation's run is a plan of `differential-equality@3`, and the
+   candidate's set is adopted from it. A comparison of the two runs of one evaluation, through
+   `against`, stays outside the family: the passed cases of the reference implementation in
+   another binding are a measurement that `against` names only in a project's own file.
 3. **The values of an item field.** The classes `equal`, `allowed` and `different` are a closed
    list, and no declaration can say so: `ratchet.assessor.AssessorOutput.item_fields` is a list
    of field names without their values. A `filter` on a class that no program returns selects no
