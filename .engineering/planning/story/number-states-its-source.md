@@ -8,14 +8,16 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
+  path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
+- confidence: cited
+  path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 6
+revision: 11
 ---
 ## Context
 
@@ -43,37 +45,57 @@ Decision taken (reversible, `AGENTS.md` § "Phase: implementation"): a new struc
 as `decision:<id>`) and `since` (an optional `CalendarDate`), and a member
 `source: Optional<NumberSource>` on `Condition` and on `Tolerance`. It is prose for a reader:
 no rule reads it, and no verdict depends on it. On `Condition` it reaches the gate decision
-through `allowed` without a new member there.
+through `allowed` without a new member there. The gate report and `ratchet explain` type a
+limit as `ratchet.cli.LimitRow`, which gets the member `source` of the same type in this
+story, so `task generate` rewrites the generated crate.
 
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.NumberSource` is declared, and
-   `Condition` (`:536-555`, with `digest`, `min`, `max` and `against` that stories 10 to 12
-   added) and `Tolerance` (`:562-576`) hold `source: Optional<NumberSource>`; the summaries say
-   that the source is printed beside the allowed value and judged by nothing. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `docs/design.md` § 3 "Comparisons": a bullet says that a limit and a tolerance may state
-   their source, `source: {cites: decision:2026-03-quality-review, since: 2026-03-01}`, that a
-   file without it stays valid, and that `ratchet explain` and the gate report print it beside
-   the allowed value; the YAML of § 3 "Illustrative project YAML" (`:231`) shows it once on a condition.
-   Text only, no case.
-3. `spec/presets.test.sh`: before the story a preset requirement with
-   `condition: {operator: lte, value: 3, unit: cases, source: {cites: decision:x}}` is refused
-   (rule `place`, `source` is no declared field). After it, a copy with that condition and a
-   tolerance with a `source` is accepted, and a copy with `source: {since: 2026-03-01}` and no
-   `cites` is refused by the rule `required`.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `spec/domains/specification.yaml` declares the struct `ratchet.specification.NumberSource`
+   with `cites` (`String`) and `since` (`Optional<ratchet.specification.CalendarDate>`):
+   `grep -c 'name: ratchet.specification.NumberSource$' spec/domains/specification.yaml`
+   prints 1 (0 before).
+2. `ratchet.specification.Condition` and `ratchet.specification.Tolerance` each hold
+   `source: Optional<ratchet.specification.NumberSource>`: `grep -cF 'type:
+   Optional<ratchet.specification.NumberSource>' spec/domains/specification.yaml` prints 2 (0
+   before), and `ess specify validate --path spec --strict-requires` exits 0.
+3. The summary of `NumberSource` holds the phrase "printed beside the allowed value and judged
+   by nothing": `grep -F` finds it in `spec/domains/specification.yaml`, nothing before.
+4. `spec/domains/cli.yaml`: `ratchet.cli.LimitRow` holds
+   `source: Optional<ratchet.specification.NumberSource>`, so the gate report and
+   `ratchet explain` carry the source of a limit: `grep -cF 'type:
+   Optional<ratchet.specification.NumberSource>' spec/domains/cli.yaml` prints 1 (0 before).
+5. `task generate` rewrites `crates/ratchet-cli-contract/` in the same change and
+   `task check:generated` exits 0: `grep -c '"cites"' crates/ratchet-cli-contract/binding.json`
+   prints a number above 0 (0 before), and no hand-written file under `crates/` changes.
+6. `docs/design.md` § 3 "Comparisons", a bullet holds the example
+   `source: {cites: decision:2026-03-quality-review, since: 2026-03-01}` and says that a file
+   without it stays valid and that `ratchet explain` and the gate report print it beside the
+   allowed value: `grep -F 'cites: decision:2026-03-quality-review' docs/design.md` finds it,
+   nothing before.
+7. `docs/design.md` § 3 "Illustrative project YAML" shows `source:` once on a condition, so
+   `grep -c 'source: {cites:' docs/design.md` prints 2, the bullet of item 6 and the YAML (0
+   before).
+8. `spec/presets.test.sh`: the accepted copy `condition-and-tolerance-with-source`, whose
+   requirement has `condition: {operator: lte, value: 3, unit: cases, source: {cites:
+   decision:x}}` and a tolerance with a `source`, is accepted. Before the story the same
+   requirement is refused (rule `place`: `source` is no declared field).
+9. `spec/presets.test.sh`: the case "a source without cites" (`source: {since: 2026-03-01}`)
+   is refused with the message of the rule `required`; before the story the name is not in
+   the script (`grep -c` prints 0).
 
 ## Notes
 
 - An addition to a released format: a file written before the change stays valid.
 - The parts that need the command are `story:number-states-its-source-in-ratchet`: the output
-  of `ratchet explain` and of the gate report, and the member of `ratchet.cli.LimitRow` that
-  carries the source. It waits for the waves to 0.1.0.
+  of `ratchet explain` and of the gate report, filling the member `source` of
+  `ratchet.cli.LimitRow` that this story declares. It waits for the waves to 0.1.0.
+- It changes `spec/domains/cli.yaml`, so it runs `task generate` and `task check:generated`;
+  11 (`story:requirement-states-a-range`) changed `LimitRow` before it.
+- The line of the wave's changelog: under `### Added`, naming `NumberSource` (written by the story
+  that closes the wave, `AGENTS.md` § "Changelog lines").
 - Filed under `epic:format-gaps-first-format-consumer` as the closest epic: an addition to
   `ratchet/1` for a consumer's definition. Related: `story:list-item-statement` (18), a
   statement on an item of a list.

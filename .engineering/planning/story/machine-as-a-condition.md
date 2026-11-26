@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: docs/evidence-format.md
@@ -22,7 +20,7 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 9
+revision: 11
 ---
 ## Context
 
@@ -69,33 +67,50 @@ so the record format and the field tables of `docs/evidence-format.md` § 3 do n
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.ObservationConditions` (`:372`)
-   has the members `cpu_model`, `memory`, `accelerator` and `build_profile`, each
-   `Optional<String>` with the meaning of the table above, and its summary says "Seven have a
-   defined meaning". The summary of `ratchet.assessor.Assessor.conditions`
-   (`spec/domains/assessor.yaml:182-188`, "beyond `host_load_per_cpu`, `tools` and `runner`")
-   names the seven. Checked by `ess specify validate --path spec --strict-requires`, which
-   exits 0, and by `task check:generated`.
-2. `spec/presets.test.sh`, rule `assessor`: a plan of a copy that states
-   `build_profile: release` and `cpu_model` under `observation.conditions` while the declaration
-   of its assessor lists neither is accepted, because the rule reads the members of
-   `ObservationConditions` from the specification (`:1205`). Before the story such a copy is
-   refused with the message of `:1206` ("is the condition `build_profile`, which is none of
-   Ratchet itself"); after it the copy `valid-inputs` (`:1887`, accepted at `:1906`) holds the two
-   conditions and is accepted, with no new copy. The header of the rule (`:72-73`) and the
-   comment of `:1198` name seven conditions of Ratchet itself.
-3. `docs/design.md` § 3 "Measurement kind and observation conditions": the sentence "Three
-   conditions have a defined meaning" (`:94`) says seven, and the table under it (`:96-100`) has
-   the four rows. Text only, no case.
-4. `docs/design.md` § 5 "Protected references", rule 5 (`:583`): a reference records the
-   conditions its plan declares, the four included, and evidence with another value of one of
-   them is not compared with it. Text only, no case.
-5. `docs/evidence-format.md` § 3 "`evidence.conditions`": a sentence under the table
-   (`:108-121`) says that the four are held under `other` by their names, and
-   `ratchet.evidence.ObservedConditions.other` (`spec/domains/evidence.yaml:204-206`) says the
-   same. `sh spec/record-fields.test.sh` and `sh spec/record-types.test.sh` print the counts
-   they printed before. Checked by those two scripts and by `ess specify validate`.
-6. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+None of the four names occurs in `docs/`, `spec/`, `presets/` or `examples/` at `7b01ea1`, so
+each grep below prints 0 before the story.
+
+1. `spec/domains/specification.yaml`: `ratchet.specification.ObservationConditions` has the
+   members `cpu_model`, `memory`, `accelerator` and `build_profile`, each `Optional<String>`
+   with the meaning of the table above. Check: `grep -cE 'name: (cpu_model|memory|accelerator|build_profile)$'
+   spec/domains/specification.yaml` prints 4; `ess specify validate --path spec
+   --strict-requires` exits 0 and `task check:generated` passes.
+2. The summary of `ObservationConditions` says "Seven have a defined meaning" in place of
+   "Three have a defined meaning". Check: `grep -c 'Seven have a defined meaning'
+   spec/domains/specification.yaml` prints 1 and `grep -c 'Three have a defined meaning'` prints
+   0.
+3. The summary of `ratchet.assessor.Assessor.conditions`, which says "beyond
+   `host_load_per_cpu`, `tools` and `runner`", names the seven. Check: `grep -c
+   build_profile spec/domains/assessor.yaml` prints 1.
+4. `spec/presets.test.sh`, rule `assessor`: the copy `valid-inputs` states `build_profile:
+   release` and `cpu_model` under `observation.conditions` of a plan whose assessor's
+   declaration lists neither, and `sh spec/presets.test.sh` accepts it with no new copy,
+   because the rule reads the members of `ObservationConditions` from the specification. The
+   same copy against the specification of `7b01ea1` is refused with "is the condition
+   `build_profile`, which is none of Ratchet itself".
+5. The header of `spec/presets.test.sh` ("A condition of the observation is
+   `host_load_per_cpu`, `tools`, `runner` or one the declaration lists") and the comment of the
+   rule above the condition check ("one of the three that have a field in
+   ratchet.specification.ObservationConditions") name the seven. Check: `grep -c accelerator
+   spec/presets.test.sh` prints 2 (the case of item 4 names no `accelerator`).
+6. `docs/design.md` § 3 "Measurement kind and observation conditions": the sentence "Three
+   conditions have a defined meaning" reads "Seven conditions have a defined meaning". Check:
+   `grep -c 'Seven conditions have a defined meaning' docs/design.md` prints 1.
+7. The condition table of that section has the four rows. Check: `awk '/^### Measurement kind
+   and observation conditions$/,/^### Scope and aggregation$/' docs/design.md | grep -cE
+   '^\| `(cpu_model|memory|accelerator|build_profile)` \|'` prints 4.
+8. `docs/design.md` § 5 "Protected references", rule 5 ("records the tools, image, runner,
+   and host class that produced it"): a reference records the conditions its plan declares,
+   the four included, and evidence with another value of one of them is not compared with it.
+   Check: `awk '/^### Protected references$/,/^### Verdicts$/' docs/design.md | grep -c
+   build_profile` prints a number above 0.
+9. `docs/evidence-format.md` § 3 "`evidence.conditions`": a sentence under the table says
+   that the four are held under `other` by their names, and the field tables do not change.
+   Check: `grep -c accelerator docs/evidence-format.md` prints a number above 0, and the last
+   line of `sh spec/record-fields.test.sh` is the one it printed before the story.
+10. `ratchet.evidence.ObservedConditions.other`, whose summary says "Every further condition
+    by name, such as the C library or the CPU model", names the four keys. Check: `grep -c
+    accelerator spec/domains/evidence.yaml` prints 1.
 
 ## Notes
 

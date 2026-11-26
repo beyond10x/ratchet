@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-factory
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: inferred
   path: presets/code-lines@2.preset.yaml
@@ -21,7 +19,7 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 13
+revision: 15
 ---
 ## Context
 
@@ -51,31 +49,53 @@ with values of its own (a mode of its tool) could not use it.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.InputDeclaration` (`:732`) has
-   the member `values` (`Optional<List<String>>`) with the invariant `not defined(values)` or
-   `type == string`; its summary says that a binding or a plan passes one of the values, and a
-   default is one of them. Checked by `ess specify validate --path spec --strict-requires`,
-   which exits 0, and by `task check:generated`.
-2. `spec/presets.test.sh`, rule `inputs`: a default that is none of the `values` of its input is
-   refused with a message that names the input and the values (beside the default check of
-   `:1028-1034`); a reference to an input with `values` at the place of an enum is refused when
-   a value is no variant of that enum, naming the input, the value and the enum; a literal that
-   a plan passes to an input of a declaration with `values` (rule `assessor`) is refused when it
-   is none of them. Each is a broken copy refused with the message of its rule. A copy whose
-   input `generated_better` declares `values: [lower, higher]` and is referred to at `better` is
-   accepted. An input of the type `string` without `values` stays accepted at the place of an
-   enum, as `code-lines@1` writes it. The header of the rule (`:41-53`) says what is read.
-3. `presets/code-lines@2.preset.yaml` (new) declares `values: [lower, higher]` for
-   `generated_better` and `handwritten_better`; `code-lines@1` stays byte for byte.
-   `presets/code.md` has the index row (`:9`), a section and the rows of
-   `code-lines@2/lines/generated` and `code-lines@2/lines/handwritten` beside those of @1
-   (`:62-63`), and its point 4 (`:262-265`) says that `values` answers it from `code-lines@2`
-   on. Checked by `spec/presets.test.sh`, rules `place`, `type`, `inputs` and `row`: its last
-   line counts one more preset and two more measurements with a row.
-4. `docs/design.md` § 4: the bullet "Inputs" (`:520`) names `values`, and the paragraph of
-   `${inputs.<name>}` (`:543`) says that an input with `values` stands for a value of a closed
-   list only where each of its values is a value of that list. Text only, no case.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+1. `spec/domains/specification.yaml`: `ratchet.specification.InputDeclaration` has the member
+   `values` (`Optional<List<String>>`). Check: `awk '/- name: ratchet.specification.InputDeclaration$/,/^  - name: ratchet.specification.InputReference$/'
+   spec/domains/specification.yaml | grep -c 'name: values$'` prints 1 (0 before); `ess
+   specify validate --path spec --strict-requires` exits 0 and `task check:generated` passes.
+2. `InputDeclaration` has the invariant `not defined(values)` or `type == string`. Check: `grep
+   -c '"not defined(values)", "type == string"' spec/domains/specification.yaml` prints 1.
+3. The summary of `InputDeclaration.values` holds the phrase "a default is one of the
+   values". Check: `grep -F` of that phrase in `spec/domains/specification.yaml` finds one
+   line.
+4. `spec/presets.test.sh`, rule `inputs`: the case `input-default-outside-values`, a preset
+   input with `values: [lower, higher]` and `default: sideways`, is refused with a message that
+   names the input and the values.
+5. `spec/presets.test.sh`, rule `inputs`: the case `input-values-outside-enum`, an input with
+   `values: [lower, sideways]` referred to at `better`, is refused with a message that names
+   the input, the value `sideways` and the enum `ratchet.specification.Direction`.
+6. `spec/presets.test.sh`, rule `assessor`: the case `plan-literal-outside-values`, a plan that
+   passes a literal outside the `values` of an input of its assessor's declaration, is refused
+   with a message that names the input and the values. With items 4 and 5 the line `presets:
+   <d> of <d> defect(s) refused with the message of their rule` counts 3 more than after unit
+   22.
+7. The header of the rule `inputs` of `spec/presets.test.sh` says that a default and a value
+   at the place of an enum are read against `values`, and that an input of the type `string`
+   without `values` stays accepted at the place of an enum, as `code-lines@1` writes it.
+   Check: `awk '/^#   inputs /,/^#   names /' spec/presets.test.sh | grep -c values` prints a
+   number above 0 (0 before).
+8. `presets/code-lines@2.preset.yaml` (new) declares `values: [lower, higher]` for
+   `generated_better` and `handwritten_better` and refers to them at `better`. Check: `grep -c
+   'values: \[lower, higher\]' presets/code-lines@2.preset.yaml` prints 2, and the line
+   `presets: <f> of <f> file(s) valid, <r> of <r> measurement(s) with a row` of `sh
+   spec/presets.test.sh` counts one more file and two more measurements with a row than after
+   unit 22.
+9. `presets/code-lines@1.preset.yaml` stays byte for byte: `git diff --quiet 7b01ea1 --
+   presets/code-lines@1.preset.yaml` exits 0.
+10. `presets/code.md` has an index row, a section `## \`code-lines@2\`` and the measurement rows
+    `code-lines@2/lines/generated` and `code-lines@2/lines/handwritten` beside those of @1.
+    Check: `grep -c '^## `code-lines@2`$' presets/code.md` prints 1 and `grep -c '^|
+    `code-lines@2/lines/' presets/code.md` prints 2; rule `row` of `spec/presets.test.sh` holds
+    the rows to the file (item 8).
+11. Point 4 of "Not expressible yet" on `presets/code.md`, in its place, says that `values`
+    answers it from `code-lines@2` on. Check: `awk '/^## Not expressible yet$/,0'
+    presets/code.md | grep -c 'code-lines@2'` prints a number above 0 (0 before).
+12. `docs/design.md` § 4, the bullet "Inputs", names `values`. Check: `grep '^- \*\*Inputs\.\*\*'
+    docs/design.md | grep -c '`values`'` prints 1 (0 before).
+13. `docs/design.md` § 4, the paragraph that opens "`${inputs.<name>}` is the whole of a
+    value", says that an input with `values` stands for a value of a closed list only where
+    each of its values is a value of that list. Check: `grep '^`\${inputs.<name>}` is the whole
+    of a value' docs/design.md | grep -c '`values`'` prints 1 (0 before).
 
 ## Notes
 

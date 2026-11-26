@@ -9,14 +9,12 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 11
+revision: 13
 ---
 ## Context
 
@@ -50,30 +48,40 @@ local input (`local_input_in_specification`), and the same reason holds here.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: the struct `ratchet.specification.CommandNeeds` with
-   `environment` (`Optional<List<String>>`), `files` (`Optional<List<String>>`) and `billed`
-   (`Optional<Boolean>`, absent means `false`), and the member `needs`
-   (`Optional<ratchet.specification.CommandNeeds>`) of `ObservationPlan` (`:468`), whose summary
-   says that a run on a machine that lacks a need does not start and the requirement is
-   insufficient evidence with the cause `not_assessable_here` that names the need. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `spec/presets.test.sh`, rule `place`: a copy whose plan states
-   `needs: {environment: [PROVIDER_TOKEN], billed: true}` under `observation` is accepted. Before
-   the story the key `needs` is refused as no declared field of `ObservationPlan`; after it the
-   key is read by the struct the specification declares, with no change of the script's code.
-   The case joins an accepted copy that exists (`valid-inputs`, `:1887-1906`), so no copy is
-   added.
-3. `docs/design.md` § 3, the paragraph of the target classes (`:78`): a plan declares what its
-   command needs by name, `ratchet assess` checks each need before it starts the command, and a
-   machine that lacks one reports the requirement as not run there, with the cause
-   `not_assessable_here` and the name of the need. A billed run is named by `ratchet explain`
-   and `ratchet assess` and is left out of a machine's runs only by `[local] skip`, as any
-   assessment (§ 5 "Local config", rule 1). Text only, no case.
-4. `docs/design.md` § 5 "Local config", rule 6 (`:728`): the bullet of the missing local input
-   names the missing need beside it as the second case of `not_assessable_here`. Text only, no
-   case.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+Neither `CommandNeeds` nor a key `needs:` occurs in `spec/domains/specification.yaml`,
+`docs/design.md` or `spec/presets.test.sh` at `7b01ea1`.
+
+1. `spec/domains/specification.yaml` declares the struct `ratchet.specification.CommandNeeds`
+   with `environment` (`Optional<List<String>>`), `files` (`Optional<List<String>>`) and
+   `billed` (`Optional<Boolean>`, absent means `false`). Check: `grep -c 'name:
+   ratchet.specification.CommandNeeds$' spec/domains/specification.yaml` prints 1; `ess
+   specify validate --path spec --strict-requires` exits 0 and `task check:generated` passes.
+2. `ratchet.specification.ObservationPlan` has the member `needs`
+   (`Optional<ratchet.specification.CommandNeeds>`). Check: `grep -c 'type:
+   Optional<ratchet.specification.CommandNeeds>' spec/domains/specification.yaml` prints 1.
+3. The summary of `ObservationPlan.needs` holds the phrase "a run on a machine that lacks a
+   need does not start" and names the cause `not_assessable_here`. Check: `grep -F` of that
+   phrase in `spec/domains/specification.yaml` finds one line.
+4. `spec/presets.test.sh`, rule `place`: the accepted copy `valid-inputs` states `needs:
+   {environment: [PROVIDER_TOKEN], billed: true}` under `observation` and is accepted, with no
+   change of the script's code and no new copy. Check: `grep -c 'needs: {environment:
+   \[PROVIDER_TOKEN\], billed: true}' spec/presets.test.sh` prints 1 and `sh
+   spec/presets.test.sh` exits 0; the same copy against the specification of `7b01ea1` is
+   refused, because `needs` is no declared field of `ObservationPlan` there.
+5. `docs/design.md` § 3, the paragraph of the target classes that opens "The local gate and CI
+   are different targets": a plan declares what its command needs by name, `ratchet assess`
+   checks each need before it starts the command, and a machine that lacks one reports the
+   requirement as not run there, with the cause `not_assessable_here` and the name of the need.
+   Check: `grep '^The local gate and CI are different targets' docs/design.md | grep -c
+   'needs'` prints 1 (0 before).
+6. `docs/design.md` names a billed run: `ratchet explain` and `ratchet assess` name it, and
+   only `[local] skip` leaves it out of a machine's runs, as any assessment (§ 5 "Local config",
+   rule 1). Check: `grep -c 'billed' docs/design.md` prints a number above 0 (0 before).
+7. `docs/design.md` § 5 "Local config", rule 6: beside the bullet "A required local input with
+   no value on this machine makes the requirement not assessable there", a bullet names a
+   missing need of the plan as the second case of `not_assessable_here`. Check: `awk '/^###
+   Local config$/,/^### Proposed CLI$/' docs/design.md | grep -c 'need'` prints a number above
+   0 (0 before).
 
 ## Notes
 

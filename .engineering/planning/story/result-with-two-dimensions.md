@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: docs/evidence-format.md
@@ -28,7 +26,7 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 12
+revision: 14
 ---
 ## Context
 
@@ -68,29 +66,43 @@ Taken as the reversible answer (`AGENTS.md` § "Phase: implementation"):
 
 ## Acceptance
 
-Every outcome below is observable without a `ratchet` command.
+Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
-1. `spec/domains/evidence.yaml`: `MeasurementResult` has `cell`
-   (`Optional<Map<String, String>>`); `spec/domains/assessor.yaml`: `AssessorOutput` has
-   `cells` (`Optional<List<String>>`); `spec/domains/specification.yaml`: `Measurement` has
-   `cell` (`Optional<Map<String, String>>`), with summaries that state the decision. Checked by
-   `ess specify validate --path spec --strict-requires` (exit 0).
-2. `docs/evidence-format.md` § 3 `evidence.results[]` has a row `cell`: the table holds 11
-   rows, and the sentence "There are 79 fields" of 2 reads 80, with 25 `new`. § 10, the
-   output table, has a row `cells` and holds 9 rows. Checked by `sh spec/record-fields.test.sh`
-   and `sh spec/record-types.test.sh`: the lines of the two tables state 11 and 9 rows in both
-   scripts, and their last lines count 101 field rows, 80 of § 3 and 21 of § 10 (99 after 2).
-   `spec/README.md` says "80 field rows in 13 tables of § 3 and 21 in 2 tables of § 10".
-3. `docs/evidence-format.md` § 6 has an eighth example: two number results of one output, one
-   `item`, in two cells (`{"viewport": "narrow"}` and `{"viewport": "wide"}`). `want_examples`
-   of `spec/record-examples.test.sh` goes from 7 to 8, and its last line counts the members of
-   8 examples, every one decoding. Before the story `cell` is refused there as an undeclared
-   member.
-4. `docs/evidence-format.md` § 4 rule 3 names `cell` among the members a result is unique by;
-   § 9 no longer lists "A result per condition cell". `docs/design.md` § 3 "Scope and
-   aggregation" says how a result carries its cell beside its scope item and how a measurement
-   selects a cell or reads one value per item and cell. Text only, no case.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+1. `spec/domains/evidence.yaml`, `ratchet.evidence.MeasurementResult`: the member `cell`,
+   `Optional<Map<String, String>>` (`grep -c 'name: cell$' spec/domains/evidence.yaml`
+   prints 1; 0 before).
+2. `spec/domains/assessor.yaml`, `ratchet.assessor.AssessorOutput`: the member `cells`,
+   `Optional<List<String>>` (`grep -c 'name: cells$' spec/domains/assessor.yaml` prints 1; 0
+   before).
+3. `spec/domains/specification.yaml`, `ratchet.specification.Measurement`: the member `cell`,
+   `Optional<Map<String, String>>`, whose summary says "one value per item and cell"
+   (`grep -c 'name: cell$' spec/domains/specification.yaml` prints 1 and `grep -F 'one value
+   per item and cell' spec/domains/specification.yaml` finds the summary; neither before).
+   `ess specify validate --path spec --strict-requires` exits 0.
+4. `docs/evidence-format.md` § 3 `evidence.results[]` has a row `cell`, so the table holds 11
+   rows, and the sentence of § 3 reads "There are 80 fields: 48 `spec`, 7 `changed`, 25
+   `new`". § 10, the output table, has a row `cells` and holds 9 rows. The scripts end with
+   `record-fields: 101 of 101 field rows declared` and
+   `record-types: 101 of 101 field rows as declared, 101 of 101 declared fields have a row`
+   (99 after story 2).
+5. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
+   says "80 field rows in 13 tables of § 3 and 21 in 2 tables of § 10" (`grep -F` finds the
+   phrase; "79 field rows in 13 tables of § 3 and 20 in 2 tables of § 10" before).
+6. `docs/evidence-format.md` § 6 has an eighth example: two number results of one output, one
+   `item`, in two cells (`{"viewport": "narrow"}` and `{"viewport": "wide"}`). The assignment
+   `want_examples` of `spec/record-examples.test.sh` goes from 7 to 8, and the script ends
+   with `record-examples: <n> of <n> members of 8 example(s) decode under the specification`.
+   Before the story `cell` is refused there as no field of `MeasurementResult`.
+7. `spec/README.md`, the same paragraph: it says "8 examples in § 6 (`record-examples`)"
+   (`grep -F '8 examples in § 6' spec/README.md` finds it; "7 examples in § 6" before).
+8. `docs/evidence-format.md` § 4 rule 3 names `cell` among the members a result is unique
+   by: the rule reads "per `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation`"
+   (`grep -F` finds it; the rule without `cell` before).
+9. `docs/evidence-format.md` § 9 no longer lists the bullet "A result per condition cell"
+   (`grep -c 'A result per condition cell' docs/evidence-format.md` prints 0; 1 before).
+10. `docs/design.md` § 3 "Scope and aggregation" says how a measurement selects a cell or
+    reads one value per item and cell: the phrase "one value per item and cell" stands in
+    that section (`grep -F` finds it in `docs/design.md`; nothing before).
 
 ## Notes
 
@@ -99,6 +111,8 @@ Every outcome below is observable without a `ratchet` command.
 - The reading of `cell` by `ratchet evaluate` and the check of a result's cell against its
   output's `cells` are `story:result-with-two-dimensions-in-ratchet`, which waits for the waves
   to 0.1.0 (`story:evidence-reader`, `story:evaluate-command`).
+- Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
+  § "Changelog lines"; the wave record names the heading and the token).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

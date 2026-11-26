@@ -9,14 +9,12 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: spec/README.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 6
+revision: 8
 ---
 ## Context
 
@@ -26,12 +24,12 @@ and of this story.
 
 Finding 3. The definition needs "this gate entry does not apply when every changed path is
 planning or prose". `ratchet.specification.ChangedPaths` is positive only
-(`spec/domains/specification.yaml:694-703`): `when: {changed: [paths]}` makes an entry apply
-when the change touches a listed path, and `GateRequirement.when` holds one such value
-(`:1106-1108`). `docs/design.md` § 5 "Gate entries, deciding evidence, and gate kinds" states
-the positive form alone (`:637`). A list of every path that is no planning file cannot be
-written as patterns without negation. The consumer's example:
-`when: {not_only: [".engineering/**", "**/*.md"]}`.
+(`spec/domains/specification.yaml:694-703` at 7b01ea1): `when: {changed: [paths]}` makes an
+entry apply when the change touches a listed path, and `GateRequirement.when` holds one such
+value (`:1106-1108`). `docs/design.md` § 5 "Gate entries, deciding evidence, and gate kinds"
+states the positive form alone (`:637`, the paragraph "An entry can apply to some changes"). A
+list of every path that is no planning file cannot be written as patterns without negation.
+The consumer's example: `when: {not_only: [".engineering/**", "**/*.md"]}`.
 
 ## Decision
 
@@ -46,19 +44,31 @@ neither form and the entry does not apply, as with `changed`. The patterns are t
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ChangedPaths` (`:694`) has `changed` and `not_only`, both
-   optional, with invariants that exactly one is present, and its summary states both forms.
-   Checked by `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `docs/design.md` § 5 "Gate entries, deciding evidence, and gate kinds", the paragraph "An
-   entry can apply to some changes" (`:637`): the form `not_only`, when it applies and when not,
-   and that the gate report names the entry as not applicable with the reason; the
-   illustrative YAML of § 3 or that paragraph shows one entry with `not_only`. Text only, no
-   case.
-3. `spec/README.md`, the row "An entry written as a map may leave `mode` out" of § "How a
-   `ratchet/1` file differs from the declared entities" names `when` with either form. Text
-   only, no case.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+1. `spec/domains/specification.yaml`, `ratchet.specification.ChangedPaths` has the optional
+   member `not_only`, and `changed` is optional: `grep -c 'name: not_only'
+   spec/domains/specification.yaml` prints 1 (0 before), and
+   `ess specify validate --path spec --strict-requires` and `task check:generated` exit 0.
+2. `ChangedPaths` has invariants that exactly one of the two is present:
+   `grep -F 'any: ["defined(changed)", "defined(not_only)"]' spec/domains/specification.yaml`
+   and `grep -F 'any: ["not defined(changed)", "not defined(not_only)"]'
+   spec/domains/specification.yaml` each find a line (nothing before).
+3. The summary of `ChangedPaths` states the second form:
+   `grep -F '`when: {not_only: [paths]}`' spec/domains/specification.yaml` finds it (nothing
+   before).
+4. `docs/design.md` § 5 "Gate entries, deciding evidence, and gate kinds", the paragraph "An
+   entry can apply to some changes", states the form `not_only`, when it applies and when not:
+   `grep -F 'applies when the change touches at least one path outside the list'
+   docs/design.md` finds it (nothing before).
+5. The same paragraph shows one entry with the form:
+   `grep -F 'when: {not_only: [".engineering/**", "**/*.md"]}' docs/design.md` finds it
+   (nothing before). The illustrative YAML of § 3 stays as it is.
+6. The same paragraph says that the gate report names such an entry as not applicable with the
+   reason: `grep -F 'every changed path is in `not_only`' docs/design.md` finds it (nothing
+   before).
+7. `spec/README.md`, § "How a `ratchet/1` file differs from the declared entities", the rule
+   cell of the row "An entry written as a map may leave `mode` out" names `when` with either
+   form: `grep -F 'Its `when` holds `changed` or `not_only`, one of the two.' spec/README.md`
+   finds it (nothing before).
 
 ## Notes
 

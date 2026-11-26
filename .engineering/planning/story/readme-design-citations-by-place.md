@@ -8,10 +8,8 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: spec/README.md
-revision: 4
+revision: 6
 ---
 ## Context
 
@@ -54,20 +52,33 @@ need a path of its own in the change classifier of `pages.yml`, which classes `*
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/README.md`, the column "`docs/design.md`" of the table of § "How a `ratchet/1` file
-   differs from the declared entities": no cell holds a line number, and each cell names a
-   section of `docs/design.md` by number and heading, with a quoted phrase or a key of the
-   illustrative YAML where the section holds several rules. Before: eight cells cite a line
-   number and at least four (those citing 603, 218, 219) do not hold what their row names.
-   After: `grep -nE '\| [0-9]{3}|YAML [0-9]' spec/README.md` prints nothing, and each quoted
-   phrase is found by `grep -F` in `docs/design.md` under the cited heading. Text only, no
-   case.
-2. `spec/README.md`, the column "Example member" of that table: each cell names its file and
-   key path and no line number (`grep -nE '\.ratchet\.yaml:[0-9]' spec/README.md` prints
-   nothing). Text only, no case.
-3. `spec/README.md`, the intro of that section (`:286-293`): it says the rows cite the design by
-   section and phrase, not by line. Text only, no case.
-4. `CHANGELOG.md` has its line under `## [Unreleased]` (`### Fixed`). Text only, no case.
+The table is the one of `spec/README.md` § "How a `ratchet/1` file differs from the declared
+entities", the only table of that file whose rows open with `| **`.
+
+1. The column "`docs/design.md`" holds no line number.
+   `grep -nE '\| ([0-9]{3}[; |]|YAML [0-9]{3})' spec/README.md` prints nothing; before it prints
+   the eight rows from "The root" to "A decimal is written as a YAML number". The pattern needs
+   three digits after `YAML`, so it does not match "YAML 1.1 reader" of the section on the
+   preset checks.
+2. Each cell of that column names a section of `docs/design.md` by its number:
+   `awk -F ' \\| ' '/^\| \*\*/ && $2 !~ /§/' spec/README.md` prints nothing; before it prints
+   the same eight rows.
+3. The rows "A gate holds its entries", "A bare requirement name is an entry" and "An entry
+   written as a map may leave `mode` out" cite § 5 "Gate entries, deciding evidence, and gate
+   kinds" in place of the heading `### Verdicts`: `grep -c 'Gate entries, deciding evidence, and
+   gate kinds' spec/README.md` prints 3 (before 0), and each quotes the phrase "An entry of
+   `requires` is a requirement name", which `grep -F` finds in `docs/design.md`.
+4. The row "Several files form one specification" cites § 5 "Local config" and quotes "Several
+   paths form one specification", which `grep -F` finds in `docs/design.md`:
+   `grep -c 'Several paths form one specification' spec/README.md` prints 1 (before 0).
+5. The column "Example member" holds no line number, of an example file or of the design:
+   `grep -nE '\.ratchet\.yaml:[0-9]|design, line [0-9]' spec/README.md` prints nothing; before
+   it prints thirteen rows, among them "Several files form one specification" with "design,
+   line 658".
+6. The intro of that section no longer says the rows name a line: `grep -c 'names the line of'
+   spec/README.md` prints 0 (before 1), and `grep -c 'Each row cites the section of the
+   design that states the rule' spec/README.md` prints 1 (before 0): the sentence that
+   replaces it, on one line.
 
 ## Notes
 

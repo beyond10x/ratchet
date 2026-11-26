@@ -8,8 +8,6 @@ relations:
 - decomposes: epic:ci-turnaround
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: docs/evidence-format.md
@@ -19,7 +17,7 @@ scope:
   path: spec/contract-examples.test.sh
 - confidence: cited
   path: spec/domains/assessor.yaml
-revision: 8
+revision: 10
 ---
 ## Context
 
@@ -35,12 +33,12 @@ What the formats say at the wave's base, `7b01ea1`:
   `spec/domains/specification.yaml:439-466`).
 - No contract says how such an assessor learns its window. The invocation passes `--project`,
   `--assessment`, `--root`, `--class`, `--out`, `--revision` and the declared inputs, and
-  nothing else (`docs/evidence-format.md` § 10, `:687-697`). § 9 says that the contract does
-  not cover a plan without a selection or a target of another kind than `revision` or
-  `document` (`:673`). So the `window` and the `filter` of a plan reach no program, and the
-  bounds in `evidence.target.window` (`docs/evidence-format.md:90-98`) are the assessor's
-  guess.
-- No example uses the shape (`docs/design.md:72`).
+  nothing else (`docs/evidence-format.md` § 10, `:687-697`). § 9, the bullet "The rest of the
+  invocation" (`:674`), says that the contract does not cover a plan without a selection or a
+  target of another kind than `revision` or `document`. So the `window` and the `filter` of a
+  plan reach no program, and the bounds in `evidence.target.window`
+  (`docs/evidence-format.md:90-98`) are the assessor's guess.
+- No example uses the shape (`docs/design.md:72`, "No example uses the shape yet").
 - `story:assessor-learns-observation` (5 of this wave) adds `observation_inputs`, a map from a
   key of the plan's observation to an input the declaration declares, with the closed list
   `ratchet.assessor.ObservationKey`.
@@ -61,23 +59,40 @@ without a new reserved argument, so the declaration format stays at version 1:
 
 ## Acceptance
 
-Every outcome below is observable without a `ratchet` command.
+Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
-1. `spec/domains/assessor.yaml`: `ObservationKey` has the three window keys, and the summaries
-   of `Assessor.population_fields` and `ReservedArgument` say how the fields of a `{filter}`
-   are passed. Checked by `ess specify validate --path spec --strict-requires` (exit 0).
-2. `docs/evidence-format.md` § 10 "Invocation" states the decision for the window, the
-   population fields and a plan without a selection; § 9, "The rest of the invocation", no
-   longer names a plan without a selection. Text only, no case.
-3. `docs/evidence-format.md` § 10 has two more YAML examples: the declaration of an assessor
+1. `spec/domains/assessor.yaml`, `ratchet.assessor.ObservationKey`: the values
+   `window_length`, `window_last` and `window_ends_at` (`grep -c 'window_ends_at'
+   spec/domains/assessor.yaml` prints at least 1; 0 before). `ess specify validate --path
+   spec --strict-requires` exits 0.
+2. `spec/domains/assessor.yaml`, the summaries of `Assessor.population_fields` and
+   `ReservedArgument`: they say "is passed as `--<field> <value>`" (`grep -F` finds the
+   phrase in the file; nothing before).
+3. `docs/evidence-format.md` § 10 "Invocation" states the window: it names `window_ends_at`
+   (`grep -c 'window_ends_at' docs/evidence-format.md` prints at least 1; 0 before).
+4. `docs/evidence-format.md` § 10 "Invocation" states the population fields: "Each field of
+   `population: {filter}` is passed as `--<field> <value>`" (`grep -F` finds it; nothing
+   before).
+5. `docs/evidence-format.md` § 10 "Invocation" states a plan without a selection: "A
+   time-window plan without a `selection` is passed no `--revision`" (`grep -F` finds it;
+   nothing before).
+6. `docs/evidence-format.md` § 9, the bullet "The rest of the invocation", no longer names a
+   plan without a selection (`grep -c 'a plan without a selection' docs/evidence-format.md`
+   prints 0; 1 before).
+7. `docs/evidence-format.md` § 10 has two more YAML examples: the declaration of an assessor
    of a population outside the record store, with `targets: [telemetry_population]`,
    `population_fields` and `observation_inputs` for the window keys, and a time-window plan
-   with `population: {filter: {...}}`, a `window` and `min_samples` and no `selection`.
-   `want_examples` of `spec/contract-examples.test.sh` (`:43`) goes from 2 to 4, and its last
-   line counts the keys of 4 examples, every one a declared field. Before the story no example
-   uses the shape. `docs/design.md:72` no longer says that no example uses it, and points to
-   that example. `spec/README.md` says "4 examples in § 10 (`contract-examples`)".
-4. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+   with `population: {filter: {...}}`, a `window` and `min_samples` and no `selection`. The
+   assignment `want_examples` of `spec/contract-examples.test.sh` goes from 2 to 4, and the
+   script ends with `contract-examples: <n> of <n> keys of 4 example(s) are declared fields`
+   (`72 of 72 keys of 2 example(s)` before).
+8. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
+   says "4 examples in § 10 (`contract-examples`)" (`grep -F` finds it; "2 examples in § 10"
+   before).
+9. `docs/design.md` § 3, the paragraph that begins "**History** is a separate concern", no
+   longer says "No example uses the shape yet" (`grep -c` prints 0; 1 before) and points to
+   the example: it names "`docs/evidence-format.md` § 10" (`grep -F` finds it in that
+   paragraph).
 
 ## Notes
 
@@ -90,6 +105,8 @@ Every outcome below is observable without a `ratchet` command.
   (`docs/design.md:820`).
 - Related: `story:assessor-learns-observation` (the form this story extends),
   `story:build-target-invocation`.
+- Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
+  § "Changelog lines"; the wave record names the heading and the token).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
@@ -30,7 +28,7 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 14
+revision: 16
 ---
 ## Context
 
@@ -47,10 +45,10 @@ What the formats say at the wave's base, `7b01ea1`:
   `ratchet.cli.CoverageRow`, which `spec/cli-coverage-row.test.sh` holds to the same fields and
   types (`spec/domains/cli.yaml:63-88`). A record must write a count it does not have.
 - `docs/evidence-format.md` § 3 `evidence.coverage` (`:125-145`) marks the six counts
-  required; `at_least` exists on a number result only (`:168`, § 5 U6 `:284-294`).
+  required; `at_least` exists on a number result only (`:167`, § 5 U6 `:284-294`).
 - The declaration side has the same gap: "A count it does not report is 0 in its documents"
   (`docs/evidence-format.md:744`, `ratchet.assessor.Assessor.coverage`,
-  `spec/domains/assessor.yaml:191-196`). An assessor that covers a subset of the packages and
+  `spec/domains/assessor.yaml:194-200`). An assessor that covers a subset of the packages and
   reports no `skipped` writes a 0 it did not observe.
 - A plan bounds the counts (`docs/design.md` § 3 "Evidence coverage", `:152-162`); nothing says
   what a bound does with a count the run does not know.
@@ -74,41 +72,64 @@ Taken as the reversible answer (`AGENTS.md` § "Phase: implementation"):
 
 ## Acceptance
 
-Every outcome below is observable without a `ratchet` command.
+Every outcome below is observable without a `ratchet` command. No item cites a line number:
+the files are cited by section, type or quoted phrase.
 
-1. `spec/domains/evidence.yaml`, `ratchet.evidence.EvidenceCoverage`: the six counts are
-   `Optional<Integer>`, the new member `at_least` is `Optional<List<ratchet.assessor.CoverageCount>>`,
-   an invariant says that a count named under `at_least` is present, and the invariants
-   `passed <= executed` and `failed <= executed` hold where both are present.
-   `ratchet.cli.CoverageRow` (`spec/domains/cli.yaml`) has the same members with the same
-   types. Checked by `ess specify validate --path spec --strict-requires` (exit 0), by
-   `sh spec/cli-coverage-row.test.sh` (its last line counts one more coverage field, 10 of
-   10, in 2 of 2 places), and by `task check:generated` after `task generate` rewrote
-   `crates/ratchet-cli-contract/`.
-2. `docs/evidence-format.md` § 3 `evidence.coverage`: the six count rows say "no" under
-   Required and "absent: not known" in their meaning, and a row `at_least` follows them. The
-   table holds 13 rows; the sentence "There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`"
-   (`:52`) reads 79 fields and 24 `new`. Checked by `sh spec/record-fields.test.sh` and
-   `sh spec/record-types.test.sh`: the table line for `evidence.coverage` states 13 rows in
-   both scripts, and their last lines count 99 field rows, 79 of § 3 and 20 of § 10 (98
-   before).
-   `spec/README.md` says "79 field rows in 13 tables of § 3".
-3. `docs/evidence-format.md` § 6 has a sixth example: an imported run (`source.kind:
+1. `spec/domains/evidence.yaml`, `ratchet.evidence.EvidenceCoverage`, and
+   `docs/evidence-format.md` § 3 `evidence.coverage`: the six counts are `Optional<Integer>`
+   and their rows say `no` under Required. `sh spec/record-types.test.sh` holds the two
+   together (a row `no` over a field that is not `Optional` fails it); before the story the
+   rows say `yes` and the fields are `Integer`.
+2. `spec/domains/evidence.yaml`, `ratchet.evidence.EvidenceCoverage`: the member `at_least`,
+   `Optional<List<ratchet.assessor.CoverageCount>>`. `grep -c 'name: at_least'
+   spec/domains/evidence.yaml` prints 2 (1 before: the member of
+   `NumberValue`).
+3. `spec/domains/evidence.yaml`, the invariants of `EvidenceCoverage`: one names `at_least`
+   (a count named there is present), and `passed <= executed` and `failed <= executed` hold
+   only where both counts are present. `grep -A80 'name: ratchet.evidence.EvidenceCoverage'
+   spec/domains/evidence.yaml | grep -c 'in: at_least'` prints 1 (0 before), and the same
+   block holds `"not defined(passed)"` (absent before); `ess specify validate --path spec
+   --strict-requires` exits 0.
+4. `ratchet.cli.CoverageRow` (`spec/domains/cli.yaml`) has the same members with the same
+   types: `sh spec/cli-coverage-row.test.sh` ends with
+   `cli-coverage-row: 10 of 10 coverage fields reported with their type, in 2 of 2 places`
+   (9 of 9 before).
+5. `task generate` rewrote `crates/ratchet-cli-contract/` after the change of
+   `spec/domains/cli.yaml`, and `task check:generated` exits 0; before the rewrite it fails
+   on the changed `CoverageRow`.
+6. `docs/evidence-format.md` § 3 `evidence.coverage`: the six count rows hold
+   `absent: not known` in their meaning (`grep -c 'absent: not known'
+   docs/evidence-format.md` prints 6; 0 before), and a row `at_least` follows them, so the
+   table holds 13 rows. The sentence of § 3 reads "There are 79 fields: 48 `spec`, 7
+   `changed`, 24 `new`", which `sh spec/record-fields.test.sh` compares with the rows.
+   `sh spec/record-fields.test.sh` ends with `record-fields: 99 of 99 field rows declared`,
+   and `sh spec/record-types.test.sh` with
+   `record-types: 99 of 99 field rows as declared, 99 of 99 declared fields have a row`
+   (98 before, in both).
+7. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
+   says "79 field rows in 13 tables of § 3" (`grep -F '79 field rows in 13 tables of § 3'
+   spec/README.md` finds it; it says 78 before).
+8. `docs/evidence-format.md` § 6 has a sixth example: an imported run (`source.kind:
    junit`) whose coverage is `"executed": 472, "at_least": ["executed"]` with no `skipped` and
-   no `not_run`. `want_examples` of `spec/record-examples.test.sh` (`:46`) goes from 5 to 6,
-   and its last line counts the members of 6 examples, every one decoding. Before the story a
-   record without `skipped` is refused there as a required member that is absent.
-4. `docs/evidence-format.md` § 4 rule 4 and § 5 U6 say what a count that is not known and a
-   count that is a lower bound mean; § 10, the row `coverage` of the declaration table
-   (`:744`), says that an assessor leaves a count it does not report out of its documents,
-   and that an absent count is read as not known; "A count it does not report is 0 in its
-   documents" is gone.
-   `spec/domains/assessor.yaml`, the summary of `Assessor.coverage`, says the same. Text
-   only, no case.
-5. `docs/design.md` § 3 "Evidence coverage" states the rule for a bound over a count that is
-   not known or is a lower bound (the cause `coverage_below_plan`, naming the count). Text
-   only, no case.
-6. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+   no `not_run`. The assignment `want_examples` of `spec/record-examples.test.sh` goes from 5
+   to 6, and the script ends with
+   `record-examples: <n> of <n> members of 6 example(s) decode under the specification`.
+   Before the story a record without `skipped` is refused there as a required member that is
+   absent.
+9. `spec/README.md`, the same paragraph: it says "6 examples in § 6 (`record-examples`)"
+   (`grep -F '6 examples in § 6' spec/README.md` finds it; it says "5 examples in § 6"
+   before).
+10. `docs/evidence-format.md` § 4 rule 4 says "A count that a record leaves out is not known"
+    (`grep -F` finds it; nothing before).
+11. `docs/evidence-format.md` § 5 U6 says what a count named under `at_least` means: the
+    phrase "A count named under `at_least`" (`grep -F` finds it; nothing before).
+12. `docs/evidence-format.md` § 10, the row `coverage` of the declaration table, and the
+    summary of `Assessor.coverage` in `spec/domains/assessor.yaml`: both say "leaves a count
+    it does not report out of its documents" (`grep -F` finds it in each file), and "is 0 in
+    its documents" is gone (`grep -c` prints 0 in each file; 1 each before).
+13. `docs/design.md` § 3 "Evidence coverage" states the rule for a bound over a count that is
+    not known or is a lower bound: the phrase "a count that the run does not know" stands in
+    that section beside `coverage_below_plan` (`grep -F` finds it; nothing before).
 
 ## Notes
 
@@ -118,12 +139,14 @@ Every outcome below is observable without a `ratchet` command.
 - The verdict of `ratchet evaluate` on a plan whose bound reads a count that is not known is
   `story:coverage-count-lower-bound-in-ratchet`, which waits for the waves to 0.1.0
   (`story:evidence-reader`, `story:evaluate-command`).
+- Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
+  § "Changelog lines"; the wave record names the heading and the token).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every
   planned wave starts behind `story:cli-skeleton-validate`, which waits for a release of ESS
   (beyond10x/ess#836), and this part needs no `ratchet` command. It is 2 of the 33 in the
   order of that page. It is the first of the four stories that add a § 6 example (5 to 6);
-  3, 4 and 7 follow, and 3 and 4 change the field tables of § 3 after it.
+  3, 4 and 7 follow, and 4 and 5 change the field tables of § 3 after it.
 - It changes `spec/domains/cli.yaml`, so it runs `task generate` and `task check:generated`.
 - POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s.

@@ -9,14 +9,16 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
+  path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
+- confidence: cited
+  path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 13
+revision: 17
 ---
 ## Context
 
@@ -44,35 +46,58 @@ the measurement, not to the input: a member `meanings` of
 other than `run`. The items of the consumer's list are the items of the scope `test` of its
 measurement, so the map says what each test bounds. An item of the map that no result of a run
 holds is reported by the command, not refused by the decoder: the items of a scope are known
-only from a run.
+only from a run. The reports of `ratchet explain` and of the gate (`ratchet.cli.Explanation`
+and `ratchet.cli.VerdictRow`, `spec/domains/cli.yaml`) get `meanings`, and the gate row
+`meanings_without_result` for a statement whose item no result holds; this story declares
+them, and `task generate` rewrites the generated crate.
 
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `Measurement` (`:162-230`, with `min_items` and
-   `required_items` that story 17 added) holds `meanings: Optional<Map<String, String>>`, with
-   the invariant that it does not stand on the scope `run`; its summary says that `ratchet
-   explain` and the gate report show the statement beside the result of the item. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `docs/design.md` § 3 "Scope and aggregation" (`:120-124`): a paragraph with a measurement of
-   the scope `test` whose `meanings` say what two tests bound, and the sentence that a list
-   input gets its statements through the measurement whose scope items it names. Text only,
-   no case.
-3. `spec/presets.test.sh`: before the story a preset measurement with `meanings` is refused
-   (rule `place`). After it, a copy whose measurement at a scope other than `run` holds
-   `meanings: {case-1: "the default timeout"}` is accepted, and a copy whose `meanings` holds
-   a number as a statement is refused by the rule `type`.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `spec/domains/specification.yaml`: `ratchet.specification.Measurement` holds
+   `meanings: Optional<Map<String, String>>`: `grep -c 'name: meanings$'
+   spec/domains/specification.yaml` prints 1 (0 before), and `ess specify validate --path
+   spec --strict-requires` exits 0.
+2. `Measurement` states the invariant that `meanings` does not stand on the scope `run`,
+   written `- any: ["not defined(meanings)", "scope != run"]`: `grep -cF '"not
+   defined(meanings)"' spec/domains/specification.yaml` prints 1 (0 before).
+3. The summary of `meanings` holds the phrase "shown beside the result of the item": `grep -F`
+   finds it in `spec/domains/specification.yaml`, nothing before.
+4. `spec/domains/cli.yaml`: `ratchet.cli.Explanation` and `ratchet.cli.VerdictRow` each hold
+   `meanings: Optional<Map<String, String>>`, the statements of the scope items of the
+   requirement's measurement, and `VerdictRow` holds `meanings_without_result:
+   Optional<List<String>>`, the items of `meanings` that no result of the run holds: `grep -c
+   'name: meanings$' spec/domains/cli.yaml` prints 2 and `grep -c 'name:
+   meanings_without_result$' spec/domains/cli.yaml` prints 1 (0 before each).
+5. `task generate` rewrites `crates/ratchet-cli-contract/` in the same change and
+   `task check:generated` exits 0: `grep -c '"meanings_without_result"'
+   crates/ratchet-cli-contract/binding.json` prints a number above 0 (0 before), and no
+   hand-written file under `crates/` changes.
+6. `docs/design.md` § 3 "Scope and aggregation": a paragraph shows a measurement of the scope
+   `test` whose `meanings` say what two tests bound, and holds the phrase "a list input gets
+   its statements through the measurement whose scope items it names": `grep -F` finds the
+   phrase, nothing before.
+7. `spec/presets.test.sh`: the accepted copy `measurement-meanings`, whose measurement at a
+   scope other than `run` holds `meanings: {case-1: "the default timeout"}`, is accepted.
+   Before the story the same measurement is refused (rule `place`: `meanings` is no declared
+   field).
+8. `spec/presets.test.sh`: the case "a statement of meanings is a number" is refused with the
+   message of the rule `type`; before the story the name is not in the script (`grep -c`
+   prints 0).
 
 ## Notes
 
 - An addition to a released format: a file written before the change stays valid.
 - The parts that need the command are `story:list-item-statement-in-ratchet`: `ratchet
   explain` and the gate report showing a statement beside the result of its item, and the
-  report naming a statement whose item no result holds. It waits for the waves to 0.1.0.
+  report naming a statement whose item no result holds, filling the members of
+  `spec/domains/cli.yaml` that this story declares. It waits for the waves to 0.1.0.
+- It changes `spec/domains/cli.yaml`, so it runs `task generate` and `task check:generated`.
+  `ratchet.cli.VerdictRow` is changed again later in the wave by 26
+  (`story:new-item-without-accepted-value`) and 32 (`story:gate-joins-revision-and-document`).
+- The line of the wave's changelog: under `### Added`, naming `meanings` (written by the story
+  that closes the wave, `AGENTS.md` § "Changelog lines").
 - The story no longer writes into `docs/evidence-format.md` or `crates/ratchet-core`: a record
   carries no statement, and the code is the command part's.
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner

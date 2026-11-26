@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: examples/README.md
@@ -18,7 +16,7 @@ scope:
   path: examples/ratchet.toml
 - confidence: cited
   path: spec/domains/config.yaml
-revision: 7
+revision: 9
 ---
 ## Context
 
@@ -29,12 +27,13 @@ and of this story.
 Finding 12. The consumer keeps its baseline evidence as tracked files of the tree, so a clone
 holds them. `[records] store` is the git ref of the series or the path of the local record
 directory, the one this machine writes (`ratchet.config.RecordStoreLocation`,
-`spec/domains/config.yaml:17-24`; `ratchet.config.RecordsSection`, `:76-85`). No key names a
-tracked directory that is read and never written by a run. `docs/design.md` § 5 "Local config"
-shows `[records] store` alone (`:684-700`, the `ratchet.toml` block), and § 6 "The record store"
-names the hand-over, the ref and the local record directory (`docs/design.md` § 6). The
-consumer's `ratchet.toml` has no `[records]` section, and the place of its baseline is known to
-a reader only by convention. `examples/ratchet.toml` has `[records] store` (`:10-11`).
+`spec/domains/config.yaml:17-24` at 7b01ea1; `ratchet.config.RecordsSection`, `:76-85`). No key
+names a tracked directory that is read and never written by a run. `docs/design.md` § 5 "Local
+config" shows `[records] store` alone (`:684-700`, the `ratchet.toml` block), and § 6, the
+paragraph "The record store" (`:780`), names the hand-over, the ref and the local record
+directory. The consumer's `ratchet.toml` has no `[records]` section, and the place of its
+baseline is known to a reader only by convention. `examples/ratchet.toml` has `[records] store`
+(`:10-11`).
 
 ## Decision
 
@@ -49,19 +48,31 @@ directory is no reference: references stay `ratchet/references/<requirement>.jso
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/config.yaml`: `RecordsSection` (`:76`) has the optional `tracked`, a list of
-   paths relative to the root, whose summary says that a command reads records there and writes
-   none; the summary of `ratchet.config.RecordStore` (`:169`) names it as a third, read-only
-   source. Checked by `ess specify validate --path spec --strict-requires`, which exits 0, and
-   by `task check:generated`.
-2. `docs/design.md` § 5 "Local config": the `ratchet.toml` block shows `tracked` under
-   `[records]`, and the paragraph after it says what a tracked directory holds and that no run
-   writes there; § 6 "The record store" names it beside the local record directory. Text only,
-   no case.
-3. `examples/ratchet.toml` has `tracked` under `[records]`, and `examples/README.md`
-   § "`ratchet.toml`" gives its source. Text only, no case: no script of the gate reads the
-   keys of `ratchet.toml`.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+1. `spec/domains/config.yaml`, `ratchet.config.RecordsSection` has the optional member
+   `tracked`, a list of paths relative to the root: `grep -c 'name: tracked'
+   spec/domains/config.yaml` prints 1 (0 before), and
+   `ess specify validate --path spec --strict-requires` and `task check:generated` exit 0.
+2. The summary of `tracked` says that a command reads records there and writes none:
+   `grep -F 'reads records there and writes none' spec/domains/config.yaml` finds it (nothing
+   before).
+3. The summary of `ratchet.config.RecordStore` names a tracked directory as a third, read-only
+   source: `grep -F 'a tracked directory, read and never written' spec/domains/config.yaml`
+   finds it (nothing before).
+4. `docs/design.md` § 5 "Local config", the `ratchet.toml` block shows `tracked` under
+   `[records]`: `grep -F 'tracked = ["quality/baseline"]' docs/design.md` finds it (nothing
+   before).
+5. `docs/design.md` § 5 "Local config", the paragraph after the block says what a tracked
+   directory holds and that no run writes there: `grep -F 'A tracked directory holds
+   `ratchet-evidence/1` files committed to the tree' docs/design.md` finds it (nothing before).
+6. `docs/design.md` § 6, the paragraph "The record store", names the tracked directory beside
+   the local record directory: `grep -F 'and the tracked directories of `[records] tracked`'
+   docs/design.md` finds it (nothing before).
+7. `examples/ratchet.toml` has `tracked` under `[records]`:
+   `grep -c '^tracked = ' examples/ratchet.toml` prints 1 (0 before). No script of the gate
+   reads the keys of `ratchet.toml`.
+8. `examples/README.md` § "`ratchet.toml`" gives the source of `tracked`:
+   `grep -F '`tracked` names the directory of the baseline records' examples/README.md` finds
+   it (nothing before).
 
 ## Notes
 

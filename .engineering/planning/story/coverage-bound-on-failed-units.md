@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-runtime
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: presets/latency.md
@@ -19,7 +17,7 @@ scope:
   path: presets/operation-time@2.preset.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 14
+revision: 16
 ---
 ## Context
 
@@ -57,26 +55,32 @@ addition.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `CoverageBounds` (`:326-343`) holds
-   `failed: Optional<ratchet.specification.MaximumBound>`, and its summary says that a run over
-   it is insufficient evidence with the cause `coverage_below_plan`. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `docs/design.md` § 3 "Evidence coverage" (`:160`): five count keys, `failed` a maximum
-   beside `skipped`, `not_run` and `unsupported`, with the reason (a failed unit of a timing
-   run is often the fast or the slow one) and the sentence that a share of failed units is not
-   a bound yet. Text only, no case.
-3. `presets/operation-time@2.preset.yaml` (new) is `operation-time@1` with the required input
+1. `spec/domains/specification.yaml`: `ratchet.specification.CoverageBounds` holds
+   `failed: Optional<ratchet.specification.MaximumBound>`: `grep -c 'name: failed$'
+   spec/domains/specification.yaml` prints 1 (0 before), and `ess specify validate --path
+   spec --strict-requires` exits 0.
+2. The summary of `CoverageBounds` holds the phrase "a run over `failed` is insufficient
+   evidence with the cause `coverage_below_plan`": `grep -F` finds it in
+   `spec/domains/specification.yaml`, nothing before.
+3. `docs/design.md` § 3 "Evidence coverage": the paragraph of the count keys says "five count
+   keys" and names `failed` a maximum beside `skipped`, `not_run` and `unsupported`: `grep -cF
+   'has five count keys' docs/design.md` prints 1, and `grep -cF 'has four count keys'` prints
+   0 (1 before).
+4. The same paragraph holds the reason, the phrase "a failed unit of a timing run is often the
+   fast or the slow one": `grep -F` finds it, nothing before.
+5. The same paragraph holds the phrase "a share of failed units is not a bound yet": `grep -F`
+   finds it, nothing before.
+6. `presets/operation-time@2.preset.yaml` exists: `operation-time@1` with the required input
    `failed_requests_max` (integer) and the bound `failed: {max: "${inputs.failed_requests_max}"}`
-   in its `coverage`; `operation-time@1` stays byte for byte. `presets/latency.md` has the
-   section `operation-time@2`, its input row and the rows of
-   `operation-time@2/operations/p50`, `p95` and `p99`, and its point 5 (`:267-271`) says that
-   the bound answers it from `operation-time@2` on. Checked by `spec/presets.test.sh`, rules
-   `place`, `type`, `inputs` and `row`: before the story a preset with `failed` under
-   `coverage` is refused (rule `place`), after it its last line counts one more file and three
-   more measurements with a row.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+   in its `coverage`. `sh spec/presets.test.sh` exits 0 with the file in the catalog; before
+   the story the same file is refused there by the rule `place` (`failed` is no field of
+   `CoverageBounds`). `operation-time@1` stays byte for byte (`git diff --quiet 7b01ea1 --
+   presets/operation-time@1.preset.yaml` exits 0).
+7. `presets/latency.md` has the section `operation-time@2` with its input row and the rows of
+   `operation-time@2/operations/p50`, `p95` and `p99`: `grep -c '`operation-time@2/operations/'
+   presets/latency.md` prints 3 (0 before).
+8. `presets/latency.md`, "Not expressible yet", point 5, rewritten in place, holds the phrase
+   "Answered from `operation-time@2` on": `grep -F` finds it, nothing before.
 
 ## Notes
 
@@ -93,7 +97,11 @@ Every outcome below is observable without a `ratchet` command.
   into one wave built in sequence on one branch: every planned wave starts behind
   `story:cli-skeleton-validate`, which waits for a release of ESS (beyond10x/ess#836), and this
   part needs no `ratchet` command. It is 16 of the 33 in the order of that page.
-- 15 (`story:coverage-count-with-reference`) changes `docs/design.md:162` before it, the
-  paragraph after `:160`; 17 (`story:assertion-required-items`) changes the coverage of
+- 15 (`story:coverage-count-with-reference`) changes the paragraph after the one of the count
+  keys before it; 17 (`story:assertion-required-items`) bounds the items of a measurement of
   `health-readiness` in a version of its own after it.
+- `spec/presets.test.sh` is not changed: it reads the new preset and page as it reads every
+  file of the catalog.
+- The line of the wave's changelog: under `### Added`, naming `operation-time@2` (written by
+  the story that closes the wave, `AGENTS.md` § "Changelog lines").
 - POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s.

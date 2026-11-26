@@ -12,14 +12,14 @@ relations:
 scope:
 - confidence: inferred
   path: crates/ratchet/tests
-revision: 2
+revision: 3
 ---
 ## Context
 
 Split on 2026-11-26 from `story:example-release-quality`, which adds
 `examples/release-quality.ratchet.yaml` (a release as its subject, exact counts with
-`better: lower` against accepted references, a gate `release` with `judges: {tag: ...}` and
-only report-mode entries) and the declaration of its assessor, checked by
+`better: lower` against accepted references, and a gate `release` with only report-mode
+entries) and the declaration of its assessor, checked by
 `sh spec/example-declarations.test.sh`. This story holds the part that needs the `ratchet`
 command.
 

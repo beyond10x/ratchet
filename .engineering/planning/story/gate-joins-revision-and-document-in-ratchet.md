@@ -14,29 +14,27 @@ relations:
 scope:
 - confidence: inferred
   path: crates/ratchet-core
-- confidence: inferred
-  path: spec/domains/cli.yaml
-revision: 3
+revision: 5
 ---
 ## Context
 
 Split on 2026-11-26 from `story:gate-joins-revision-and-document`, which writes into
 `docs/design.md` § 5 how a candidate gate joins a run of a `document` target with the
 candidate revision (the digest of the file at that revision) and declares the joined document
-on `ratchet.gate.RequirementVerdict`. This story holds the part that needs the `ratchet`
-command.
+`document` on `ratchet.gate.RequirementVerdict` and on the report row `ratchet.cli.VerdictRow`.
+This story holds the part that needs the `ratchet` command.
 
 ## Acceptance
 
 `ratchet evaluate --gate <name>` in a fixture with one gate over a `revision` plan and a
-`document` plan passes when both runs qualify for the candidate, records the document's path
-and digest in the decision and shows them in the gate report, and gives insufficient evidence
-with the cause `not_attributable_to_candidate` naming the document when its digest is not the
-one at the candidate revision. Before the story the document run never qualifies.
+`document` plan passes when both runs qualify for the candidate, writes the document's path
+and digest under `document` in the decision and in the gate report, and gives insufficient
+evidence with the cause `not_attributable_to_candidate` naming the document when its digest is
+not the one at the candidate revision. Before the story the document run never qualifies.
 
 ## Notes
 
-- Moved from the acceptance of `story:gate-joins-revision-and-document`.
-- The gate report row `ratchet.cli.VerdictRow` gets the document in this story.
+- Moved from the acceptance of `story:gate-joins-revision-and-document`, where the members are
+  declared; this story fills them.
 - The story is a draft. It waits for the waves to 0.1.0: `story:cli-skeleton-validate`,
   `story:evaluate-command`, `story:evidence-reader`.

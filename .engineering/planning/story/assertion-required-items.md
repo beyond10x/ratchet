@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-runtime
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: inferred
   path: presets/health-readiness@2.preset.yaml
@@ -19,7 +17,7 @@ scope:
   path: presets/operability.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 12
+revision: 14
 ---
 ## Context
 
@@ -59,26 +57,34 @@ They apply to every value type with items, and an assertion is the first user.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `Measurement` (`:162-230`) holds
-   `min_items: Optional<Integer>` and `required_items: Optional<List<String>>`, with the
-   invariants `min_items >= 1` and that neither stands on the scope `run`; the summaries give
-   the verdict and the cause. Checked by `ess specify validate --path spec --strict-requires`,
-   which exits 0, and by `task check:generated`.
-2. `docs/design.md` § 3 "Comparisons" (the bullet on assertions, `:199`): a requirement over a
-   measurement with `min_items` or `required_items` is insufficient evidence with the cause
-   `coverage_below_plan` when its result holds fewer items or lacks one, and names them;
-   `holds` over no item is no pass where the measurement states `min_items`. § 3 "Evidence
-   coverage" says that these bound the items of one measurement and the coverage bounds the
-   units of the plan. Text only, no case.
-3. `presets/health-readiness@2.preset.yaml` (new) is `health-readiness@1` with `min_items: 1`
-   on `health` and on `readiness`; `health-readiness@1` stays byte for byte.
-   `presets/operability.md` has the section `health-readiness@2` with its rows, and its point 3
-   (`:178-186`) says that `min_items` answers it from `health-readiness@2` on. Checked by
-   `spec/presets.test.sh`, rules `place`, `type` and `row`: before the story a preset with
-   `min_items` is refused (rule `place`), after it its last line counts one more file and two
-   more measurements with a row.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `spec/domains/specification.yaml`: `ratchet.specification.Measurement` holds
+   `min_items: Optional<Integer>` and `required_items: Optional<List<String>>`: `grep -c
+   'name: min_items$\|name: required_items$' spec/domains/specification.yaml` prints 2 (0
+   before), and `ess specify validate --path spec --strict-requires` exits 0.
+2. `Measurement` states the invariants `min_items >= 1` and that neither member stands on the
+   scope `run`, the first written `- any: ["not defined(min_items)", "min_items >= 1"]`:
+   `grep -cF '"min_items >= 1"' spec/domains/specification.yaml` prints 1 (0 before).
+3. The summaries of the two members hold the phrase "insufficient evidence with the cause
+   `coverage_below_plan`": `grep -cF` of that phrase in `spec/domains/specification.yaml`
+   prints 2 more than before.
+4. `docs/design.md` § 3 "Comparisons", the bullet on assertions, holds the phrase "fewer items
+   than `min_items` or without an item of `required_items` is insufficient evidence": `grep
+   -F` finds it, nothing before.
+5. The same bullet holds the phrase "`holds` over no item is no pass where the measurement
+   states `min_items`": `grep -F` finds it, nothing before.
+6. `docs/design.md` § 3 "Evidence coverage" holds the phrase "`min_items` and
+   `required_items` bound the items of one measurement": `grep -F` finds it, nothing before.
+7. `presets/health-readiness@2.preset.yaml` exists: `health-readiness@1` with `min_items: 1` on
+   `health` and on `readiness` (`grep -c 'min_items: 1'` of the file prints 2).
+   `sh spec/presets.test.sh` exits 0 with the file in the catalog; before the story the same
+   file is refused there by the rule `place` (`min_items` is no field of `Measurement`).
+   `health-readiness@1` stays byte for byte (`git diff --quiet 7b01ea1 --
+   presets/health-readiness@1.preset.yaml` exits 0).
+8. `presets/operability.md` has the section `health-readiness@2` with the rows of
+   `health-readiness@2/probes/health` and `health-readiness@2/probes/readiness`: `grep -c
+   '`health-readiness@2/probes/' presets/operability.md` prints 2 (0 before).
+9. `presets/operability.md`, "Not expressible yet", point 3, rewritten in place, holds the
+   phrase "Answered from `health-readiness@2` on": `grep -F` finds it, nothing before.
 
 ## Notes
 
@@ -99,6 +105,8 @@ Every outcome below is observable without a `ratchet` command.
   into one wave built in sequence on one branch: every planned wave starts behind
   `story:cli-skeleton-validate`, which waits for a release of ESS (beyond10x/ess#836), and this
   part needs no `ratchet` command. It is 17 of the 33 in the order of that page.
+- The line of the wave's changelog: under `### Added`, naming `min_items` (written by the story
+  that closes the wave, `AGENTS.md` § "Changelog lines").
 - 18 (`story:list-item-statement`) adds a third member of `Measurement` about scope items after
   it; 19 (`story:min-samples-per-scope-item`) adds a bound per item after that, beside these.
 - POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s.

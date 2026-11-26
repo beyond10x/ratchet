@@ -9,18 +9,18 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
 - confidence: cited
   path: docs/evidence-format.md
 - confidence: cited
+  path: spec/README.md
+- confidence: cited
   path: spec/domains/evidence.yaml
 - confidence: cited
   path: spec/record-examples.test.sh
-revision: 8
+revision: 11
 ---
 ## Context
 
@@ -42,7 +42,8 @@ What the formats say at the wave's base, `7b01ea1`:
 - `docs/evidence-format.md` § 3 `evidence.source` (`:187-192`) names the three kinds;
   `docs/design.md` § 5 "Proposed CLI", the row `ratchet import` (`:749`), names forge runs,
   build pool logs and JUnit files.
-- A record's `target.revision` is the revision the target was read at (`:85`), and nothing
+- A record's `target.revision` is the revision the target was read at
+  (`docs/evidence-format.md` § 3 `evidence.target`, the row `revision`, `:86`), and nothing
   ties an imported file to a revision.
 
 ## Decision
@@ -56,27 +57,42 @@ kind of their own.
 
 ## Acceptance
 
-Every outcome below is observable without a `ratchet` command.
+Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
-1. `spec/domains/evidence.yaml`: `ImportSourceKind` has `tree_file`, the summary of
-   `ImportSource.location` names a path relative to the root for it, and an invariant on
-   `Evidence` refuses a record with `source.kind: tree_file` and no `target.revision`.
-   Checked by `ess specify validate --path spec --strict-requires` (exit 0) and, because
-   `spec/domains/cli.yaml` uses the type, by `task check:generated` after `task generate`
-   rewrote `crates/ratchet-cli-contract/`.
-2. `docs/evidence-format.md` § 6 has a seventh example: a record whose `source` is
+1. `spec/domains/evidence.yaml`, `ratchet.evidence.ImportSourceKind`: the variant
+   `tree_file`. The `§ 6` example of item 4 decodes only with it, and `grep -c 'tree_file'
+   spec/domains/evidence.yaml` prints at least 1 (0 before).
+2. `spec/domains/evidence.yaml`, the invariants of `ratchet.evidence.Evidence`: one refuses a
+   record with `source.kind` `tree_file` and no `target.revision`. The block of
+   `ratchet.evidence.Evidence` under `invariants:` holds a line with both `tree_file` and
+   `target.revision` (`grep -A120 'name: ratchet.evidence.Evidence$'
+   spec/domains/evidence.yaml | grep 'tree_file' | grep -c 'target.revision'` prints 1; 0
+   before), and `ess specify validate --path spec --strict-requires` exits 0.
+3. `spec/domains/evidence.yaml`, the summary of `ImportSource.location`, says "a path relative
+   to the root" for `tree_file` (`grep -F` finds the phrase in the file; nothing before).
+4. `docs/evidence-format.md` § 6 has a seventh example: a record whose `source` is
    `{"kind": "tree_file", "location": "<a path of the tree>"}` and whose `target.revision` is
-   the commit the file was read at. `want_examples` of `spec/record-examples.test.sh` goes
-   from 6 to 7, and its last line counts the members of 7 examples, every one decoding. Before
-   the story the value `tree_file` is refused there as no variant of
+   the commit the file was read at. The assignment `want_examples` of
+   `spec/record-examples.test.sh` goes from 6 to 7, and the script ends with
+   `record-examples: <n> of <n> members of 7 example(s) decode under the specification`.
+   Before the story the value `tree_file` is refused there as no value of
    `ratchet.evidence.ImportSourceKind`.
-3. `docs/evidence-format.md` § 3 `evidence.source`: the row `kind` names `tree_file` and the
-   row `location` the path relative to the root; the number of rows stays 2. Checked by
-   `sh spec/record-fields.test.sh` and `sh spec/record-types.test.sh`, whose counts do not
-   change.
-4. `docs/design.md` § 5 "Proposed CLI", the row `ratchet import`, and § 6, the paragraph on an
-   imported run, name a file of the tree and the revision it is read at. Text only, no case.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+5. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
+   says "7 examples in § 6 (`record-examples`)" (`grep -F '7 examples in § 6'
+   spec/README.md` finds it; it says "6 examples in § 6" after story 2).
+6. `task generate` rewrote `crates/ratchet-cli-contract/` (`spec/domains/cli.yaml` uses
+   `ImportSourceKind` in `ImportInput` and `ImportResult`), and `task check:generated` exits
+   0; before the rewrite it fails on the new variant.
+7. `docs/evidence-format.md` § 3 `evidence.source`: the row `kind` names `tree_file`
+   (`grep -F '`tree_file`' docs/evidence-format.md` finds the row; nothing before), and the
+   table keeps its 2 rows: `sh spec/record-fields.test.sh` still ends with
+   `record-fields: 99 of 99 field rows declared`.
+8. `docs/design.md` § 5 "Proposed CLI", the row `ratchet import`, names "a file of the tree"
+   (`grep -F '| `ratchet import` |' docs/design.md | grep -c 'a file of the tree'` prints
+   1; the row names forge runs, build pool logs and JUnit files alone before).
+9. `docs/design.md` § 6, the paragraph that begins "An imported run is an assessment run
+   record", says "A file of the tree is imported with the revision it was read at"
+   (`grep -F` finds the phrase; nothing before).
 
 ## Notes
 
@@ -85,6 +101,8 @@ Every outcome below is observable without a `ratchet` command.
   declared form, which `story:cli-skeleton-validate` and `story:evidence-reader` build. How
   `ratchet import` reads a file of the tree belongs to the story that builds that command;
   none does yet.
+- Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
+  § "Changelog lines"; the wave record names the heading and the token).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

@@ -8,16 +8,16 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
 - confidence: cited
+  path: spec/domains/cli.yaml
+- confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 7
+revision: 10
 ---
 ## Context
 
@@ -46,44 +46,64 @@ and is not rejected. A new operator `within` takes the members `min` and `max` o
 `Condition`, both in the unit of the measurement and both inclusive, and no `value`. It applies
 where the five operators with a `value` apply: a number, and the number of items of a set. An
 invariant states `min <= max`, as `ratchet.evidence.EvidenceCoverage` states `passed <=
-executed` (`spec/domains/evidence.yaml:271-272`), so the decoder refuses a range whose lower
-bound is above its upper bound.
+executed` (`spec/domains/evidence.yaml:272-273`), so the decoder refuses a range whose lower
+bound is above its upper bound, and `spec/presets.test.sh` refuses it in a preset.
+`ratchet.cli.LimitRow` (`spec/domains/cli.yaml:53-60`) gets `min` and `max` beside `value`, so
+the gate report and `ratchet explain` show a range as one limit; this story declares them, and
+`task generate` rewrites the generated crate.
 
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
 
 1. `spec/domains/specification.yaml`: `within` is a variant of
-   `ratchet.specification.ComparisonOperator` (`:532-534`), and `ratchet.specification.Condition`
-   (`:536-555`, with the member `digest` that story 10 added) holds `min` and `max` as
-   `Optional<Decimal>`, with the invariants: `within` has both and no `value`; `min` and `max`
-   stand on no other operator; `min <= max`. The summary of `Condition` says that a verdict
-   outside the range names the bound crossed. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0.
-2. `task check:generated` exits 0: where the new variant changes `crates/ratchet-cli-contract/`
-   (through `ratchet.cli.LimitRow.operator`), `task generate` rewrites it in the same change,
-   and no hand-written file under `crates/` changes.
-3. `docs/design.md` § 3: the table "Comparisons" (`:192-193`) gives a number and the number of
-   items of a set `within` with `min` and `max`; a bullet below it says that both bounds hold,
-   that each is inclusive and in the unit of the measurement, and that a verdict outside the
-   range is a fail with the cause `limit_crossed` that names the bound crossed; the list
-   "Operator" of "Value lists" (`:216`) holds `within`. Text only, no case.
-4. `spec/presets.test.sh`, rule `compare`: `within` takes a number or a set and has `min` and
-   `max` and no `value`. Before the story a preset requirement with
-   `condition: {operator: within, min: 50, max: 60, unit: s}` is refused (rule `type`: the
-   operator is no variant). After it, a copy with that requirement is accepted, and a copy
-   with `within` and a `value`, one with `within` and no `max`, and one with `min` on `lte` are
-   each refused with the message of the rule. The line of defects counts the three new ones.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+   `ratchet.specification.ComparisonOperator`: `grep -cF 'holds, within'
+   spec/domains/specification.yaml` prints 1 (0 before; the list ends at `holds`).
+2. `ratchet.specification.Condition` holds `min` and `max` as `Optional<Decimal>`:
+   `awk '/name: ratchet.specification.Condition$/,/name: ratchet.specification.ReferenceKind$/'
+   spec/domains/specification.yaml | grep -c 'name: m[ia][nx]$'` prints 2 (0 before), and
+   `ess specify validate --path spec --strict-requires` exits 0.
+3. `Condition` states the invariants that `within` has both bounds and no `value`, that `min`
+   and `max` stand on no other operator, and the order of the bounds, written
+   `- any: ["operator != within", "min <= max"]`: `grep -cF '"min <= max"'
+   spec/domains/specification.yaml` prints 1 (0 before).
+4. `spec/domains/cli.yaml`: `ratchet.cli.LimitRow` holds `min` and `max` as
+   `Optional<String>`, the exact decimal text as its `value` is, so the gate report and
+   `ratchet explain` carry a range as one limit: `grep -c 'name: m[ia][nx]$'
+   spec/domains/cli.yaml` prints 2 (0 before).
+5. `task generate` rewrites `crates/ratchet-cli-contract/` in the same change and
+   `task check:generated` exits 0: `grep -c '"within"'
+   crates/ratchet-cli-contract/binding.json` prints a number above 0 (0 before), and no
+   hand-written file under `crates/` changes.
+6. `docs/design.md` § 3 "Comparisons", the table: the rows "Number" and "Identity set" name
+   the phrase "`within` with `min` and `max`": `grep -cF` of that phrase in `docs/design.md`
+   prints 2 (0 before).
+7. `docs/design.md` § 3 "Comparisons", a bullet below the table holds the phrase "both bounds
+   are inclusive and in the unit of the measurement": `grep -F` finds it, nothing before.
+8. The same bullet holds the phrase "outside the range fails with the cause `limit_crossed`
+   and names the bound crossed": `grep -F` finds it, nothing before.
+9. `docs/design.md` § 3 "Value lists", the row "Operator", holds `within`: `grep -F '|
+   Operator |' docs/design.md` prints a line with `` `within` `` (without it before).
+10. `spec/presets.test.sh`, rule `compare`: the accepted copy `compare-within`, whose preset
+    requirement has `condition: {operator: within, min: 50, max: 60, unit: s}` on a number
+    output in seconds, is accepted. Before the story the same requirement is refused (rule
+    `type`: `within` is no variant).
+11. `spec/presets.test.sh`: four cases are each refused with the message of the rule
+    `compare`, named "a range with a value", "a range without max", "min on the operator
+    lte" and "a range whose min is above its max" (`min: 60, max: 50`). Before the story none
+    of the four names is in the script (`grep -c` prints 0 for each).
 
 ## Notes
 
 - An addition to a released format: a file written before the change stays valid, and a range
   written as two requirements stays valid.
-- The parts that need the command are `story:requirement-states-a-range-in-ratchet`: a verdict
-  of `ratchet evaluate --gate` outside the range that names the bound crossed, and the gate
-  report of a range as one limit. It waits for the waves to 0.1.0.
+- The parts that need the command are `story:requirement-states-a-range-in-ratchet`: the
+  refusal by `ratchet validate` of a range whose `min` is above its `max`, a verdict of
+  `ratchet evaluate --gate` outside the range that names the bound crossed, and the gate
+  report filling `min` and `max` of `ratchet.cli.LimitRow`. It waits for the waves to 0.1.0.
+- It changes `spec/domains/cli.yaml`, so it runs `task generate` and `task check:generated`.
+- The line of the wave's changelog: under `### Added`, naming `within` (written by the story
+  that closes the wave, `AGENTS.md` § "Changelog lines").
 - Filed under `epic:format-gaps-first-format-consumer` as the closest epic: it holds the other
   changes to `ratchet.specification.Condition`.
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner

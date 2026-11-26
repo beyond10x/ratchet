@@ -4,7 +4,7 @@ id: story:plan-never-assessed-in-ratchet
 kind: story
 status: draft
 title: ratchet status tells a plan never assessed from one whose record is missing
-summary: 'The command part of story:plan-never-assessed: plan_state in the status rows, and the refusal of an enforced entry on a plan with no_run_expected.'
+summary: 'The command part of story:plan-never-assessed: plan_state in the rows of ratchet status, with the reason of no_run_expected.'
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
 - depends_on: story:plan-never-assessed
@@ -15,9 +15,7 @@ scope:
   path: crates/ratchet-core
 - confidence: inferred
   path: crates/ratchet/src/commands/status.rs
-- confidence: inferred
-  path: crates/ratchet/src/commands/validate.rs
-revision: 4
+revision: 7
 ---
 ## Context
 
@@ -29,17 +27,16 @@ needs the `ratchet` command.
 
 ## Acceptance
 
-1. `ratchet status` in a fixture with three plans in observe mode, one with a run in the local
-   record directory, one with none, and one with none whose file states `no_run_expected` with a
-   reason: each row of their requirements has `plan_state` `assessed`, `never_assessed` and
-   `no_run_expected`, and the third prints the reason. Before the story the command answers
-   that it is unavailable.
-2. `ratchet validate` refuses a file whose enforced gate entry names a requirement on a plan
-   that states `no_run_expected`, with a code that names the entry and the plan; the same entry
-   in report mode is accepted.
+`ratchet status` in a fixture with three plans in observe mode, one with a run in the local
+record directory, one with none, and one with none whose file states `no_run_expected` with a
+reason: each row of their requirements has `plan_state` `assessed`, `never_assessed` and
+`no_run_expected`, and the third prints the reason. Before the story the command answers
+`cli_handler_unavailable`.
 
 ## Notes
 
 - Moved from the acceptance of `story:plan-never-assessed`.
+- `ratchet validate` refuses nothing for `no_run_expected`: an enforced entry over such a plan
+  is valid and gives `evidence_missing` in a gate, as any entry without a qualifying run.
 - The story is a draft. It waits for the waves to 0.1.0: `story:cli-skeleton-validate` and
   `story:evidence-reader` (the local record directory).

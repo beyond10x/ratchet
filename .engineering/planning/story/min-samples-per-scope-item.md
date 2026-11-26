@@ -8,14 +8,12 @@ relations:
 - decomposes: epic:ci-turnaround
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: spec/domains/gate.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 6
+revision: 8
 ---
 ## Context
 
@@ -47,34 +45,43 @@ it against the `samples` of each result; the assessor needs not learn it, so the
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.Measurement` (`:162`) has the
-   member `min_samples_per_item` (`Optional<Integer>`), with the invariants
-   `not defined(min_samples_per_item)` or `min_samples_per_item >= 1`, and
-   `not defined(min_samples_per_item)` or `scope != "run"` (the form of the invariants of
-   `ratchet.specification.AssessmentPlan` that compare with a literal, `:955-958`). Its
-   summary says that an item whose result carries fewer `samples` is insufficient evidence with
-   the cause `too_few_samples` for that item alone, and the other items are judged. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, by step 12 of
-   `task check:spec` (`ess generate synthesize`, no declaration refused), and by
-   `task check:generated`. Before the story the key is no member of `Measurement`.
-2. `docs/design.md` § 3 "Scope and aggregation" (`:120`): a paragraph states the bound per
-   scope item, its key, that it is no bound of the plan, that it is refused at the scope `run`,
-   and that it reads the `samples` of each result; the row `min_samples` of the table of § 3
-   "Time windows" (`:173`) says that it counts the items of the window and that
-   `min_samples_per_item` bounds the samples behind one item's value. Text only, no case.
-3. `docs/design.md` § 5 "Verdicts", the case "A scope item on one side of a comparison"
-   (`:619`): an item below `min_samples_per_item` is insufficient evidence with the cause
-   `too_few_samples` for that item, and the other items are judged; the requirement's verdict
-   follows the rule of "The verdict of a gate" as for the two causes there. Text only, no case.
-4. `spec/domains/gate.yaml`: the comment above `ratchet.gate.InsufficientEvidenceCause`
-   (`:46`), "`too_few_samples` covers a window with fewer items than `min_samples`", names the
-   item below `min_samples_per_item` too. Checked by `ess specify validate`, exit 0.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+1. `spec/domains/specification.yaml`: `ratchet.specification.Measurement` has the member
+   `min_samples_per_item` (`Optional<Integer>`). Check: `grep -c 'name: min_samples_per_item'
+   spec/domains/specification.yaml` prints 1 (0 before); `ess specify validate --path spec
+   --strict-requires` exits 0, and the synthesis line of `task check:spec` still ends
+   `, 0 refused`.
+2. `Measurement` holds the two invariants `not defined(min_samples_per_item)` or
+   `min_samples_per_item >= 1`, and `not defined(min_samples_per_item)` or `scope != "run"`,
+   in the form of the invariants of `ratchet.specification.AssessmentPlan` that compare with a
+   literal (`- any: [...]`). Check: `grep -c 'not defined(min_samples_per_item)'
+   spec/domains/specification.yaml` prints 2 (0 before).
+3. The summary of `Measurement.min_samples_per_item` holds the phrase "`too_few_samples` for
+   that item alone". Check: `grep -F` of that phrase in `spec/domains/specification.yaml`
+   finds one line (none before).
+4. `docs/design.md` § 3 "Scope and aggregation" holds a paragraph that states the bound per
+   scope item, that it is no bound of the plan, that it is refused at the scope `run`, that it
+   reads the `samples` of each result, and the member of `ObservationPlan` as the form not
+   taken. Check: `awk '/^### Scope and aggregation$/,/^### Evidence coverage$/' docs/design.md
+   | grep -c min_samples_per_item` prints a number above 0 (0 before).
+5. `docs/design.md` § 3 "Time windows", the row `min_samples` of the key table, says that it
+   counts the items of the window and names `min_samples_per_item` for the samples behind one
+   item's value. Check: `awk '/^### Time windows$/,/^### Comparisons$/' docs/design.md | grep
+   '^| `min_samples`' | grep -c min_samples_per_item` prints 1 (0 before).
+6. `docs/design.md` § 5 "Verdicts", the case "A scope item on one side of a comparison": an
+   item below `min_samples_per_item` is insufficient evidence with the cause `too_few_samples`
+   for that item, and the other items are judged. Check: `awk '/^### Verdicts$/,/^### Gate
+   modes$/' docs/design.md | grep -c min_samples_per_item` prints a number above 0 (0
+   before).
+7. `spec/domains/gate.yaml`: the comment above `ratchet.gate.InsufficientEvidenceCause` that
+   says "`too_few_samples` covers a window with fewer items than `min_samples`" goes on with
+   the phrase "and a scope item whose result carries fewer samples than
+   `min_samples_per_item`". `ess specify validate` does not read a comment, so the check is
+   `grep -c 'min_samples_per_item' spec/domains/gate.yaml`, which prints 1 (0 before).
 
 ## Notes
 
 - Decision taken: a member of the measurement, not of the plan (§ Context). The alternative, a
-  member of `ObservationPlan`, is named in the design paragraph of item 2 as not taken, with
+  member of `ObservationPlan`, is named in the design paragraph of item 4 as not taken, with
   the reason.
 - `spec/presets.test.sh` gets no rule: the refusal at the scope `run` is an invariant of the
   type, and its header lists the invariants of the types under "Not checked" (`:169-171`). No

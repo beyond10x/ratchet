@@ -14,7 +14,7 @@ relations:
 scope:
 - confidence: inferred
   path: crates/ratchet-core
-revision: 2
+revision: 3
 ---
 ## Context
 
@@ -28,11 +28,12 @@ story holds the part that needs the `ratchet` command.
 In a fixture whose `ratchet.toml` names a tracked directory holding one record,
 `ratchet validate` and `ratchet evaluate` read that record beside the local record directory,
 and `ratchet assess` writes its record to the local record directory and none to the tracked
-one; a `tracked` path outside the root is refused with a code that names the key. Before the
-story the key is not read.
+one. Before the story the key is not read.
 
 ## Notes
 
-- Moved from the acceptance of `story:records-tracked-baseline-directory`.
+- Moved from the acceptance of `story:records-tracked-baseline-directory`, the promise of its
+  original body. A refusal of a `tracked` path outside the root is not part of it: neither the
+  story nor `epic:format-gaps-first-format-consumer` asks for one.
 - The story is a draft. It waits for the waves to 0.1.0: `story:cli-skeleton-validate`,
   `story:evidence-reader`, `story:assess-command`.

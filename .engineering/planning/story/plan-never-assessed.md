@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: crates/ratchet-cli-contract
 - confidence: cited
   path: docs/design.md
@@ -18,7 +16,7 @@ scope:
   path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 14
+revision: 16
 ---
 ## Context
 
@@ -56,25 +54,35 @@ The decision this story takes, the reversible one (`AGENTS.md` § "Phase: implem
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: the struct `ratchet.specification.NoRunExpected` with
-   `reason` (`String`) and the member `no_run_expected`
-   (`Optional<ratchet.specification.NoRunExpected>`) of `AssessmentPlan` (`:919`), whose
-   summary says what it states and that the plan stays in observe mode or in report mode until
-   a run exists. Checked by `ess specify validate --path spec --strict-requires`, which exits 0.
-2. `spec/domains/cli.yaml`: the enum `ratchet.cli.PlanRunState` with `assessed`,
-   `never_assessed` and `no_run_expected`, and the member `plan_state` of
-   `ratchet.cli.StatusRow` (`:584`). Checked by `ess specify validate` and by
-   `ess specify cli --path spec --binding spec/cli.yaml --strict-requires` (step 2 of
-   `task check:spec`), each exit 0, and by `task check:generated` after `task generate` has
-   rewritten `crates/ratchet-cli-contract/` (its `binding.json` holds the members of the
-   result rows).
-3. `docs/design.md` § 5 "Gate modes" (`:629`): a paragraph tells the three states apart: a plan
-   never assessed, a plan whose file states `no_run_expected` with a reason, and a plan whose
-   run is missing for the revision (`evidence_missing` in a gate, § 5 "Verdicts", `:618`); and
-   that a requirement in an enforced gate entry whose plan states `no_run_expected` is a
-   validation error, because the entry could never pass. The row of `ratchet status` in the
-   table of § 5 "Proposed CLI" (`:743`) names the state of the plan. Text only, no case.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+None of `NoRunExpected`, `no_run_expected`, `PlanRunState`, `plan_state` and
+`never_assessed` occurs in `spec/domains/` or `docs/design.md` at `7b01ea1`.
+
+1. `spec/domains/specification.yaml` declares the struct `ratchet.specification.NoRunExpected`
+   with `reason` (`String`). Check: `grep -c 'name: ratchet.specification.NoRunExpected$'
+   spec/domains/specification.yaml` prints 1; `ess specify validate --path spec
+   --strict-requires` exits 0.
+2. `ratchet.specification.AssessmentPlan` has the member `no_run_expected`
+   (`Optional<ratchet.specification.NoRunExpected>`), whose summary holds the phrase "no run of
+   the plan is expected yet" and says that the plan stays in observe mode or in report mode
+   until a run exists. Check: `grep -c 'type: Optional<ratchet.specification.NoRunExpected>'
+   spec/domains/specification.yaml` prints 1 and `grep -F` of the phrase finds one line.
+3. `spec/domains/cli.yaml` declares the enum `ratchet.cli.PlanRunState` with `assessed`,
+   `never_assessed` and `no_run_expected`. Check: `grep -c 'variants: \[assessed,
+   never_assessed, no_run_expected\]' spec/domains/cli.yaml` prints 1; `ess specify cli --path
+   spec --binding spec/cli.yaml --strict-requires` (step 2 of `task check:spec`) exits 0.
+4. `ratchet.cli.StatusRow` has the member `plan_state` (`ratchet.cli.PlanRunState`). Check:
+   `grep -c 'type: ratchet.cli.PlanRunState' spec/domains/cli.yaml` prints 1.
+5. `task generate` has rewritten `crates/ratchet-cli-contract/` and `task check:generated`
+   passes: `grep -c plan_state crates/ratchet-cli-contract/binding.json` prints a number above
+   0 (0 before).
+6. `docs/design.md` § 5 "Gate modes" holds a paragraph that tells the three states apart: a
+   plan never assessed, a plan whose file states `no_run_expected` with a reason, and a plan
+   whose run is missing for the revision (`evidence_missing` in a gate, § 5 "Verdicts"). Check:
+   `awk '/^### Gate modes$/,/^### Gate entries/' docs/design.md | grep -c no_run_expected`
+   prints a number above 0 (0 before).
+7. The row `ratchet status` of the table of § 5 "Proposed CLI" names the state of the plan.
+   Check: `grep '^| `ratchet status` |' docs/design.md | grep -c 'never assessed'` prints 1 (0
+   before).
 
 ## Notes
 
@@ -85,8 +93,10 @@ Every outcome below is observable without a `ratchet` command.
   row is a result of a command no release builds.
 - `spec/presets.test.sh` gets no case: a preset states no `no_run_expected`, which is a
   project's statement about its own runs.
-- The command part, `ratchet status` printing the three states apart and `ratchet validate`
-  refusing an enforced entry whose plan states `no_run_expected` with a code, is
+- No rule refuses `no_run_expected` in an enforced gate entry: neither the story, its epic nor
+  the original acceptance asks for one, and such an entry gives `evidence_missing` in a gate as
+  any entry without a qualifying run.
+- The command part, `ratchet status` printing the three states apart, is
   `story:plan-never-assessed-in-ratchet`, which waits for the waves to 0.1.0
   (`story:cli-skeleton-validate`, `story:evidence-reader`).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner

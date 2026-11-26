@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-factory
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/evidence-format.md
 - confidence: cited
   path: presets/artifact.md
@@ -20,12 +18,14 @@ scope:
 - confidence: inferred
   path: presets/file-size@2.assessor.yaml
 - confidence: cited
+  path: spec/README.md
+- confidence: cited
   path: spec/domains/assessor.yaml
 - confidence: cited
   path: spec/domains/evidence.yaml
 - confidence: cited
   path: spec/record-examples.test.sh
-revision: 16
+revision: 19
 ---
 ## Context
 
@@ -38,11 +38,11 @@ What the formats say at the wave's base, `7b01ea1`:
 - `ratchet.specification.TargetKind` has `build`, and a candidate of a `build` target is the
   artifact digest (`ratchet.evidence.CandidateIdentity`, `spec/domains/evidence.yaml:52-60`).
 - The invocation contract covers a target of the kind `revision` or `document`
-  (`docs/evidence-format.md` § 9, `:673`; § 10, `--revision` "for a target of the kind
-  `revision`", `:692`). `ratchet.assessor.ReservedArgument` has `revision` and no argument
-  that passes the artifact (`spec/domains/assessor.yaml:55-57`). `target_input` is present
-  exactly when `targets` holds `document` (`spec/domains/assessor.yaml:159-164`, invariants
-  `:212-218`).
+  (`docs/evidence-format.md` § 9, the bullet "The rest of the invocation", `:674`; § 10,
+  `--revision` "for a target of the kind `revision`", `:692`). `ratchet.assessor.ReservedArgument`
+  has `revision` and no argument that passes the artifact (`spec/domains/assessor.yaml:55-57`).
+  `target_input` (`spec/domains/assessor.yaml:168`) is present exactly when `targets` holds
+  `document` (the invariants of `Assessor`, `:211-219`).
 - So `binary-size@1` names the kind `revision` (`presets/binary-size@1.preset.yaml`), the built
   file is the input `binary` of `file-size@1` (`presets/file-size@1.assessor.yaml`), and
   nothing ties the file to the revision. `artifact-verification-report@1` already declares
@@ -70,32 +70,54 @@ Taken as the reversible answer (`AGENTS.md` § "Phase: implementation"), on the 
 
 ## Acceptance
 
-Every outcome below is observable without a `ratchet` command.
+Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
-1. `spec/domains/assessor.yaml` and `spec/domains/evidence.yaml` hold the two invariants and the
-   summaries of the decision (`Assessor.target_input`, `ReservedArgument`,
-   `ResolvedTarget.revision` and `identifiers`). Checked by
-   `ess specify validate --path spec --strict-requires` (exit 0).
-2. `docs/evidence-format.md` § 10: the row `--revision` of the invocation table names a target
-   of the kind `build`, a bullet "The target of the kind `build`" beside the one for `document`
-   states the decision, and the row `target_input` of the declaration table names `build`;
-   § 3, the rows `revision` and `identifiers` of `evidence.target`, say what a `build` target
-   holds; § 9 no longer counts `build` among the targets the contract does not cover. The rows
-   of both tables stay as many, so the counts of `spec/record-fields.test.sh` and
-   `spec/record-types.test.sh` do not change. Text only, no case.
-3. `docs/evidence-format.md` § 6 has a ninth example: a run of `binary-size@2` with
+1. `spec/domains/assessor.yaml`, the invariants of `ratchet.assessor.Assessor`: `target_input`
+   is admitted where `targets` holds `build` (`grep -c 't == build'
+   spec/domains/assessor.yaml` prints at least 1; 0 before), and the summary of
+   `target_input` names `build`.
+2. `spec/domains/evidence.yaml`, the invariants of `ratchet.evidence.ResolvedTarget`: a
+   `build` target has `revision` and `identifiers` (`grep -c '"kind != build"'
+   spec/domains/evidence.yaml` prints 2; 0 before). `ess specify validate --path spec
+   --strict-requires` exits 0.
+3. `docs/evidence-format.md` § 10, the row `--revision` of the invocation table, names a
+   target of the kind `build` (`grep -F '| `--revision` |' docs/evidence-format.md | grep -c
+   'build'` prints 1; 0 before).
+4. `docs/evidence-format.md` § 10 "Invocation" has a bullet "**The target of the kind
+   `build`**" beside the one for `document`, stating the decision (`grep -F` finds it;
+   nothing before).
+5. `docs/evidence-format.md` § 10, the row `target_input` of the declaration table, names
+   `build` (`grep -F '| `target_input` |' docs/evidence-format.md | grep -c 'build'` prints 1;
+   0 before).
+6. `docs/evidence-format.md` § 3, the rows `revision` and `identifiers` of `evidence.target`,
+   each say what a `build` target holds, starting "For `build`:" (`grep -c 'For `build`'
+   docs/evidence-format.md` prints 2; 0 before). The tables keep their rows:
+   `sh spec/record-fields.test.sh` still ends with `record-fields: 103 of 103 field rows
+   declared`.
+7. `docs/evidence-format.md` § 9, the bullet "The rest of the invocation", counts `build`
+   among the kinds the contract covers: "the kind `revision`, `document` or `build`" (`grep
+   -F` finds it; nothing before).
+8. `docs/evidence-format.md` § 6 has a ninth example: a run of `binary-size@2` with
    `target.kind: build`, `target.revision`, `candidate` and `identifiers.artifact_digest` the
-   digest of the artifact. `want_examples` of `spec/record-examples.test.sh` goes from 8 to 9,
-   and its last line counts the members of 9 examples, every one decoding.
-4. `presets/file-size@2.assessor.yaml` (new) declares `targets: [build]` and
-   `target_input: binary`; `presets/binary-size@2.preset.yaml` (new) names it with a target of
-   the kind `build`; `binary-size@1` and `file-size@1` stay byte for byte.
-   `presets/artifact.md` has the section and the row of `binary-size@2`, and its point 4
-   (`:314-321`) says that the kind `build` answers it from `binary-size@2` on. Checked by
-   `spec/presets.test.sh`, rules `place`, `type` and `row` and the rule that a plan names a target
-   kind its assessor declares: its last line counts two
-   more files and one more measurement with a row.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+   digest of the artifact. The assignment `want_examples` of `spec/record-examples.test.sh`
+   goes from 8 to 9, and the script ends with
+   `record-examples: <n> of <n> members of 9 example(s) decode under the specification`.
+9. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
+   says "9 examples in § 6 (`record-examples`)" (`grep -F '9 examples in § 6'
+   spec/README.md` finds it; "8 examples in § 6" before).
+10. `presets/file-size@2.assessor.yaml` (new) declares `targets: [build]` and
+    `target_input: binary`, and `presets/binary-size@2.preset.yaml` (new) names it with a
+    target of the kind `build`; `binary-size@1` and `file-size@1` stay byte for byte (`git
+    diff --quiet 7b01ea1 -- presets/binary-size@1.preset.yaml
+    presets/file-size@1.assessor.yaml` exits 0).
+11. `presets/artifact.md` has the section `` ## `binary-size@2` `` and its row, and with item
+    10 `spec/presets.test.sh` (rules `place`, `type`, `row` and the rule that a plan names a
+    target kind its assessor declares) ends with
+    `presets: 59 of 59 file(s) valid, 51 of 51 measurement(s) with a row, 101 of 101 broken copies refused`
+    (57 files and 50 measurements after story 5).
+12. `presets/artifact.md`, point 4 of "Not expressible yet", is rewritten in place and keeps
+    its number: it says "the kind `build` answers it from `binary-size@2` on" (`grep -F`
+    finds it; nothing before).
 
 ## Notes
 
@@ -106,6 +128,8 @@ Every outcome below is observable without a `ratchet` command.
   not judge a record whose `target.revision` is not the candidate's revision is
   `story:build-target-invocation-in-ratchet`, which waits for the waves to 0.1.0.
 - Related and not the same: `story:imported-report-revision-check` (8 of the wave).
+- Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
+  § "Changelog lines"; the wave record names the heading and the token).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

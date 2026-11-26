@@ -9,14 +9,12 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 6
+revision: 8
 ---
 ## Context
 
@@ -53,29 +51,36 @@ decimal or a text by the value type of the output, which the decoder cannot see.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.DigestValue` (newtype of
-   `String`, summary naming the form `sha256:<64 lowercase hex digits>`) and the member
-   `digest: Optional<ratchet.specification.DigestValue>` of `ratchet.specification.Condition`
-   (`:536-555`), with the invariants that a condition with `digest` has the operator `eq` and
-   no `value`. Checked by `ess specify validate --path spec --strict-requires`, which exits 0,
-   and by `task check:generated`.
-2. `docs/design.md` § 3 "Comparisons": the row "Digest" of the table (`:194`) reads `eq` with a
-   `digest` in the column `condition`, and the bullet "A requirement with a `reference` and no
-   `condition`" (`:197`) or a bullet beside it says that a digest is compared with a value the
-   specification states as `{operator: eq, digest: "sha256:..."}`, that the verdict names the
-   stated and the observed digest, and that a `digest` on another value type is an error.
-   Text only, no case.
-3. `spec/presets.test.sh`, rule `compare`: a digest takes `eq` with a `digest` and no `value`,
-   and `digest` stands on no other value type. Before the story a preset whose requirement on
-   a digest output has `condition: {operator: eq, digest: "sha256:<64 hex>"}` is refused (the
-   key `digest` is no declared field, rule `place`, and a digest has no condition). After it, a
-   copy with that requirement is accepted; a copy with `digest` on a number output, a copy
-   with `operator: lt` and a `digest`, and a copy with `value` on a digest output are each
-   refused with the message of the rule. The header of the script states the rule under
-   `compare`. The line `presets: <d> of <d> defect(s) refused with the message of their rule`
-   counts the three new defects.
-4. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `spec/domains/specification.yaml` declares the newtype `ratchet.specification.DigestValue`
+   of `String`, whose summary names the form `sha256:<64 lowercase hex digits>`:
+   `grep -c 'name: ratchet.specification.DigestValue' spec/domains/specification.yaml` prints
+   1 (0 before).
+2. `ratchet.specification.Condition` holds the member
+   `digest: Optional<ratchet.specification.DigestValue>`: the line
+   `type: Optional<ratchet.specification.DigestValue>` stands among the fields of `Condition`
+   (`grep -F` finds it, nothing before), and `ess specify validate --path spec
+   --strict-requires` exits 0.
+3. `Condition` states two invariants, written
+   `- any: ["not defined(digest)", "operator == eq"]` and
+   `- any: ["not defined(digest)", "not defined(value)"]`: `grep -cF '"not defined(digest)"'
+   spec/domains/specification.yaml` prints 2 (0 before).
+4. `docs/design.md` § 3 "Comparisons", the table: the cell `condition` of the row "Digest"
+   reads "`eq` with a `digest`" in place of "None" (`grep -F '| Digest | None |'
+   docs/design.md` prints nothing; it prints the row before).
+5. `docs/design.md` § 3 "Comparisons", a bullet below the table states the form
+   `{operator: eq, digest: "sha256:..."}` and that the verdict names the stated and the
+   observed digest: `grep -F '{operator: eq, digest:' docs/design.md` finds it, nothing before.
+6. The same bullet holds the phrase "a `digest` on another value type is a validation error":
+   `grep -F` finds it, nothing before.
+7. `spec/presets.test.sh`, the header of the rule `compare`, holds the phrase "takes `eq` with
+   a `digest` and no `value`" on one line: `grep -cF` prints 1, 0 before.
+8. `spec/presets.test.sh`: the accepted copy `compare-digest-eq`, whose requirement on a digest
+   output has `condition: {operator: eq, digest: "sha256:<64 hex>"}`, is accepted. Before the
+   story the same requirement is refused (rule `place`: `digest` is no declared field).
+9. `spec/presets.test.sh`: three cases are each refused with the message of the rule
+   `compare`, named "a digest condition on a number output", "a digest condition with the
+   operator lt" and "a value on a digest output". Before the story none of the three names is
+   in the script (`grep -c` prints 0 for each).
 
 ## Notes
 
@@ -95,6 +100,9 @@ Every outcome below is observable without a `ratchet` command.
   and the rule `compare` of `spec/presets.test.sh`: 11 (`story:requirement-states-a-range`)
   adds an operator with two bounds, 12 (`story:requirement-over-two-measurements`) a second
   measurement, 14 (`story:number-states-its-source`) a source. Each builds on the text this
-  story leaves in `:536-555`, in the table of `docs/design.md:190-195` and in the rule.
+  story leaves in `Condition`, in the table of `docs/design.md` § 3 "Comparisons" and in the
+  rule.
+- The line of the wave's changelog: under `### Added`, naming `digest` (written by the story
+  that closes the wave, `AGENTS.md` § "Changelog lines").
 - POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s; new broken
   copies are timed before they are added.

@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-runtime
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: presets/build.md
@@ -25,7 +23,7 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 15
+revision: 17
 ---
 ## Context
 
@@ -61,26 +59,34 @@ that § 3 calls valid.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `docs/design.md` § 3, "One run per candidate is valid" (`:114`): the paragraph says that an
-   aggregation of one value is that value, that a measurement may therefore declare its
-   aggregation for every value of `runs`, that a preset whose `runs` is an input does so, and
-   that at `runs: 1` the result carries `samples: 1` and is judged as observed. The sentence "A
-   plan with `runs: 1` whose command measures once declares no aggregation" reads as "needs no
-   aggregation". Text only, no case.
-2. `spec/domains/specification.yaml`: the summary of `Measurement.aggregation` (`:190-201`) and
-   of `ratchet.specification.Aggregation` (`:140-149`) say the same; no member, type or
-   invariant changes. Checked by `ess specify validate --path spec --strict-requires`, which
-   exits 0, and by `task check:generated`, which finds no change of the generated crate.
-3. `spec/presets.test.sh`: the line "`runs: 1` with an aggregation" under "Not checked"
-   (`:162-168`) gives the design's sentence of item 1 as the reason, and the copy
-   `valid-one-run-with-aggregation` (`:2746-2749`) stays accepted. The script's last line is
-   the one it printed before the story.
-4. Point 4 of "Not expressible yet" on `presets/latency.md`, `presets/resources.md`,
-   `presets/start.md` and `presets/build.md` says that the point is answered without a new
-   form (`docs/design.md` § 3, "One run per candidate is valid") and that the presets stay as
-   they are, each in its place, so the numbering of the points stays. No preset changes. Text
-   only, no case.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+None of the phrases quoted below occurs in `docs/`, `spec/` or `presets/` at `7b01ea1`.
+
+1. `docs/design.md` § 3, the paragraph "One run per candidate is valid", holds the sentence
+   "An aggregation of one value is that value", and says that a measurement may therefore
+   declare its aggregation for every value of `runs`, that a preset whose `runs` is an input
+   does so, and that at `runs: 1` the result carries `samples: 1` and is judged as observed.
+   Check: `grep -c 'An aggregation of one value is that value' docs/design.md` prints 1.
+2. In that paragraph the sentence "A plan with `runs: 1` whose command measures once declares
+   no aggregation" reads "... needs no aggregation". Check: `grep -c 'measures once declares no
+   aggregation' docs/design.md` prints 0 (1 before) and `grep -c 'measures once needs no
+   aggregation' docs/design.md` prints 1.
+3. `spec/domains/specification.yaml`: the summaries of `Measurement.aggregation` and of
+   `ratchet.specification.Aggregation` say that an aggregation of one value is that value; no
+   member, type or invariant changes. Check: `grep -c 'of one value is that value'
+   spec/domains/specification.yaml` prints 2, and `task check:generated` finds no change of the
+   generated crate.
+4. `spec/presets.test.sh`: the entry "`runs: 1` with an aggregation" under "Not checked" gives
+   the design's sentence of item 1 as the reason, and the copy `valid-one-run-with-aggregation`
+   stays accepted. Check: `grep -c 'An aggregation of one value is that value'
+   spec/presets.test.sh` prints 1, and the two last lines of `sh spec/presets.test.sh` are the
+   ones it printed after unit 21.
+5. Point 4 of "Not expressible yet" on `presets/latency.md`, `presets/resources.md`,
+   `presets/start.md` and `presets/build.md`, each in its place so the numbering of the points
+   stays, says that the point is "answered without a new form" (`docs/design.md` § 3, "One run
+   per candidate is valid") and that the presets stay as they are. Check: for each of the four
+   pages `grep -c 'answered without a new form'` prints 1, and the unit's own diff lists no
+   file `presets/*.preset.yaml` (`git diff --name-only -- 'presets/*.preset.yaml'` over the
+   tree of unit 21 prints nothing).
 
 ## Notes
 

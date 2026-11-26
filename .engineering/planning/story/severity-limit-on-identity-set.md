@@ -8,8 +8,6 @@ relations:
 - decomposes: epic:preset-catalog
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: examples/README.md
@@ -17,7 +15,7 @@ scope:
   path: examples/production-gate.ratchet.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 7
+revision: 9
 ---
 ## Context
 
@@ -51,29 +49,38 @@ nothing to `spec/domains/`.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `examples/production-gate.ratchet.yaml`: check 6 is stated as a limit, the requirement
-   `no-critical-advisory` with `condition: {operator: eq, value: 0}` on the measurement
-   `critical-advisories` (`filter: {severity: [critical]}`), and no `reference`; the gate
-   `production` requires it in place of `no-new-critical-advisory` (`:87`), and the comment of
-   `:51` still holds. Before the story the file states check 6 with `no_new_items` only.
-   `sh spec/example-declarations.test.sh` exits 0 with the same line of its check: the plan of
-   check 6 still reads `advisory-report@1` as declared.
-2. `examples/README.md`: the row of check 6 (`:467`) names `no-critical-advisory`, `eq 0` on the
-   filtered set, and the note under the table (`:470-472`) says that the limit is stated with
-   the operators an identity set has, and no longer that it waits. Text only, no case.
-3. `docs/design.md` § 3 "Comparisons": the bullet on `filter` (`:202`) says that `eq` with the
-   value 0 on a set filtered by a field of its items, such as `severity: [critical]`, is the
-   limit "no item of that kind", whatever an accepted set holds, and that `no_new_items` on the
-   same set admits an item once it is accepted. Text only, no case.
-4. `spec/presets.test.sh`: a copy whose requirement on a set of the functional family has
-   `condition: {operator: eq, value: 0}`, a `filter` on its measurement and no `reference` is
-   accepted (a form that stays valid gets an accepted copy, `AGENTS.md` row `presets/`).
-5. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `examples/production-gate.ratchet.yaml` states check 6 as a limit: the requirement
+   `no-critical-advisory` on the plan `image-advisories` has
+   `condition: {operator: eq, value: 0}` and no `reference`: `grep -c 'no-critical-advisory'
+   examples/production-gate.ratchet.yaml` prints 2, the requirement and its gate entry (0
+   before).
+2. The requirement `no-new-critical-advisory` is gone from that file, and so is its entry in
+   `gates.production.requires`: `grep -c 'no-new-critical-advisory'
+   examples/production-gate.ratchet.yaml` prints 0 (2 before).
+3. `examples/README.md`, the table of the production gate: the row of check 6 names
+   `no-critical-advisory` and "`eq 0` on the filtered set": `grep -F 'no-critical-advisory'
+   examples/README.md` finds the row, nothing before.
+4. `examples/README.md`, the note under that table: the phrase "waits for a severity limit on
+   an identity set" is gone (`grep -c` prints 0, 1 before), and the note holds the phrase "the
+   limit is stated with the operators an identity set has" (`grep -F` finds it, nothing
+   before).
+5. `docs/design.md` § 3 "Comparisons", the bullet on `filter`, holds the phrase "`eq` with the
+   value 0 on a set filtered by a field of its items" and says that `no_new_items` on the same
+   set admits an item once it is accepted: `grep -F` finds the phrase, nothing before.
+6. `spec/presets.test.sh`: the accepted copy `compare-eq-zero-on-filtered-set`, whose
+   requirement on a set of the functional family has `condition: {operator: eq, value: 0}`, a
+   `filter` on its measurement and no `reference`, is accepted (a form that stays valid gets an
+   accepted copy, `AGENTS.md` row `presets/`): `grep -c '^copy
+   compare-eq-zero-on-filtered-set$' spec/presets.test.sh` prints 1 (0 before).
 
 ## Notes
 
 - No addition to a format: the form is valid at 0.0.4, and the story writes it down and uses it.
+- A guard, not an outcome: `sh spec/example-declarations.test.sh` still exits 0, so the plan
+  of check 6 still reads `advisory-report@1` as declared, and the comment above `assessments:`
+  of the example file ("Check 6 is a plan of this file") stays true.
+- The line of the wave's changelog: under `### Changed`, naming `no-critical-advisory`
+  (written by the story that closes the wave, `AGENTS.md` § "Changelog lines").
 - No part needs a command beyond `story:evaluate-command`, which judges a condition on the
   number of items of a set; the story has no `-in-ratchet` draft.
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner

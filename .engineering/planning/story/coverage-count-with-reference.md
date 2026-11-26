@@ -9,8 +9,6 @@ relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: docs/evidence-format.md
@@ -20,7 +18,7 @@ scope:
   path: spec/example-declarations.test.sh
 - confidence: cited
   path: spec/presets.test.sh
-revision: 8
+revision: 10
 ---
 ## Context
 
@@ -59,32 +57,43 @@ taken: a requirement names a measurement, and the measurement keeps the directio
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: the summary of `ratchet.specification.OutputName`
-   (`:86-92`) and of `Measurement.output` name the reserved form `coverage.<count>`, the
-   counts of `ratchet.assessor.CoverageCount`, and what such a measurement is. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0.
-2. `docs/design.md` § 3 "Evidence coverage": the sentence of `:162` shows the form,
-   `ignored: {kind: exact, output: coverage.skipped, scope: run, better: lower}` with a
-   requirement against an accepted value; a count that the record states as a lower bound or
-   as not known (story 2, `story:coverage-count-lower-bound`) gives such a measurement
-   insufficient evidence; "Value lists" (`:226`, the row "Scope, unit, output, ...")
-   names `coverage.<count>` beside `run`, `run_time` and `queue_wait` as Ratchet's.
-   `docs/evidence-format.md` § 3 `evidence.coverage` says in one sentence that a measurement
-   may read a count from there, and that it is no entry of `results`. Text only, no case.
-3. `spec/presets.test.sh`, rule `assessor`: a measurement whose `output` is `coverage.<count>`
-   is accepted when the declaration lists the count under `coverage`, is `exact`, at the scope
-   `run` and without `unit`. Before the story such a measurement is refused with the message
-   that the declaration declares no such output. After it, a copy with a requirement
-   `executed-does-not-fall` on `coverage.executed` of `conformance-cases@1`, `better: higher`
-   and an accepted value, is accepted; a copy with `coverage.skipped` on an assessor whose
-   `coverage` lacks `skipped`, one with a `unit` on it, one with `kind: sampled`, and one with
-   `coverage.passed_ids` (no count) are each refused with the message of the rule.
-4. `spec/example-declarations.test.sh`, case 2: an example measurement on `coverage.<count>`
-   of a count its assessor lists is accepted, and one on a count it does not list is refused
-   with the message of case 2; a broken copy of its set holds the second, and its last line
-   counts one more broken copy refused.
-5. `CHANGELOG.md` has its line under `## [Unreleased]`, in the form
-   `.github/scripts/release.test.sh` checks.
+1. `spec/domains/specification.yaml`: the summary of `ratchet.specification.OutputName` names
+   the reserved form `coverage.<count>`, the counts of `ratchet.assessor.CoverageCount`, and
+   that such a measurement is `exact`, at the scope `run` and without `unit`: `grep -cF
+   'coverage.<count>' spec/domains/specification.yaml` prints a number above 0 (0 before), and
+   `ess specify validate --path spec --strict-requires` exits 0.
+2. `docs/design.md` § 3 "Evidence coverage": the sentence "A coverage count can also be a
+   measurement with an accepted value" shows the form
+   `ignored: {kind: exact, output: coverage.skipped, scope: run, better: lower}`: `grep -F
+   'output: coverage.skipped' docs/design.md` finds it, nothing before.
+3. `docs/design.md` § 3 "Evidence coverage" holds the phrase "a count that the record states as
+   a lower bound or does not state gives such a measurement insufficient evidence" with the
+   cause `coverage_below_plan` (story 2, `story:coverage-count-lower-bound`, made such counts
+   possible): `grep -F` finds the phrase, nothing before.
+4. `docs/design.md` § 3 "Value lists", the row "Scope, unit, output, ...": its last cell names
+   `coverage.<count>` beside `run`, `run_time` and `queue_wait` as Ratchet's: `grep -F
+   '`queue_wait`, and `coverage.<count>` are Ratchet' docs/design.md` finds it (before the
+   cell ends "`run`, `run_time`, and `queue_wait` are Ratchet’s").
+5. `docs/evidence-format.md` § 3, the text of `evidence.coverage`, holds the phrase "a
+   measurement may read a count from here as `coverage.<count>`; it is no entry of `results`":
+   `grep -F` finds it, nothing before.
+6. `spec/presets.test.sh`, rule `assessor`: the accepted copy `coverage-count-measurement`,
+   with a requirement `executed-does-not-fall` on a measurement with `output:
+   coverage.executed` of `conformance-cases@1`, `better: higher` and an accepted value, is
+   accepted. Before the story the same measurement is refused with the message that the
+   declaration declares no such output.
+7. `spec/presets.test.sh`: four cases are each refused with the message of the rule
+   `assessor`, named "a coverage count the declaration does not list", "a coverage count with
+   a unit", "a coverage count that is sampled" and "a coverage name that is no count"
+   (`coverage.passed_ids`). Before the story none of the four names is in the script
+   (`grep -c` prints 0 for each).
+8. `spec/example-declarations.test.sh`, case 2: the copy `valid-forms` holds an example
+   measurement on `coverage.<count>` of a count its assessor lists, and is accepted: `grep -c
+   'coverage\.' spec/example-declarations.test.sh` prints a number above 0 (0 before).
+9. `spec/example-declarations.test.sh`: the broken copy `rule-2-coverage-count`, an example
+   measurement on a count its assessor does not list, is refused with the message of case 2:
+   `grep -c '^copy rule-2-coverage-count$' spec/example-declarations.test.sh` prints 1 (0
+   before).
 
 ## Notes
 
@@ -102,7 +111,10 @@ Every outcome below is observable without a `ratchet` command.
   part needs no `ratchet` command. It is 15 of the 33 in the order of that page.
 - 2 (`story:coverage-count-lower-bound`) changes `ratchet.evidence.EvidenceCoverage` and
   `docs/evidence-format.md` § 3 `evidence.coverage` before it; 16
-  (`story:coverage-bound-on-failed-units`) changes `docs/design.md:160`, the paragraph before
-  `:162`, after it.
+  (`story:coverage-bound-on-failed-units`) changes the paragraph of § 3 "Evidence coverage"
+  that names the count keys of a plan, the one before the sentence this story changes, after
+  it.
+- The line of the wave's changelog: under `### Added`, naming `coverage.<count>` (written by
+  the story that closes the wave, `AGENTS.md` § "Changelog lines").
 - POSIX sh and awk, no Python. The test step ends within 120 s, no test over 60 s; new broken
   copies are timed before they are added.

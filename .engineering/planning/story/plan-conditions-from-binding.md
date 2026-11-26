@@ -10,8 +10,6 @@ relations:
 - depends_on: story:preset-catalog-runtime
 scope:
 - confidence: cited
-  path: CHANGELOG.md
-- confidence: cited
   path: docs/design.md
 - confidence: cited
   path: presets/artifact.md
@@ -31,7 +29,7 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 18
+revision: 20
 ---
 ## Context
 
@@ -66,39 +64,55 @@ binding change a plan of a preset the preset does not name as changeable.
 
 Every outcome below is observable without a `ratchet` command.
 
-1. `spec/domains/specification.yaml`: `ratchet.specification.InputType` (`:728`) has the
-   variant `conditions`, the comment above it (`:727`) names it, and
-   `ratchet.specification.InputDeclaration` (`:732`) has the invariants
-   `type != conditions` or `not defined(default)`, and `type != conditions` or
-   `not defined(list)` or `list == false`. `ratchet.specification.InputReference` (`:794`) says
-   where a `conditions` input stands. Checked by
-   `ess specify validate --path spec --strict-requires`, which exits 0, and by
-   `task check:generated`.
-2. `spec/presets.test.sh`, rule `inputs`: a copy whose preset declares
-   `conditions: {type: conditions, required: true}` and states
-   `conditions: ${inputs.conditions}` under `observation` is accepted; before the story it is
-   refused at `:645` ("an input stands for a scalar or a list of scalars"). A copy that refers
-   to that input at `observation.conditions.all.runner` is refused with the message of `:651`
-   (it takes `String`, and the input has the type `conditions`), and a copy whose declaration
-   declares an input of the type `conditions` is refused with a message that names the input
-   and says that only a preset declares one. The header of the rule `inputs` (`:41-53`) says both. The
-   script's last line counts the new copies.
-3. `presets/operation-time@2.preset.yaml`, made by `story:coverage-bound-on-failed-units` (16
-   of the wave) and not released before 0.0.5, takes its conditions from the input
-   `conditions` of the type `conditions` in place of the input `runner`; this story edits that
-   @2 and makes no @3. `operation-time@1` stays byte for byte. Checked by
-   `spec/presets.test.sh`, rules `place`, `type`, `inputs` and `row`: the last line counts the
-   files and the measurements with a row it counted after 16.
-4. Point 3 of "Not expressible yet" on `presets/latency.md` says that the input type
-   `conditions` answers it from `operation-time@2` on and that the other presets of the family
-   still fix their conditions until a version of their own takes the input; the points 3 of
+Neither the phrase "input type `conditions`" nor `type: conditions` occurs in `presets/`,
+`docs/` or `spec/` at `7b01ea1`.
+
+1. `spec/domains/specification.yaml`: `ratchet.specification.InputType` reads `variants:
+   [string, integer, decimal, boolean, path, conditions]`, and the comment above it names
+   `conditions`. Check: `grep -c 'variants: \[string, integer, decimal, boolean, path,
+   conditions\]' spec/domains/specification.yaml` prints 1 (0 before); `ess specify validate
+   --path spec --strict-requires` exits 0 and `task check:generated` passes.
+2. `ratchet.specification.InputDeclaration` has the invariants `type != conditions` or
+   `not defined(default)`, and `type != conditions` or `not defined(list)` or `list == false`.
+   Check: `grep -c '"type != conditions"' spec/domains/specification.yaml` prints 2 (0
+   before).
+3. The summary of `ratchet.specification.InputReference` holds the phrase "an input of the
+   type `conditions` stands as the whole value of `observation.conditions`". Check: `grep -F`
+   of that phrase in `spec/domains/specification.yaml` finds one line.
+4. `presets/operation-time@2.preset.yaml`, made by `story:coverage-bound-on-failed-units` (16
+   of the wave) and not released before 0.0.5, declares the input `conditions: {type:
+   conditions, required: true}` and states `conditions: ${inputs.conditions}` under
+   `observation`, in place of the input `runner`; this story edits that @2 and makes no @3.
+   Check: `grep -c 'type: conditions' presets/operation-time@2.preset.yaml` prints 1, and
+   `sh spec/presets.test.sh` exits 0 with the line `presets: <f> of <f> file(s) valid, ...`
+   it printed after 16. The same file against the script of `7b01ea1` is refused with "an
+   input stands for a scalar or a list of scalars".
+5. `presets/operation-time@1.preset.yaml` stays byte for byte: `git diff --quiet 7b01ea1 --
+   presets/operation-time@1.preset.yaml` exits 0.
+6. `spec/presets.test.sh`, rule `inputs`: the case `conditions-input-at-a-scalar`, a copy that
+   refers to the input `conditions` at `observation.conditions.all.runner`, is refused with
+   the message "takes `String`, and the input `conditions` has the type `conditions`".
+7. `spec/presets.test.sh`, rule `inputs`: the case `conditions-input-in-a-declaration`, a copy
+   whose assessor declaration declares an input of the type `conditions`, is refused with a
+   message that names the input and holds "only a preset declares an input of the type
+   `conditions`". With item 6 the line `presets: <d> of <d> defect(s) refused with the
+   message of their rule` counts 2 more than after unit 20.
+8. The header of the rule `inputs` of `spec/presets.test.sh` says where a `conditions` input
+   stands and that only a preset declares one. Check: `awk '/^#   inputs /,/^#   names /'
+   spec/presets.test.sh | grep -c conditions` prints a number above 0 (0 before).
+9. Point 3 of "Not expressible yet" on `presets/latency.md`, and the point 3 that repeats it on
    `presets/resources.md`, `presets/start.md`, `presets/code.md`, `presets/build.md` and
-   `presets/artifact.md` say the same for their presets, each in its place, so the numbering
-   of the points stays. Text only, no case.
-5. `docs/design.md` § 4: the bullet "Inputs" (`:520`) names the type `conditions` of a preset
-   input, and the paragraph of `${inputs.<name>}` (`:543`, "The type of the input fits the
-   place") says where it stands. Text only, no case.
-6. `CHANGELOG.md` has its line under `## [Unreleased]`. Text only, no case.
+   `presets/artifact.md`, each in its place so the numbering of the points stays: the input
+   type `conditions` answers it from `operation-time@2` on, and the other presets of the family
+   still fix their conditions until a version of their own takes the input. Check: for each of
+   the six pages `grep -c 'input type \`conditions\`'` prints a number above 0.
+10. `docs/design.md` § 4, the bullet "Inputs" ("a type (string, integer, decimal, boolean,
+    path, or a list of one of these)"), names the type `conditions` of a preset input. Check:
+    `grep '^- \*\*Inputs\.\*\*' docs/design.md | grep -c conditions` prints 1 (0 before).
+11. `docs/design.md` § 4, the paragraph that opens "`${inputs.<name>}` is the whole of a
+    value", says that a reference to a `conditions` input stands as the whole value of
+    `observation.conditions` and nowhere else. Check: `grep '^`\${inputs.<name>}` is the whole
+    of a value' docs/design.md | grep -c 'observation.conditions'` prints 1 (0 before).
 
 ## Notes
 
