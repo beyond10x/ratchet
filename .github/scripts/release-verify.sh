@@ -20,19 +20,23 @@
 # 4. SHA256SUMS names each archive once, and `sha256sum -c SHA256SUMS` passes there;
 # 5. each archive holds one directory with `ratchet`, `LICENSE` and `README.md`, nothing else
 #    and no path outside it, and each of the three is a regular file: no link, no directory;
-# 6. `ratchet --version` of the x86_64 archive prints `ratchet <version>`, that line and no
-#    other, and exits 0. No file of an archive is run before check 5 passed.
+# 6. the ratchet of the x86_64-unknown-linux-gnu archive, then that of the
+#    x86_64-unknown-linux-musl archive: `static-check.sh` passes on the musl one, and
+#    `ratchet --version` of each prints `ratchet <version>`, that line and no other, and exits
+#    0. No file of an archive is run before check 5 passed.
 #
 # Exit 0: every check passed, one line each. Exit 1: one line on standard error names the
 # check that failed. Exit 2: the call is wrong.
-# Needs `jq`, `tar` and `sha256sum`; the first form needs `gh`. Files are written under a
-# directory made with `mktemp -d` inside ${TMPDIR:-target} and removed.
+# Needs `jq`, `tar`, `sha256sum` and `readelf`; the first form needs `gh`. Files are written
+# under a directory made with `mktemp -d` inside ${TMPDIR:-target} and removed.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 package=$root/.github/scripts/release-package.sh
+static=$root/.github/scripts/static-check.sh
 bot='b10x-bot[bot]'
-run_target=x86_64-unknown-linux-gnu
+run_targets='x86_64-unknown-linux-gnu x86_64-unknown-linux-musl'
+static_target=x86_64-unknown-linux-musl
 
 usage() {
   echo "usage: release-verify.sh <version> [--repository <owner>/<name>]" >&2
@@ -60,7 +64,7 @@ if [ -n "$description" ] || [ -n "$directory" ]; then
   [ -n "$description" ] && [ -n "$directory" ] && [ -z "$repository" ] || usage
 fi
 
-for tool in jq tar sha256sum; do
+for tool in jq tar sha256sum readelf; do
   command -v "$tool" > /dev/null 2>&1 || refuse "$tool is not installed"
 done
 assets=$(sh "$package" assets "$version") || exit 1
@@ -164,16 +168,25 @@ for archive in $archives; do
 done
 echo "release-verify: each archive holds ratchet, LICENSE and README.md"
 
-# 6. The binary of the archive this check can run.
-name=ratchet-$version-$run_target
-mkdir "$work/unpacked"
-tar -xzf "$directory/$name.tar.gz" -C "$work/unpacked" 2> /dev/null || refuse "$name.tar.gz does not unpack"
-binary=$work/unpacked/$name/ratchet
-[ -f "$binary" ] && [ ! -L "$binary" ] && [ -x "$binary" ] \
-  || refuse "the ratchet of the x86_64 archive is no regular file that can be run"
-status=0
-printed=$("$binary" --version 2> /dev/null) || status=$?
-[ "$status" = 0 ] || refuse "\`ratchet --version\` of the x86_64 archive exits $status"
-[ "$printed" = "ratchet $version" ] \
-  || refuse "the ratchet of the x86_64 archive prints \"$(printf '%s\n' "$printed" | sed -n 1p)\", not \"ratchet $version\""
-echo "release-verify: the ratchet of the x86_64 archive prints \"ratchet $version\" and exits 0"
+# 6. The binaries of the archives this check can run; the musl one is static before it runs.
+for target in $run_targets; do
+  name=ratchet-$version-$target
+  mkdir "$work/$target"
+  tar -xzf "$directory/$name.tar.gz" -C "$work/$target" 2> /dev/null || refuse "$name.tar.gz does not unpack"
+  binary=$work/$target/$name/ratchet
+  [ -f "$binary" ] && [ ! -L "$binary" ] && [ -x "$binary" ] \
+    || refuse "the ratchet of the $target archive is no regular file that can be run"
+  if [ "$target" = "$static_target" ]; then
+    if ! sh "$static" "$binary" > "$work/static" 2>&1; then
+      line=$(sed -n 1p "$work/static")
+      refuse "the ratchet of the $target archive is not static: ${line#"static-check: $binary: "}"
+    fi
+    echo "release-verify: the ratchet of the $target archive is static"
+  fi
+  status=0
+  printed=$("$binary" --version 2> /dev/null) || status=$?
+  [ "$status" = 0 ] || refuse "\`ratchet --version\` of the $target archive exits $status"
+  [ "$printed" = "ratchet $version" ] \
+    || refuse "the ratchet of the $target archive prints \"$(printf '%s\n' "$printed" | sed -n 1p)\", not \"ratchet $version\""
+  echo "release-verify: the ratchet of the $target archive prints \"ratchet $version\" and exits 0"
+done

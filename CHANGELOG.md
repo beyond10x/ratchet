@@ -6,6 +6,10 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+### Added
+
+- A release holds a third archive, `ratchet-<version>-x86_64-unknown-linux-musl.tar.gz`, a static `ratchet` that runs on a Linux host with any C library or none, such as one whose glibc is older than the build runner's: `.github/scripts/static-check.sh` refuses a binary with a `NEEDED` entry or an `INTERP` program header, `task check:static` builds the musl binary and runs it with an empty environment, the forge runs it in an Alpine image pinned by digest, and `release-verify.sh` checks it in a published release; there is no musl archive for `aarch64`, and the two glibc archives stay
+
 ### Changed
 
 - `task check` runs the `ess` release `spec/ess-inputs.yaml` requires also on a host whose `ess` in `PATH` is newer and holds that release beside it: `ESS_TOOLCHAIN` in `Taskfile.yml` pins it to the release the forge installs, and `task check:scripts` fails when the pin differs from the forge's or from the requirement, or when a call of `ess` in `task check:spec` or `task check:generated` loses it; `.github/scripts/check-generated.sh` started directly, not through `task`, gets no pin
