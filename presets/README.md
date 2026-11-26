@@ -129,15 +129,18 @@ A file in another form is refused, also where a YAML reader would accept it:
   names, the unit of that output or none where the output has none, and a boundary and an
   identity key that the output declares. A `filter` names fields the output declares for its
   items, and for a field whose values the output lists under `item_values` only those values;
-  a field without such a list is open. `run_time` and `queue_wait` are boundaries of Ratchet
+  a field without such a list is open, and a key of `item_values` is a field of `item_fields`
+  of its output. `run_time` and `queue_wait` are boundaries of Ratchet
   itself and stand also on an output that declares no boundaries. `pass_rate` aggregates an
   assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
   as a number. An assessment passes every input its assessor requires, with the declared type,
   also for each item of a list, and names a target kind the assessor takes. A condition of an
   observation is `host_load_per_cpu`, `tools`, `runner` or one the assessor declares, and a
-  field of a population filter is one of its `population_fields`. A value that an input gives
-  is not checked against the declaration, because the binding passes it; only the kind of a
-  target is checked against the default of its input.
+  field of a population filter is one of its `population_fields`. The cache condition is
+  `cache_profile`, and a plan that states `cache` and a declaration that lists `cache` are
+  refused, also where the two agree. A value that an input gives is not checked against the
+  declaration, because the binding passes it; only the kind of a target is checked against the
+  default of its input.
 - **A window over the runs of another plan.** `record-series@1` is the assessor of Ratchet
   itself that reads the runs of another plan ([`docs/design.md`](../docs/design.md) § 3, "A
   series of runs as a population"). The name is reserved: a plan names it without a

@@ -511,7 +511,9 @@ workstation checkout of example 5.
   relative to the root. The declaration of an assessor is a file there, such as
   `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory
   [`quality/assessors/`](quality/assessors/) holds the declaration of each of the nine assessors
-  the examples name, all but `record-series@1`, which is Ratchet's own and has none.
+  the examples name, all but `record-series@1`, which is Ratchet's own and has none. A
+  declaration there is an illustration that no plan binds by its digest, unlike a file of
+  `presets/`, so a change of the format changes it in place and gives it no new version.
 - `[records] store` names the ref that holds the series, and no path. The records of a local run
   are therefore kept in `.ratchet/records` under the root, as they are without the section (§ 5,
   local config; § 6).

@@ -23,7 +23,7 @@
 #             U+FFFF, which are no characters; and the characters that hide or reorder
 #             text: U+200B, U+200E, U+200F, U+202A to U+202E, U+2060 and U+2066 to U+2069.
 #             U+200C and U+200D stay: some writing systems are spelled with them
-#   place    a key of a preset or of a declaration is a declared field of the struct or entity
+#   place     a key of a preset or of a declaration is a declared field of the struct or entity
 #             there, a key of a declared map, or lies under a field of the type `Json`. The
 #             root of a declaration is a `ratchet.assessor.Assessor`. The root of a preset
 #             holds `format` (`ratchet/1`), `preset` (the fields of
@@ -49,7 +49,7 @@
 #             inputs to refer to. An input of a declaration has no name of
 #             `ratchet.assessor.ReservedArgument`, such as `out`: Ratchet passes those
 #             arguments itself (docs/evidence-format.md § 10, "Reserved names")
-#   names    a requirement names an assessment of its preset and a measurement of that
+#   names     a requirement names an assessment of its preset and a measurement of that
 #             assessment, and the statements it serves are statements of the preset. These
 #             three names are written out: a reference there is refused, because no row
 #             `<name>@<version>/<assessment>/<measurement>` could be checked against it
@@ -67,13 +67,14 @@
 #             declares where it states one, and in a `filter` only fields the output declares
 #             for its items and, for a field whose values the output lists under
 #             `item_values`, only those values; a field without such a list is open. A key of
-#             `item_values` is a field of `item_fields` of its output. `pass_rate` aggregates an assertion and nothing else, and the
-#             measurement of such a rate may be `sampled`. A condition of the observation
-#             is `host_load_per_cpu`, `tools`, `runner` or one the declaration lists, and
-#             a field of a population filter is one of its `population_fields`
-#             (`population_field_mismatch`). The cache condition is `cache_profile`, the
-#             member of the record: a condition `cache` of a plan and an item `cache` of the
-#             `conditions` of a declaration are refused, also where the two agree
+#             `item_values` is a field of `item_fields` of its output. `pass_rate` aggregates
+#             an assertion and nothing else, and the measurement of such a rate may be
+#             `sampled`. A condition of the observation is `host_load_per_cpu`, `tools`,
+#             `runner` or one the declaration lists, and a field of a population filter is one
+#             of its `population_fields` (`population_field_mismatch`). The cache condition is
+#             `cache_profile`, the member of the record: a condition `cache` of a plan and an
+#             item `cache` of the `conditions` of a declaration are refused, also where the two
+#             agree
 #   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
 #             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
 #             the directory declares it, and a plan that names it needs no declaration. As
@@ -104,13 +105,13 @@
 #             `over_all_runs: true`, the value its assessor computes over all runs of the plan,
 #             and no measurement states both: that value is no aggregation (docs/design.md
 #             § 3, "One run per candidate is valid"). A `runs` that an input gives is not read,
-#             so the rule does not reach `flake-rate@1`. A plan may hold
-#             exact and sampled measurements of its one run, in every observation kind, and
-#             its conditions then qualify every measurement of it (docs/design.md § 3, "Exact
-#             and sampled measurements of one run"). The design refuses no mix, so no rule
-#             reads it: the copy `valid-plans` holds a sampled pass rate beside the exact
-#             counts of a snapshot plan, and it is accepted
-#   row      a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
+#             so the rule does not reach `flake-rate@1`. A plan may hold exact and sampled
+#             measurements of its one run, in every observation kind, and its conditions then
+#             qualify every measurement of it (docs/design.md § 3, "Exact and sampled
+#             measurements of one run"). The design refuses no mix, so no rule reads it: the
+#             copy `valid-plans` holds a sampled pass rate beside the exact counts of a
+#             snapshot plan, and it is accepted
+#   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
 #             is found by its header line `| Measurement | Direction | Unit | Tolerance |
@@ -2584,6 +2585,11 @@ copy exact-aggregation
 swap "$differ" '        filter: {class: [different]}' '        filter: {class: [different]}\n        aggregation: {kind: median}'
 refused '`assessments.comparison.measurements.different-cases` is exact and aggregates with `median`; an exact measurement aggregates with `sum` or not at all' "an exact identity set aggregates with median"
 
+# The sum is the one aggregation of an exact measurement: the number `failed` declares it.
+copy valid-exact-sum
+swap "$conf" '        output: failed' '        output: failed\n        aggregation: {kind: sum}'
+accepts "an exact number that aggregates with sum"
+
 # An input of a declaration takes no name that Ratchet passes itself
 # (docs/evidence-format.md § 10, "Reserved names").
 copy declaration-reserved-input
@@ -2727,7 +2733,26 @@ refused '`requirements.median-size-does-not-rise` compares the sampled measureme
 # `over_all_runs: true`, a value the assessor computes over all runs of the plan
 # (docs/design.md § 3, the row "Aggregation" and "One run per candidate is valid").
 runs_copy sampled-runs-without-aggregation
-refused '`assessments.conformance.measurements.step-time` is sampled, and the plan `conformance` has `runs: 3` and the measurement states neither an `aggregation` nor `over_all_runs: true`' "a sampled measurement of a plan with runs: 3 states no aggregation"
+swap "$conf" '      runs: 3' '      runs: 2'
+refused '`assessments.conformance.measurements.step-time` is sampled, and the plan `conformance` has `runs: 2` and the measurement states neither an `aggregation` nor `over_all_runs: true`' "a sampled measurement of a plan with runs: 2 states no aggregation"
+
+# A plan of one run needs neither: its measurement may state no aggregation, or one, when the
+# command repeats its measurement itself within the run (docs/design.md § 3, "One run per
+# candidate is valid").
+runs_copy valid-one-run
+swap "$conf" '      runs: 3' '      runs: 1'
+accepts "a sampled measurement of a plan with runs: 1 that states no aggregation and no over_all_runs"
+
+runs_copy valid-one-run-with-aggregation
+swap "$conf" '      runs: 3' '      runs: 1'
+swap "$conf" '        unit: s' '        unit: s\n        aggregation: {kind: median}'
+accepts "a sampled measurement of a plan with runs: 1 that aggregates with median"
+
+# An `over_all_runs` that an input gives is not read: the binding passes it.
+runs_copy valid-over-all-runs-by-input
+swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    all_runs: {type: boolean, required: true}'
+swap "$conf" '        unit: s' '        unit: s\n        over_all_runs: "${inputs.all_runs}"'
+accepts "a sampled measurement of a plan with runs: 3 whose over_all_runs an input gives, without an aggregation"
 
 # A value over all runs is no aggregation: a measurement states one of the two.
 runs_copy sampled-over-all-runs-and-aggregation

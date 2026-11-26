@@ -14,9 +14,15 @@
 # the case holds when at least one of them exits non-zero, as the gate then does. The unchanged
 # copy runs first and has to pass all of them.
 #
+# One case holds a defect in the form, and one script has to refuse it with the message of its
+# rule: a byte inside `evidence` of § 6 example 1 is changed, so the evidence digest that § 6
+# states is not that of the bytes, and spec/record-examples.test.sh exits 1 with its digest
+# message.
+#
 # Exit 0: the last line is `gate-inputs: <n> of <n> broken inputs refused`.
-# Exit 1: each case that every script accepts is named with the last line of each script.
-# Needs `jq`, as spec/record-examples.test.sh does.
+# Exit 1: each case that every script accepts is named with the last line of each script, and
+# a case of one script with its exit status and its last line.
+# Needs `jq` and `sha256sum`, as spec/record-examples.test.sh does.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -24,6 +30,7 @@ work=$root/target/gate-inputs
 scripts="record-fields record-types record-examples contract-examples cli-coverage-row cli-errors"
 
 command -v jq > /dev/null 2>&1 || { echo "gate-inputs: jq is not installed" >&2; exit 1; }
+command -v sha256sum > /dev/null 2>&1 || { echo "gate-inputs: sha256sum is not installed" >&2; exit 1; }
 for s in $scripts; do
   [ -r "$root/spec/$s.test.sh" ] || { echo "gate-inputs: cannot read spec/$s.test.sh" >&2; exit 1; }
 done
@@ -72,6 +79,20 @@ expect_refused() {
     accepted=$((accepted + 1))
     echo "accepted: $(basename -- "$c"): $1"
     for s in $scripts; do echo "  $(tail -n 1 "$c/$s.out")"; done
+  fi
+}
+
+# expect_message <script> <message> <what the copy holds>: the one script exits 1 on the copy
+# and prints the message of its rule.
+expect_message() {
+  cases=$((cases + 1))
+  status=0
+  sh "$c/spec/$1.test.sh" > "$c/$1.out" 2>&1 || status=$?
+  if [ "$status" -ne 1 ] || ! grep -F -q -- "$2" "$c/$1.out"; then
+    accepted=$((accepted + 1))
+    echo "accepted: $(basename -- "$c"): $3"
+    echo "  $1 exited $status, wanted 1 and: $2"
+    echo "  $(tail -n 1 "$c/$1.out")"
   fi
 }
 
@@ -174,6 +195,15 @@ edit "$binding" '
   /^      candidate_unresolved: ratchet\.cli\.Refusal$/ { next }
   { print }'
 expect_refused "\`candidate_unresolved\` is no error of \`assess\` in spec/cli.yaml, and docs/design.md § 5 names it"
+
+copy evidence-byte
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 6\. /) }
+  s && !seen && /^```json$/ { seen = 1; first = 1 }
+  first && /^```$/ { first = 0 }
+  first && $0 == "    \"project\": \"uxui\"," { sub(/"uxui"/, "\"uxuj\"") }
+  { print }'
+expect_message record-examples "and the bytes of \`evidence\` of § 6 example 1 give sha256:" "one byte inside \`evidence\` of § 6 example 1 is changed, uxui to uxuj, and the stated evidence digest is not"
 
 if [ "$accepted" -gt 0 ]; then
   echo "gate-inputs: $((cases - accepted)) of $cases broken inputs refused, $accepted accepted"
