@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:coverage-count-with-reference
 kind: story
-status: draft
+status: active
 title: A coverage count is a measurement a reference can protect
 summary: executed, skipped, not_run and unsupported as measurements with a direction and an accepted value.
 relations:
@@ -18,7 +18,10 @@ scope:
   path: spec/example-declarations.test.sh
 - confidence: cited
   path: spec/presets.test.sh
-revision: 10
+revision: 13
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -57,6 +60,15 @@ taken: a requirement names a measurement, and the measurement keeps the directio
 
 Every outcome below is observable without a `ratchet` command.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/specification.yaml`: the summary of `ratchet.specification.OutputName` names
    the reserved form `coverage.<count>`, the counts of `ratchet.assessor.CoverageCount`, and
    that such a measurement is `exact`, at the scope `run` and without `unit`: `grep -cF
@@ -66,31 +78,27 @@ Every outcome below is observable without a `ratchet` command.
    measurement with an accepted value" shows the form
    `ignored: {kind: exact, output: coverage.skipped, scope: run, better: lower}`: `grep -F
    'output: coverage.skipped' docs/design.md` finds it, nothing before.
-3. `docs/design.md` § 3 "Evidence coverage" holds the phrase "a count that the record states as
-   a lower bound or does not state gives such a measurement insufficient evidence" with the
-   cause `coverage_below_plan` (story 2, `story:coverage-count-lower-bound`, made such counts
-   possible): `grep -F` finds the phrase, nothing before.
-4. `docs/design.md` § 3 "Value lists", the row "Scope, unit, output, ...": its last cell names
+3. `docs/design.md` § 3 "Value lists", the row "Scope, unit, output, ...": its last cell names
    `coverage.<count>` beside `run`, `run_time` and `queue_wait` as Ratchet's: `grep -F
    '`queue_wait`, and `coverage.<count>` are Ratchet' docs/design.md` finds it (before the
    cell ends "`run`, `run_time`, and `queue_wait` are Ratchet’s").
-5. `docs/evidence-format.md` § 3, the text of `evidence.coverage`, holds the phrase "a
+4. `docs/evidence-format.md` § 3, the text of `evidence.coverage`, holds the phrase "a
    measurement may read a count from here as `coverage.<count>`; it is no entry of `results`":
    `grep -F` finds it, nothing before.
-6. `spec/presets.test.sh`, rule `assessor`: the accepted copy `coverage-count-measurement`,
+5. `spec/presets.test.sh`, rule `assessor`: the accepted copy `coverage-count-measurement`,
    with a requirement `executed-does-not-fall` on a measurement with `output:
    coverage.executed` of `conformance-cases@1`, `better: higher` and an accepted value, is
    accepted. Before the story the same measurement is refused with the message that the
    declaration declares no such output.
-7. `spec/presets.test.sh`: four cases are each refused with the message of the rule
+6. `spec/presets.test.sh`: four cases are each refused with the message of the rule
    `assessor`, named "a coverage count the declaration does not list", "a coverage count with
    a unit", "a coverage count that is sampled" and "a coverage name that is no count"
    (`coverage.passed_ids`). Before the story none of the four names is in the script
    (`grep -c` prints 0 for each).
-8. `spec/example-declarations.test.sh`, case 2: the copy `valid-forms` holds an example
+7. `spec/example-declarations.test.sh`, case 2: the copy `valid-forms` holds an example
    measurement on `coverage.<count>` of a count its assessor lists, and is accepted: `grep -c
    'coverage\.' spec/example-declarations.test.sh` prints a number above 0 (0 before).
-9. `spec/example-declarations.test.sh`: the broken copy `rule-2-coverage-count`, an example
+8. `spec/example-declarations.test.sh`: the broken copy `rule-2-coverage-count`, an example
    measurement on a count its assessor does not list, is refused with the message of case 2:
    `grep -c '^copy rule-2-coverage-count$' spec/example-declarations.test.sh` prints 1 (0
    before).
@@ -100,6 +108,10 @@ Every outcome below is observable without a `ratchet` command.
 - An addition to a released format: a file written before the change stays valid. The name
   `coverage.<count>` is reserved, and no output of the catalog or the examples has a name with
   a dot.
+- A count that a record leaves out or names under `at_least`: this story writes no rule for
+  it. The rule is unit 2's, `story:coverage-count-lower-bound`, which writes into
+  `docs/design.md` § 3 "Evidence coverage" what a bound does with "a count that the run does
+  not know" (its item 16), and `story:coverage-count-lower-bound-in-ratchet` makes the verdict.
 - The parts that need the command are `story:coverage-count-with-reference-in-ratchet`:
   `ratchet validate` holding the form to the declaration with a code, and
   `ratchet evaluate --gate` giving fail when `executed` is below the accepted value. It waits

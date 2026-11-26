@@ -2,14 +2,17 @@
 format: aep.planning-md/3
 id: story:readme-design-citations-by-place
 kind: story
-status: draft
+status: active
 title: The README of the specification cites the design by place, not by line number
 relations:
 - decomposes: epic:format-gaps-first-format-consumer
 scope:
 - confidence: cited
   path: spec/README.md
-revision: 6
+revision: 9
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 9, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -52,6 +55,15 @@ need a path of its own in the change classifier of `pages.yml`, which classes `*
 
 Every outcome below is observable without a `ratchet` command.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 The table is the one of `spec/README.md` § "How a `ratchet/1` file differs from the declared
 entities", the only table of that file whose rows open with `| **`.
 
@@ -67,7 +79,10 @@ entities", the only table of that file whose rows open with `| **`.
    written as a map may leave `mode` out" cite § 5 "Gate entries, deciding evidence, and gate
    kinds" in place of the heading `### Verdicts`: `grep -c 'Gate entries, deciding evidence, and
    gate kinds' spec/README.md` prints 3 (before 0), and each quotes the phrase "An entry of
-   `requires` is a requirement name", which `grep -F` finds in `docs/design.md`.
+   `requires` is a requirement name", which `grep -F` finds in `docs/design.md` (1 before and
+   after). A row of the table is one line, so the check of the three rows reads line by line:
+   `grep -c -F 'An entry of `requires` is a requirement name' spec/README.md` prints 3 (0
+   before).
 4. The row "Several files form one specification" cites § 5 "Local config" and quotes "Several
    paths form one specification", which `grep -F` finds in `docs/design.md`:
    `grep -c 'Several paths form one specification' spec/README.md` prints 1 (before 0).

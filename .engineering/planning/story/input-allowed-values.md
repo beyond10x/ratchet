@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:input-allowed-values
 kind: story
-status: draft
+status: active
 title: An input of a preset declares the values it may have
 summary: An input has a type and no list of values, so a wrong direction word is found where it is used.
 relations:
@@ -19,7 +19,10 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 15
+revision: 18
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -48,6 +51,15 @@ with values of its own (a mode of its tool) could not use it.
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 1. `spec/domains/specification.yaml`: `ratchet.specification.InputDeclaration` has the member
    `values` (`Optional<List<String>>`). Check: `awk '/- name: ratchet.specification.InputDeclaration$/,/^  - name: ratchet.specification.InputReference$/'

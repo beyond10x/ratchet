@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:requirement-over-two-measurements
 kind: story
-status: draft
+status: active
 title: A requirement compares two measurements
 summary: A subset between two identity sets and a comparison of two numbers of one unit, for the known-failure list and the reference implementation.
 relations:
@@ -27,7 +27,10 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 22
+revision: 25
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 24, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 25, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -73,6 +76,15 @@ own file, and the preset form waits for `story:reference-from-another-plan`.
 
 Every outcome below is observable without a `ratchet` command.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/specification.yaml`: `subset_of` is a variant of
    `ratchet.specification.ComparisonOperator`, after `within` of story 11: `grep -cF 'within,
    subset_of' spec/domains/specification.yaml` prints 1 (0 before).
@@ -83,11 +95,13 @@ Every outcome below is observable without a `ratchet` command.
    `grep -cF 'type: Optional<ratchet.specification.MeasurementRef>'
    spec/domains/specification.yaml` prints 1 (0 before), and `ess specify validate --path spec
    --strict-requires` exits 0.
-4. `Condition` states the invariants that `against` stands with none of `value`, `digest`,
-   `min` and `max`, and that `subset_of` has `against`, the last written
-   `- any: ["operator != subset_of", "defined(against)"]`: `grep -cF '"defined(against)"'
-   spec/domains/specification.yaml` prints 1 (0 before), and `grep -cF '"not defined(against)"'`
-   prints 4 (0 before).
+4. `Condition` states five invariants, one per line in the style of the file: four that
+   `against` stands with none of `value`, `digest`, `min` and `max`, one per member, written
+   `- any: ["not defined(against)", "not defined(<member>)"]`, and one that `subset_of` has
+   `against`, written `- any: ["operator != subset_of", "defined(against)"]`:
+   `grep -cF '"defined(against)"' spec/domains/specification.yaml` prints 1 (0 before), and
+   `grep -cF '"not defined(against)"' spec/domains/specification.yaml` prints 4 (0 before),
+   one line per member.
 5. The summary of `against` names the two validation codes of a comparison across two value
    types and across two units, `against_value_type_mismatch` and `against_unit_mismatch`:
    `grep -c 'against_value_type_mismatch' spec/domains/specification.yaml` prints 1 (0
@@ -145,7 +159,9 @@ Every outcome below is observable without a `ratchet` command.
     that `ratchet.specification.ComparisonOperator` "has no operator between two sets" is gone
     from it, and it holds the phrase "`subset_of` with `against` states it once the list is a
     measurement of a plan" and says that `metrics-scrape@1` stays as released: `grep -F`
-    finds the phrase, nothing before.
+    finds the phrase, nothing before. The claim wraps at the base, so its check joins the
+    lines: `tr -s '\n ' '  ' < presets/operability.md | grep -c -F 'has no operator between
+    two sets'` prints 0 (1 before; `grep -c` line by line prints 0 before as well).
 20. `presets/latency.md`, "Not expressible yet", point 2, rewritten in place, holds the phrase
     "`against` compares two numbers of one unit, with no tolerance" and says that the band of
     10 percent over the binding for the reference implementation waits for a reference from

@@ -14,7 +14,7 @@ relations:
 scope:
 - confidence: inferred
   path: crates/ratchet-core
-revision: 7
+revision: 8
 ---
 ## Context
 
@@ -27,19 +27,21 @@ part that needs the `ratchet` command.
 
 ## Acceptance
 
-`ratchet evaluate --gate production` on `examples/production-gate.ratchet.yaml` judges, as the
-candidate of the gate, the revision that `docs/design.md` § 5 "Gate kinds" says is deployed in
-`staging`, and a gate without `judges` judges the candidate of a change as before. Before the
-story no command reads `judges: {deployment: ...}`.
+`ratchet evaluate --gate production --candidate <revision>` on
+`examples/production-gate.ratchet.yaml` reads the gate with `judges: {deployment: staging}`
+and judges the revision given with `--candidate`, the same as a gate without `judges` judges
+the candidate of a change. Before the story no command reads `judges: {deployment: ...}`.
+Which revision is deployed in the class is left open by `docs/design.md` § 5 "Gate kinds", so
+no statement here rests on it: the command does not find that revision itself.
 
 ## Notes
 
 - Moved from the acceptance of `story:production-gate-kind`. The rule that every requirement
   of such a gate names a plan that runs in the class, and a refusal by it, are not part of the
   story: neither the story, `epic:preset-catalog` nor D88 A asks for them.
-- The story cannot be implemented while `docs/design.md` § 5 "Gate kinds" names the question
-  which revision is deployed in the class as open; the answer is a change of the design, not
-  of this draft.
+- Finding the revision deployed in the class without `--candidate` waits for the design to
+  answer the question that `docs/design.md` § 5 "Gate kinds" leaves open; that answer is a
+  change of the design and a story of its own, not part of this draft.
 - The story is a draft. It waits for the waves to 0.1.0: `story:cli-skeleton-validate`,
   `story:evaluate-command`, and for the bindings of the example,
   `story:preset-binding-resolution`.

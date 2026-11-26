@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:coverage-bound-on-failed-units
 kind: story
-status: draft
+status: active
 title: A plan bounds the failed units of its run
 summary: CoverageBounds has no bound for failed, so a run with failed requests qualifies for a timing.
 relations:
@@ -17,7 +17,10 @@ scope:
   path: presets/operation-time@2.preset.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 16
+revision: 19
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -54,6 +57,15 @@ addition.
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 1. `spec/domains/specification.yaml`: `ratchet.specification.CoverageBounds` holds
    `failed: Optional<ratchet.specification.MaximumBound>`: `grep -c 'name: failed$'

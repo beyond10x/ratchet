@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:imported-report-revision-check
 kind: story
-status: draft
+status: active
 title: An imported report of another revision is refused
 summary: A report states the revision or source digest it was produced from, and assess refuses one that is not the candidate's.
 relations:
@@ -24,7 +24,10 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 20
+revision: 23
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 22, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 23, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -66,6 +69,15 @@ Taken as the reversible answer (`AGENTS.md` § "Phase: implementation"):
 
 Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/assessor.yaml`, `ratchet.assessor.Assessor`: the member `revision_inputs`,
    `Optional<List<String>>`, whose summary states the decision (`grep -c 'name:
    revision_inputs' spec/domains/assessor.yaml` prints 1; 0 before).
@@ -80,8 +92,11 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    `record-types: 105 of 105 field rows as declared, 105 of 105 declared fields have a row`
    (103 after story 5).
 4. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
-   says "82 field rows in 13 tables of § 3 and 23 in 2 tables of § 10" (`grep -F` finds the
-   phrase; "81 ... and 22" before).
+   says "82 field rows in 13 tables of § 3 and 23 in 2 tables of § 10". The sentence wraps,
+   so the check joins the lines: `tr -s '\n ' '  ' < spec/README.md | grep -c -F '82 field
+   rows in 13 tables of § 3 and 23 in 2 tables of § 10'` prints 1 (0 before), and the same
+   check of '81 field rows in 13 tables of § 3 and 22 in 2 tables of § 10' prints 0 (1
+   before, after story 5).
 5. `docs/evidence-format.md` § 10, the bullet "The revision", says how a report named in
    `revision_inputs` is read: "reads the revision from the report and writes it as
    `inputs.<input>.revision`" (`grep -F` finds it; nothing before).
@@ -113,7 +128,7 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
   `story:imported-report-revision-check-in-ratchet`, which waits for the waves to 0.1.0
   (`story:assess-command`).
 - Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
-  § "Changelog lines"; the wave record names the heading and the token).
+  § "Changelog lines"; the wave record names the heading and the phrase of the line).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

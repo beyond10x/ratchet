@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:gate-judges-commit-of-a-tag
 kind: story
-status: draft
+status: active
 title: A gate states that it judges the commit of a tag
 summary: A candidate gate names the revision it judges when that is not the candidate of a change, first the commit a tag points at.
 relations:
@@ -16,7 +16,10 @@ scope:
   path: spec/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 14
+revision: 17
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -37,7 +40,10 @@ evidence, and gate kinds", the paragraph "Gate kinds" (`:648`), names `candidate
 so the file holds a release to nothing a reader can see. The consumer left the gate out.
 
 The binding `spec/cli.yaml` declares the refusals of `ratchet evaluate` under `errors:`, among
-them `operational_gate_takes_no_candidate`, which the paragraph "Gate kinds" gives.
+them `operational_gate_takes_no_candidate`. The name is the binding's own: its comment above
+`errors:` calls it "a name this specification proposes", and `docs/design.md` does not name
+it. The paragraph "Gate kinds" gives only the rule behind it, that the evidence of an
+operational gate "is not attributable to one candidate".
 
 ## Decision
 
@@ -58,6 +64,15 @@ judges releases has nothing to say about another commit. The refusal is declared
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 1. `spec/domains/specification.yaml` declares the struct
    `ratchet.specification.JudgedCandidate` with the required member `tag`:

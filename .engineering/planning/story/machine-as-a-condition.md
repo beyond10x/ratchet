@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:machine-as-a-condition
 kind: story
-status: draft
+status: active
 title: A plan declares the machine and the build profile as conditions
 summary: Declared condition keys for machine memory, an unused accelerator and the build profile of the measured binary.
 relations:
@@ -20,7 +20,10 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 11
+revision: 14
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -67,6 +70,15 @@ so the record format and the field tables of `docs/evidence-format.md` § 3 do n
 
 Every outcome below is observable without a `ratchet` command.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 None of the four names occurs in `docs/`, `spec/`, `presets/` or `examples/` at `7b01ea1`, so
 each grep below prints 0 before the story.
 
@@ -87,7 +99,10 @@ each grep below prints 0 before the story.
    declaration lists neither, and `sh spec/presets.test.sh` accepts it with no new copy,
    because the rule reads the members of `ObservationConditions` from the specification. The
    same copy against the specification of `7b01ea1` is refused with "is the condition
-   `build_profile`, which is none of Ratchet itself".
+   `build_profile`, which is none of Ratchet itself". Check that the copy states them: the
+   lines of the copy, `awk '$0 == "copy valid-inputs" {on = 1; next} on && /^accepts / {on =
+   0} on' spec/presets.test.sh`, piped to `grep -c 'build_profile: release'` and
+   to `grep -c 'cpu_model'` each print a number above 0 (0 each before).
 5. The header of `spec/presets.test.sh` ("A condition of the observation is
    `host_load_per_cpu`, `tools`, `runner` or one the declaration lists") and the comment of the
    rule above the condition check ("one of the three that have a field in

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:gate-joins-revision-and-document
 kind: story
-status: draft
+status: active
 title: One candidate gate judges a revision and a document of it
 relations:
 - decomposes: epic:ess-ui-behavior
@@ -17,7 +17,10 @@ scope:
   path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/gate.yaml
-revision: 10
+revision: 13
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -58,6 +61,15 @@ states it, and the command keeps it.
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 1. `spec/domains/gate.yaml` declares the struct `ratchet.gate.JoinedDocument` with the members
    `path` and `digest` (`ratchet.evidence.Digest`): `grep -c 'name: ratchet.gate.JoinedDocument'

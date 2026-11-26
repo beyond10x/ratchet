@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:example-release-quality
 kind: story
-status: draft
+status: active
 title: An example plan for the quality of a release
 summary: 'examples/release-quality.ratchet.yaml: exact counts with better: lower under a gate that starts report-only.'
 relations:
@@ -14,7 +14,10 @@ scope:
   path: examples/quality/assessors/release-counts@1.assessor.yaml
 - confidence: inferred
   path: examples/release-quality.ratchet.yaml
-revision: 15
+revision: 18
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:25Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -49,6 +52,15 @@ that adds a file `*.ratchet.yaml` adds the declaration of each assessor it names
 
 Every outcome below is observable without a `ratchet` command. Before the story the files of
 items 1 to 6 do not exist, so each `grep` of them exits 2.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 1. `examples/release-quality.ratchet.yaml` (new) declares a release as its subject, the subject
    `product-release` with `kind: release`: `grep -c '^    kind: release$'

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:plan-never-assessed
 kind: story
-status: draft
+status: active
 title: A plan that was never assessed is told apart from a plan whose record is missing
 summary: A plan in observe mode with no run is reported as never assessed, and a file can state that no run is expected yet.
 relations:
@@ -16,7 +16,10 @@ scope:
   path: spec/domains/cli.yaml
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 16
+revision: 19
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 18, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:24Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -53,6 +56,15 @@ The decision this story takes, the reversible one (`AGENTS.md` § "Phase: implem
 ## Acceptance
 
 Every outcome below is observable without a `ratchet` command.
+
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
 
 None of `NoRunExpected`, `no_run_expected`, `PlanRunState`, `plan_state` and
 `never_assessed` occurs in `spec/domains/` or `docs/design.md` at `7b01ea1`.

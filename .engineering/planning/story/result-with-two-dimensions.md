@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:result-with-two-dimensions
 kind: story
-status: draft
+status: active
 title: A number result carries its condition cell beside its scope item
 summary: A result per scenario and viewport without joining the two into one item name.
 relations:
@@ -26,7 +26,10 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 14
+revision: 17
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -68,6 +71,15 @@ Taken as the reversible answer (`AGENTS.md` § "Phase: implementation"):
 
 Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/evidence.yaml`, `ratchet.evidence.MeasurementResult`: the member `cell`,
    `Optional<Map<String, String>>` (`grep -c 'name: cell$' spec/domains/evidence.yaml`
    prints 1; 0 before).
@@ -86,15 +98,19 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    `record-types: 101 of 101 field rows as declared, 101 of 101 declared fields have a row`
    (99 after story 2).
 5. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
-   says "80 field rows in 13 tables of § 3 and 21 in 2 tables of § 10" (`grep -F` finds the
-   phrase; "79 field rows in 13 tables of § 3 and 20 in 2 tables of § 10" before).
+   says "80 field rows in 13 tables of § 3 and 21 in 2 tables of § 10". The sentence wraps,
+   so the check joins the lines: `tr -s '\n ' '  ' < spec/README.md | grep -c -F '80 field
+   rows in 13 tables of § 3 and 21 in 2 tables of § 10'` prints 1 (0 before), and the same
+   check of '79 field rows in 13 tables of § 3 and 20 in 2 tables of § 10' prints 0 (1
+   before, after story 2).
 6. `docs/evidence-format.md` § 6 has an eighth example: two number results of one output, one
    `item`, in two cells (`{"viewport": "narrow"}` and `{"viewport": "wide"}`). The assignment
    `want_examples` of `spec/record-examples.test.sh` goes from 7 to 8, and the script ends
    with `record-examples: <n> of <n> members of 8 example(s) decode under the specification`.
    Before the story `cell` is refused there as no field of `MeasurementResult`.
 7. `spec/README.md`, the same paragraph: it says "8 examples in § 6 (`record-examples`)"
-   (`grep -F '8 examples in § 6' spec/README.md` finds it; "7 examples in § 6" before).
+   (`tr -s '\n ' '  ' < spec/README.md | grep -c -F '8 examples in § 6'` prints 1, 0 before;
+   the same check of '7 examples in § 6' prints 0, 1 before).
 8. `docs/evidence-format.md` § 4 rule 3 names `cell` among the members a result is unique
    by: the rule reads "per `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation`"
    (`grep -F` finds it; the rule without `cell` before).
@@ -112,7 +128,7 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
   output's `cells` are `story:result-with-two-dimensions-in-ratchet`, which waits for the waves
   to 0.1.0 (`story:evidence-reader`, `story:evaluate-command`).
 - Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
-  § "Changelog lines"; the wave record names the heading and the token).
+  § "Changelog lines"; the wave record names the heading and the phrase of the line).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

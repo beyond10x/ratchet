@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:assertion-required-items
 kind: story
-status: draft
+status: active
 title: A plan names the items an assertion must have
 summary: An assertion takes no reference, so no set names the expectations that must be there; one bound covers both endpoints of health-readiness@1.
 relations:
@@ -17,7 +17,10 @@ scope:
   path: presets/operability.md
 - confidence: cited
   path: spec/domains/specification.yaml
-revision: 14
+revision: 17
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:22Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -57,6 +60,15 @@ They apply to every value type with items, and an assertion is the first user.
 
 Every outcome below is observable without a `ratchet` command.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/specification.yaml`: `ratchet.specification.Measurement` holds
    `min_items: Optional<Integer>` and `required_items: Optional<List<String>>`: `grep -c
    'name: min_items$\|name: required_items$' spec/domains/specification.yaml` prints 2 (0
@@ -65,8 +77,11 @@ Every outcome below is observable without a `ratchet` command.
    scope `run`, the first written `- any: ["not defined(min_items)", "min_items >= 1"]`:
    `grep -cF '"min_items >= 1"' spec/domains/specification.yaml` prints 1 (0 before).
 3. The summaries of the two members hold the phrase "insufficient evidence with the cause
-   `coverage_below_plan`": `grep -cF` of that phrase in `spec/domains/specification.yaml`
-   prints 2 more than before.
+   `coverage_below_plan`". The summaries are folded and the phrase wraps, so the count reads
+   the joined text: `tr -s '\n ' '  ' < spec/domains/specification.yaml | grep -o -F
+   'insufficient evidence with the cause `coverage_below_plan`' | wc -l` prints 2 more than
+   before the story (1 at `7b01ea1`, a summary where the phrase wraps; `grep -c` line by line
+   prints 0 there).
 4. `docs/design.md` § 3 "Comparisons", the bullet on assertions, holds the phrase "fewer items
    than `min_items` or without an item of `required_items` is insufficient evidence": `grep
    -F` finds it, nothing before.

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:prove-command
 kind: story
-status: draft
+status: active
 title: 'ratchet prove: run the planted defects of a requirement'
 relations:
 - decomposes: epic:improvement-and-policy
@@ -23,7 +23,10 @@ scope:
   path: spec/record-fields.test.sh
 - confidence: cited
   path: spec/record-types.test.sh
-revision: 13
+revision: 16
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 15, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -65,6 +68,15 @@ member. A defect in neither list returned insufficient evidence.
 
 Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/evidence.yaml`, `ratchet.evidence.ProofRecord`: the field `format` with the
    invariant `format == "ratchet-proof/1"` (`grep -c 'ratchet-proof/1'
    spec/domains/evidence.yaml` prints at least 1; 0 before).
@@ -85,7 +97,8 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    `grep -F 'gate decision, reference change, trade-off, and proof' docs/evidence-format.md`
    prints nothing (one line before).
 5. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
-   says "7 in 1 table of § 12" (`grep -F` finds it; nothing before).
+   says "7 in 1 table of § 12": `tr -s '\n ' '  ' < spec/README.md | grep -c -F '7 in 1 table
+   of § 12'` prints 1 (0 before).
 6. The open question of the round, answered: at the base `spec/record-examples.test.sh`
    cannot read a § 12 example. It reads § 6 alone, and it would decode a root that holds
    `format` as a `ratchet.evidence.AssessmentRun` and fail on every member of a proof
@@ -97,8 +110,9 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    `record-examples: <n> of <n> members of 10 example(s) decode under the specification`
    (9 examples after story 7). The evidence digest stays that of § 6 example 1.
 7. `spec/README.md`, the same paragraph: it says "9 examples in § 6 and 1 in § 12
-   (`record-examples`)" (`grep -F '9 examples in § 6 and 1 in § 12' spec/README.md` finds
-   it; "9 examples in § 6 (`record-examples`)" after story 7).
+   (`record-examples`)": `tr -s '\n ' '  ' < spec/README.md | grep -c -F '9 examples in § 6
+   and 1 in § 12'` prints 1 (0 before, when it says "9 examples in § 6 (`record-examples`)"
+   after story 7).
 8. `spec/gate-inputs.test.sh` has a case `proof-example-member`: a copy whose example of
    § 12 holds a member `ProofRecord` does not declare is refused, and the script ends with
    `gate-inputs: 12 of 12 broken inputs refused` (11 of 11 before).
@@ -115,7 +129,7 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
 - Filed under `epic:improvement-and-policy` as the closest epic: the next after 0.1.0 and the
   one that extends the gate report. No epic names `ratchet prove`.
 - Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
-  § "Changelog lines"; the wave record names the heading and the token).
+  § "Changelog lines"; the wave record names the heading and the phrase of the line).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

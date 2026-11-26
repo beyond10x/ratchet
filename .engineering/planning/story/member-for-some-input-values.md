@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:member-for-some-input-values
 kind: story
-status: draft
+status: active
 title: A preset leaves a member out for some values of an input
 summary: 'A reference to an input stands for a value and no key, so a preset declares an aggregation for runs: 1 too.'
 relations:
@@ -23,7 +23,10 @@ scope:
   path: spec/domains/specification.yaml
 - confidence: cited
   path: spec/presets.test.sh
-revision: 17
+revision: 20
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 19, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:23Z", actor: "human:operator", revision: 20, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -59,7 +62,18 @@ that § 3 calls valid.
 
 Every outcome below is observable without a `ratchet` command.
 
-None of the phrases quoted below occurs in `docs/`, `spec/` or `presets/` at `7b01ea1`.
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
+None of the phrases the checks below look for occurs in `docs/`, `spec/` or `presets/` at
+`7b01ea1`, but "measures once declares no aggregation", which item 2 removes (1 there). The
+name of the paragraph, "One run per candidate is valid", is a place, not a check.
 
 1. `docs/design.md` § 3, the paragraph "One run per candidate is valid", holds the sentence
    "An aggregation of one value is that value", and says that a measurement may therefore

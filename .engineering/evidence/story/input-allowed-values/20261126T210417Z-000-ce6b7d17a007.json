@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T21:04:17Z",
+  "actor": "human:operator",
+  "artifact": "story:input-allowed-values",
+  "kind": "story",
+  "revision": 16,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:critics-acceptance-wave-ahead-2-round-2",
+    "reference": ".engineering/waves/0.1.0-ahead-2.md",
+    "review": "review-result:critics-acceptance-wave-ahead-2-round-2",
+    "outcome": "fixed"
+  }
+}

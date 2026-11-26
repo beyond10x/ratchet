@@ -18,7 +18,7 @@ scope:
   path: crates/ratchet/src/commands/evaluate.rs
 - confidence: inferred
   path: crates/ratchet/src/commands/validate.rs
-revision: 5
+revision: 6
 ---
 ## Context
 
@@ -39,9 +39,9 @@ because no output of the assessor has that name.
 ## Notes
 
 - Moved from the acceptance of `story:coverage-count-with-reference`.
-- A count that the record states as a lower bound or as not known
-  (`story:coverage-count-lower-bound`) gives insufficient evidence with the cause
-  `coverage_below_plan`; `story:coverage-count-with-reference` writes that into
-  `docs/design.md` § 3, and this story makes `ratchet evaluate` give it.
+- A count that the record states as a lower bound or leaves out: this story decides nothing
+  for it. The rule is `story:coverage-count-lower-bound`'s, in `docs/design.md` § 3
+  "Evidence coverage" ("a count that the run does not know"), and its verdict is
+  `story:coverage-count-lower-bound-in-ratchet`'s.
 - The story is a draft. It waits for the waves to 0.1.0: `story:cli-skeleton-validate`,
   `story:assessor-declaration` and `story:evaluate-command`.

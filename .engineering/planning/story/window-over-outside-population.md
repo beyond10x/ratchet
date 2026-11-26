@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:window-over-outside-population
 kind: story
-status: draft
+status: active
 title: An assessor of a window over a population outside the record store learns its window
 relations:
 - decomposes: epic:ci-turnaround
@@ -17,7 +17,10 @@ scope:
   path: spec/contract-examples.test.sh
 - confidence: cited
   path: spec/domains/assessor.yaml
-revision: 10
+revision: 13
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -61,6 +64,15 @@ without a new reserved argument, so the declaration format stays at version 1:
 
 Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/assessor.yaml`, `ratchet.assessor.ObservationKey`: the values
    `window_length`, `window_last` and `window_ends_at` (`grep -c 'window_ends_at'
    spec/domains/assessor.yaml` prints at least 1; 0 before). `ess specify validate --path
@@ -87,8 +99,9 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    script ends with `contract-examples: <n> of <n> keys of 4 example(s) are declared fields`
    (`72 of 72 keys of 2 example(s)` before).
 8. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
-   says "4 examples in § 10 (`contract-examples`)" (`grep -F` finds it; "2 examples in § 10"
-   before).
+   says "4 examples in § 10 (`contract-examples`)": `tr -s '\n ' '  ' < spec/README.md |
+   grep -c -F '4 examples in § 10'` prints 1 (0 before), and the same check of '2 examples
+   in § 10' prints 0 (1 before).
 9. `docs/design.md` § 3, the paragraph that begins "**History** is a separate concern", no
    longer says "No example uses the shape yet" (`grep -c` prints 0; 1 before) and points to
    the example: it names "`docs/evidence-format.md` § 10" (`grep -F` finds it in that
@@ -106,7 +119,7 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
 - Related: `story:assessor-learns-observation` (the form this story extends),
   `story:build-target-invocation`.
 - Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
-  § "Changelog lines"; the wave record names the heading and the token).
+  § "Changelog lines"; the wave record names the heading and the phrase of the line).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every

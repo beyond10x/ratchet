@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:import-source-tree-file
 kind: story
-status: draft
+status: active
 title: An imported run names a file of the tree as its source
 summary: A source kind for a committed results file and for a run made by hand.
 relations:
@@ -20,7 +20,10 @@ scope:
   path: spec/domains/evidence.yaml
 - confidence: cited
   path: spec/record-examples.test.sh
-revision: 11
+revision: 14
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T21:04:20Z", actor: "human:operator", revision: 13, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-26T21:04:21Z", actor: "human:operator", revision: 14, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Context
 
@@ -59,6 +62,15 @@ kind of their own.
 
 Every outcome below is observable without a `ratchet` command. No item cites a line number.
 
+A phrase with a space in it may wrap in a Markdown paragraph or a folded YAML summary. So where
+an item says that `grep -F` finds such a phrase in a `.md` or `.yaml` file, that it finds
+nothing or the phrase is gone, or that `grep -c` of it prints a count, the check reads the
+joined text of the file: `tr -s '\n ' '  ' < <file> | grep -o -F '<phrase>' | wc -l` prints 1
+where the item says it is found, 0 where it says nothing or gone, and the count where it names
+one. A name without a space, a row of a table, a pattern with `^`, `$` or `-E`, a check that
+prints the line it matches and a check that reads the output of another command read the file
+line by line, as written.
+
 1. `spec/domains/evidence.yaml`, `ratchet.evidence.ImportSourceKind`: the variant
    `tree_file`. The `§ 6` example of item 4 decodes only with it, and `grep -c 'tree_file'
    spec/domains/evidence.yaml` prints at least 1 (0 before).
@@ -78,8 +90,9 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
    Before the story the value `tree_file` is refused there as no value of
    `ratchet.evidence.ImportSourceKind`.
 5. `spec/README.md`, the paragraph that begins "Each script states how much it reads": it
-   says "7 examples in § 6 (`record-examples`)" (`grep -F '7 examples in § 6'
-   spec/README.md` finds it; it says "6 examples in § 6" after story 2).
+   says "7 examples in § 6 (`record-examples`)": `tr -s '\n ' '  ' < spec/README.md | grep
+   -c -F '7 examples in § 6'` prints 1 (0 before), and the same check of '6 examples in § 6'
+   prints 0 (1 before, after story 2).
 6. `task generate` rewrote `crates/ratchet-cli-contract/` (`spec/domains/cli.yaml` uses
    `ImportSourceKind` in `ImportInput` and `ImportResult`), and `task check:generated` exits
    0; before the rewrite it fails on the new variant.
@@ -102,7 +115,7 @@ Every outcome below is observable without a `ratchet` command. No item cites a l
   `ratchet import` reads a file of the tree belongs to the story that builds that command;
   none does yet.
 - Its line of `CHANGELOG.md` is written by the closing commit of the wave (`AGENTS.md`
-  § "Changelog lines"; the wave record names the heading and the token).
+  § "Changelog lines"; the wave record names the heading and the phrase of the line).
 - The story was a draft that waited for the planned waves to 0.1.0. On 2026-11-26 the owner
   took it ahead of them (D87 B), with the other stories of
   `.engineering/waves/0.1.0-ahead-2.md`, into one wave built in sequence on one branch: every
