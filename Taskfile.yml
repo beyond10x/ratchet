@@ -15,6 +15,7 @@ tasks:
       - aep plan artifact validate
       - task: check:spec
       - task: check:rust
+      - task: check:static
       - task: check:generated
       - task: check:scripts
       - task: test
@@ -26,6 +27,21 @@ tasks:
     cmds:
       - cargo fmt --check
       - cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  check:static:
+    desc: Build ratchet for x86_64-unknown-linux-musl in the release profile, check with .github/scripts/static-check.sh that it names no shared library and no program interpreter, and run it with an empty environment, where it prints `ratchet <version of Cargo.toml>` for --version. The run in Alpine is a step of the job gate of .github/workflows/pages.yml, on the forge alone. Needs readelf and the musl target of rust-toolchain.toml.
+    cmds:
+      - cargo build --locked --release --bin ratchet --target x86_64-unknown-linux-musl
+      - sh .github/scripts/static-check.sh target/x86_64-unknown-linux-musl/release/ratchet
+      - |
+        set -eu
+        version=$(sed -n '/^\[workspace.package\]$/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
+        test -n "$version" || { echo "check:static: Cargo.toml has no version in [workspace.package]"; exit 1; }
+        status=0
+        printed=$(env -i target/x86_64-unknown-linux-musl/release/ratchet --version) || status=$?
+        echo "check:static: env -i ratchet --version: $printed"
+        [ "$status" = 0 ] || { echo "check:static: env -i ratchet --version exits $status"; exit 1; }
+        [ "$printed" = "ratchet $version" ] || { echo "check:static: it prints \"$printed\", not \"ratchet $version\""; exit 1; }
 
   check:generated:
     desc: Compare each generated crate, byte for byte, with a fresh generation into target/check-generated. The crates and their generator lines are in .github/scripts/check-generated.sh.
