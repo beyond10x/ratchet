@@ -21,7 +21,8 @@
 #      is not checked against a declaration: `record-series@1` is built in and has none
 #      (spec/domains/assessor.yaml), and its outputs are the measurements of the source plan
 #   8  a directory of the examples that holds no file `*.ratchet.yaml`
-# and, so that no plan and no measurement passes unread: a plan without `assessor`; an
+# and, so that no plan and no measurement passes unread: an `assessments` that is no mapping, a
+# plan that is no mapping, and a `measurements` that is no mapping; a plan without `assessor`; an
 # assessor id that is no `<name>@<version>` of letters, digits, `.`, `_` and `-` (it names a
 # file); a measurement without `output`; a plan of `record-series@1` without
 # `observation.population.runs_of`; a `runs_of` that names no plan of its file; an `output` of
@@ -46,6 +47,8 @@
 #   - a source plan in another file: `runs_of` names a plan of the same file, or it is refused
 #   - a declaration that no example names
 #   - `examples/ratchet.toml` itself: the script takes the two directories it names, by option
+#   - which of the two directories wins for an id that both hold: docs/design.md § 5 sets no
+#     precedence between the sources, and the script reads `examples/quality/assessors/` first
 #   - the bytes of a file (UTF-8, characters that hide text) and every key the rules above do
 #     not read: these are the gate's for `presets/` alone
 #   - that a declaration is what its program does: none of the nine assessors is a program here
@@ -56,8 +59,11 @@
 # `- <scalar>` or `- <flow collection>`, plain scalars, and quoted scalars without an escape. A
 # line that holds only a comment is skipped. Refused: a comment after a value, a tab, a control
 # character, a quote inside a plain scalar, a folded or literal scalar (`>`, `|`), a text over
-# two lines, a document marker (`---`), a block list item that is a mapping or a list, and a key
-# that YAML reads as a number, a boolean or null.
+# two lines, a document marker (`---`), a block list item that is a mapping or a list, a block
+# list at the indentation of its key (`key:` then `- item` with no more indentation), a flow
+# list or a flow mapping with a comma after its last item (`[a, ]`), and a key that YAML reads
+# as a number, a boolean or null. YAML 1.2 takes the two forms before the last; the examples
+# and the catalog do not write them.
 #
 # Usage:
 #   sh spec/example-declarations.test.sh       `examples/` with `examples/quality/assessors/` and
@@ -69,7 +75,8 @@
 #                                              one check, no copy; the declarations default to
 #                                              `<examples>/quality/assessors`
 # Work files go to the ignored target/example-declarations. It needs POSIX sh and awk, and of the
-# other utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `mkdir`, `mv`, `rm`, `sed` and `tail`.
+# other utilities `cat`, `cmp`, `cp`, `dirname`, `grep`, `ln`, `mkdir`, `mv`, `rm`, `sed` and
+# `tail`.
 #
 # Exit 0: the line of the check is
 #   `example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`
@@ -281,6 +288,13 @@ check() {
     }
     indent = match(s, /[^ ]/) - 1
     content = substr(s, indent + 1); sub(/ +$/, "", content)
+    # `key:` and then `- item` at the indentation of the key: YAML reads a list, and this
+    # script does not. The key is `unread` and not pending, so no message says it has no value.
+    if (content ~ /^-( |$)/ && depth > 0 && ind[depth] == indent && opens[depth] && (state[depth] == "" || state[depth] == "compact")) {
+      if (state[depth] == "") { state[depth] = "compact"; n_kind[at[FILE, pth[depth]]] = "unread" }
+      norule("a block list at the indentation of its key `" shown(pth[depth]) "`")
+      return
+    }
     while (depth > 0 && ind[depth] >= indent) depth--
     parent = depth > 0 ? pth[depth] : ""
     if (depth == 0 && indent > 0) { norule("`" content "` is indented at the root of the file"); return }
@@ -307,7 +321,7 @@ check() {
     }
     if (!match(content, /^[A-Za-z0-9_.@-]+:( |$)/)) { norule("`" content "` is no `key:` and no `key: value`"); return }
     if (depth > 0 && state[depth] == "flow") { norule("`" content "` follows the flow collection of `" shown(parent) "`"); return }
-    if (depth > 0 && state[depth] == "list") { norule("`" content "` follows the block list of `" shown(parent) "`"); return }
+    if (depth > 0 && (state[depth] == "list" || state[depth] == "compact")) { norule("`" content "` follows the block list of `" shown(parent) "`"); return }
     if (depth > 0 && state[depth] == "") { state[depth] = "map"; n_kind[at[FILE, parent]] = "map" }
     k = substr(content, 1, RLENGTH); sub(/: ?$/, "", k)
     rest = trim(substr(content, RLENGTH + 1))
@@ -347,6 +361,16 @@ check() {
     return decl[a]
   }
 
+  # 1 when the node at `p` is a mapping or absent; else 0, and the node is named, unless it is
+  # pending or unread, which has a message of its own. `words` name the node, with a space after.
+  function mapping(F, p, words,    k) {
+    if (!has(F, p)) return 1
+    k = n_kind[at[F, p]]
+    if (k == "map") return 1
+    if (k != "pending" && k != "unread") fail(F, line_of(F, p), words "is no mapping, and this script reads its entries only from a mapping")
+    return 0
+  }
+
   # A unit or a scope as the message shows it: between backticks, or `none`.
   function stated(file, p) { return has(file, p) ? "`" text(file, p) "`" : "none" }
 
@@ -375,6 +399,8 @@ check() {
   # One plan of an example: rules 1 to 7.
   function check_plan(F, P,    pp, A, al, D, j, M, mp, O, op, what, has_du, du, has_mu, mu, sc, before) {
     pp = "assessments" SEP P
+    if (!mapping(F, pp, "the plan `" P "` ")) return
+    if (!mapping(F, pp SEP "measurements", named(pp SEP "measurements"))) return
     total += nkeys[F, pp SEP "measurements"]
     if (!has(F, pp SEP "assessor")) { fail(F, line_of(F, pp), "the plan `" P "` names no assessor"); return }
     A = text(F, pp SEP "assessor"); al = line_of(F, pp SEP "assessor")
@@ -418,7 +444,7 @@ check() {
     if (nex == 0) { print "example-declarations: the directory of the examples holds no file `*.ratchet.yaml`"; failed++ }
     for (e = 1; e <= nex; e++) {
       read_yaml(ex[e])
-      for (j = 1; j <= nkeys[ex[e], "assessments"]; j++) check_plan(ex[e], keyof[ex[e], "assessments", j])
+      if (mapping(ex[e], "assessments", "`assessments` ")) for (j = 1; j <= nkeys[ex[e], "assessments"]; j++) check_plan(ex[e], keyof[ex[e], "assessments", j])
     }
     if (failed > 0) {
       printf "example-declarations: %d example file(s), %d declaration(s) read, %d of %d measurement(s) as declared, %d failure(s)\n", nex, nread, good, total, failed
@@ -820,5 +846,58 @@ refused 'ess-ui-behavior.ratchet.yaml:27: not read: a comment after a value' "a 
 copy guard-block-list-mapping
 swap "$ui" '      - every-task-completes' '      - requirement: every-task-completes'
 refused 'ess-ui-behavior.ratchet.yaml:81: not read: the block list item `requirement: every-task-completes` under `gates.merge.requires` is a mapping or a list' "a block list item is a mapping"
+
+copy guard-assessments-not-a-mapping
+printf 'format: ratchet/1\nproject: extra\nassessments:\n  - {subject: x, assessor: no-such-assessor@1, measurements: {m: {kind: exact, output: nothing, scope: run}}}\n' > "$c/extra.ratchet.yaml"
+refused 'extra.ratchet.yaml:3: `assessments` is no mapping' "an example whose assessments are a block list"
+
+copy guard-plan-not-a-mapping
+printf 'format: ratchet/1\nproject: extra\nassessments:\n  a-plan: no-such-assessor@1\n' > "$c/extra.ratchet.yaml"
+refused 'extra.ratchet.yaml:4: the plan `a-plan` is no mapping' "an example whose plan is a scalar"
+
+copy guard-measurements-not-a-mapping
+edit "$ui" 'NR == 20 { print "      - {kind: exact, output: no_such_output, scope: no_such_scope, unit: px}"; next } NR >= 21 && NR <= 23 { next } { print }'
+refused 'ess-ui-behavior.ratchet.yaml:19: `assessments.keyboard-task-completion.measurements` is no mapping' "the measurements of a plan are a block list"
+
+copy guard-duplicate-key
+swap "$ui" '        {kind: exact, output: steps, scope: journey, unit: steps, better: lower}' '        {kind: exact, output: no_such, output: steps, scope: journey, unit: steps, better: lower}'
+refused 'ess-ui-behavior.ratchet.yaml:36: not read: the key `assessments.walks.measurements.steps.output` stands twice in its mapping' "a measurement states output twice"
+
+copy guard-example-link
+ln -s nowhere.yaml "$c/dangling.ratchet.yaml"
+refused 'dangling.ratchet.yaml: the entry is no regular file' "an entry *.ratchet.yaml is a symbolic link to nothing"
+
+copy guard-declaration-link
+own_presets
+cp "$c/$ux_d" "$c.presets/"
+rm "$c/$ux_d"
+ln -s nowhere.yaml "$c/$ux_d"
+refused 'ux-eval@1.assessor.yaml: the entry is no regular file' "the declaration of ux-eval@1 is a symbolic link to nothing, and the second directory holds the file"
+
+copy guard-runs-of-own-plan
+swap "$turn" '      population: {runs_of: ci-gate-timing, from: any_revision}' '      population: {runs_of: ci-gate-queue-wait, from: any_revision}'
+swap "$turn" '        output: queue-wait' '        output: p90'
+refused 'ci-turnaround.ratchet.yaml:91: `runs_of` of the plan `ci-gate-queue-wait` names `ci-gate-queue-wait`, which is no other plan of the file' "a window plan reads its own runs"
+
+copy guard-integer-key
+swap "$ui" '      task-completes:' '      1:'
+refused 'ess-ui-behavior.ratchet.yaml:20: not read: the key `1` is a YAML int and no text; a key is text' "a measurement key that YAML reads as an integer"
+
+copy guard-escape
+swap "$ui" '    inputs: {report: target/ess-ui/report.json}' '    inputs: {report: "target\\ess-ui"}'
+refused 'ess-ui-behavior.ratchet.yaml:13: not read: the quoted scalar of `assessments.keyboard-task-completion.inputs.report` holds an escape' "a double-quoted scalar holds a backslash"
+
+copy guard-key-under-a-scalar
+swap "$ui" '        output: findings' '        output: findings\n          unit: px'
+refused 'ess-ui-behavior.ratchet.yaml:46: not read: `unit: px` is indented under `assessments.walks.measurements.findings.output`, which has a value on its line' "a unit indented under output: findings"
+
+copy guard-block-list-at-key-indentation
+edit "$ui" '/^      - / { sub(/^      - /, "    - ") } { print }'
+refused 'ess-ui-behavior.ratchet.yaml:81: not read: a block list at the indentation of its key `gates.merge.requires`' "the requires of the merge gate stand at the indentation of their key"
+# The key of such a list has a value YAML reads, and no message says it has none.
+if grep -F -q 'has no value on its line' "$c.out"; then
+  sed 's/^/  /' "$c.out"
+  stop "a block list at the indentation of its key is named as a key without a value"
+fi
 
 result
