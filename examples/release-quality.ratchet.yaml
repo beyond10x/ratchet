@@ -1,0 +1,46 @@
+format: ratchet/1
+project: product
+
+subjects:
+  product-release:
+    kind: release
+    audiences: [maintainer, end-user]
+
+assessments:
+  release-counts:
+    subject: product-release
+    assessor: release-counts@1
+    inputs: {report: target/release/counts.json}
+    target: {kind: revision, environments: [ci], selection: candidate}
+    observation:
+      kind: snapshot
+    measurements:
+      open-defects:
+        {kind: exact, output: open_defects, scope: run, unit: defects, better: lower}
+      failed-checks:
+        {kind: exact, output: failed_checks, scope: run, unit: checks, better: lower}
+      reverted-changes:
+        {kind: exact, output: reverted_changes, scope: run, unit: changes, better: lower}
+
+requirements:
+  open-defects-do-not-rise:
+    assessment: release-counts
+    measurement: open-defects
+    reference: {kind: accepted_value}
+  failed-checks-do-not-rise:
+    assessment: release-counts
+    measurement: failed-checks
+    reference: {kind: accepted_value}
+  reverted-changes-do-not-rise:
+    assessment: release-counts
+    measurement: reverted-changes
+    reference: {kind: accepted_value}
+
+gates:
+  release:
+    stage: release
+    qualifying_environments: [ci]
+    requires:
+      - {requirement: open-defects-do-not-rise, mode: report, since: 2026-11-25}
+      - {requirement: failed-checks-do-not-rise, mode: report, since: 2026-11-25}
+      - {requirement: reverted-changes-do-not-rise, mode: report, since: 2026-11-25}

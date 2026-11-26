@@ -1,0 +1,14 @@
+format: ratchet-assessor/1
+name: release-counts
+version: "1"
+command: release-counts
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: check
+coverage: [executed]
+outputs:
+  open_defects: {value_type: number, kind: exact, scopes: [], unit: defects}
+  failed_checks: {value_type: number, kind: exact, scopes: [], unit: checks}
+  reverted_changes: {value_type: number, kind: exact, scopes: [], unit: changes}

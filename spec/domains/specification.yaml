@@ -954,6 +954,28 @@ types:
     kind: enum
     variants: [candidate, operational]
 
+  - name: ratchet.specification.JudgedCandidate
+    kind: struct
+    naming:
+      summary: >-
+        `judges` of a candidate gate: the revision it judges when that is not the candidate of
+        a change (§ 5 "Gate kinds"). `{tag: "*.*.*"}`: the gate judges only a candidate that is
+        the commit of a tag the pattern matches; `ratchet evaluate` returns the refusal
+        `candidate_not_tagged` for another candidate and writes no decision.
+        `{deployment: staging}`: a production gate, which judges the deployment in a target
+        class (decided on 2026-11-26). Which revision is deployed in the class is left open (§ 5). Exactly one
+        of `tag` and `deployment` is present.
+    fields:
+      - name: tag
+        type: Optional<String>
+        summary: A pattern of tag names, such as `"*.*.*"`.
+      - name: deployment
+        type: Optional<ratchet.specification.TargetClass>
+        summary: The target class whose deployment the gate judges, such as `staging`.
+    invariants:
+      - any: ["defined(tag)", "defined(deployment)"]
+      - any: ["not defined(tag)", "not defined(deployment)"]
+
   # § 3 value lists: Ratchet, closed (§ 5 "Which evidence decides").
   - name: ratchet.specification.DecidingEvidence
     kind: enum
@@ -972,11 +994,19 @@ types:
     naming:
       summary: >-
         `when: {changed: [paths]}` on a gate entry: the entry applies when the change touches a
-        listed path. The change is the difference between the trusted revision and the
-        candidate; the path list is policy and is read from the trusted revision (§ 5).
+        listed path. `when: {not_only: [paths]}`: the entry applies when the change touches at
+        least one path outside the list, and does not apply when every changed path is in it.
+        Exactly one of the two is present, and an empty change matches neither. The change is
+        the difference between the trusted revision and the candidate; the path list is policy
+        and is read from the trusted revision (§ 5).
     fields:
       - name: changed
-        type: List<String>
+        type: Optional<List<String>>
+      - name: not_only
+        type: Optional<List<String>>
+    invariants:
+      - any: ["defined(changed)", "defined(not_only)"]
+      - any: ["not defined(changed)", "not defined(not_only)"]
 
   - name: ratchet.specification.ExceptionId
     kind: newtype
@@ -1352,6 +1382,12 @@ entities:
           default A). `ratchet validate` reports each (`plan_does_not_fit_gate_kind`, `when_in_operational_gate`). The rules
           join a gate, its entries and their plans, which an ESS invariant cannot read, so ESS
           does not check them here.
+      - name: judges
+        type: Optional<ratchet.specification.JudgedCandidate>
+        summary: >-
+          What a candidate gate judges when that is not the candidate of a change; absent, it
+          judges the candidate of a change (§ 5 "Gate kinds"). An operational gate takes no
+          `judges`: it has no candidate.
       - name: stage
         type: ratchet.specification.Stage
       - name: qualifying_environments
@@ -1367,6 +1403,8 @@ entities:
           class's pass, `all` needs a pass from each. A fail from a qualifying class is a fail
           in both settings (§ 5). `any` when absent: D3 of docs/design.md § 9, decided A by the
           owner on 2026-11-24.
+    invariants:
+      - any: ["kind != operational", "not defined(judges)"]
     relations:
       - name: requires
         kind: owns

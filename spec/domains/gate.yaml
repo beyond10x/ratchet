@@ -130,6 +130,21 @@ types:
       - name: expires
         type: ratchet.specification.CalendarDate
 
+  - name: ratchet.gate.JoinedDocument
+    kind: struct
+    naming:
+      summary: >-
+        The document a candidate gate joined with the candidate revision (§ 5 "A document run
+        joins the candidate revision"): the path of the file in the tree that the run's
+        `target.identifiers.path` names, and the digest that is the run's `candidate`. The run
+        belongs to the candidate revision when that digest is the SHA-256 of the file at the
+        candidate revision.
+    fields:
+      - name: path
+        type: String
+      - name: digest
+        type: ratchet.evidence.Digest
+
 entities:
   - name: ratchet.gate.GateDecision
     naming:
@@ -237,6 +252,15 @@ entities:
         summary: >-
           In an operational gate, the bounds of the window this requirement was judged over,
           in place of a candidate (§ 5, § 6). Absent in a candidate gate.
+      - name: document
+        type: Optional<ratchet.gate.JoinedDocument>
+        summary: >-
+          The document whose run the requirement read, by path and digest, in a candidate gate.
+          Present exactly when the plan of the requirement has a target of the kind `document`
+          and the run names the `path` of a file of the tree, also when its digest is not that
+          of the file at the candidate revision and the verdict is insufficient evidence with
+          the cause `not_attributable_to_candidate` (§ 5). The rule reads the plan, which a
+          verdict does not hold, so no invariant states it and the command keeps it.
       - name: observed
         type: List<ratchet.evidence.MeasurementResult>
       - name: allowed

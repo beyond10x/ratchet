@@ -824,6 +824,20 @@
                       }
                     }
                   },
+                  "document": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "struct",
+                      "fields": {
+                        "digest": {
+                          "kind": "string"
+                        },
+                        "path": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
                   "entry_state": {
                     "kind": "enum",
                     "variants": [
@@ -1077,6 +1091,23 @@
         }
       },
       "errors": {
+        "candidate_not_tagged": {
+          "type_ref": "ratchet.cli.Refusal",
+          "shape": {
+            "kind": "struct",
+            "fields": {
+              "detail": {
+                "kind": "string"
+              },
+              "next_step": {
+                "kind": "optional",
+                "of": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        },
         "gate_failed": {
           "type_ref": "ratchet.cli.GateReport",
           "shape": {
@@ -1347,6 +1378,20 @@
                             "of": {
                               "kind": "integer"
                             }
+                          }
+                        }
+                      }
+                    },
+                    "document": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "digest": {
+                            "kind": "string"
+                          },
+                          "path": {
+                            "kind": "string"
                           }
                         }
                       }
@@ -1873,6 +1918,20 @@
                             "of": {
                               "kind": "integer"
                             }
+                          }
+                        }
+                      }
+                    },
+                    "document": {
+                      "kind": "optional",
+                      "of": {
+                        "kind": "struct",
+                        "fields": {
+                          "digest": {
+                            "kind": "string"
+                          },
+                          "path": {
+                            "kind": "string"
                           }
                         }
                       }

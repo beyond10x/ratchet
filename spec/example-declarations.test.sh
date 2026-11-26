@@ -59,7 +59,7 @@
 #     precedence between the sources, and the script reads `examples/quality/assessors/` first
 #   - the bytes of a file (UTF-8, characters that hide text) and every key the rules above do
 #     not read: these are the gate's for `presets/` alone
-#   - that a declaration is what its program does: none of the nine assessors is a program here
+#   - that a declaration is what its program does: none of the ten assessors is a program here
 #   - of a binding, everything but the file its `use:` names and its `digest`: the inputs it
 #     passes (`with`) against the preset, and the plans and requirements of the bound preset,
 #     which spec/presets.test.sh checks in `presets/`. The resolution of a binding by

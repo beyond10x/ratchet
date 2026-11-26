@@ -124,4 +124,9 @@ point names the place in the specification ([`spec/domains/`](../spec/domains/))
    and not on a revision. `ratchet.specification.GateKind` has `candidate` and `operational`,
    and an operational gate takes only time-window plans without a `selection`
    ([`docs/design.md`](../docs/design.md) § 5), so the plans of the family carry
-   `selection: candidate` and a gate that binds them is a `candidate` gate.
+   `selection: candidate` and a gate that binds them is a `candidate` gate. The point is
+   answered by `judges: {deployment: <class>}`: `ratchet.specification.Gate.judges`
+   names the target class whose deployment a candidate gate judges, such as `staging`, and
+   `GateKind` keeps its two values. Which revision is deployed in the class stays open in the
+   design, so such a gate judges the revision given to `ratchet evaluate --candidate`, and no
+   rule ties the plans of the family to the class.

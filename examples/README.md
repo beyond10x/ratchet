@@ -46,6 +46,7 @@ How to read them:
 | [`generated-artifact.ratchet.yaml`](generated-artifact.ratchet.yaml) | generated artifact by digest | developers, coding agents, docs readers | canon, runbook |
 | [`host-caused-limit.ratchet.yaml`](host-caused-limit.ratchet.yaml) | insufficient evidence on a host-caused limit | coding agents, developers | swell |
 | [`production-gate.ratchet.yaml`](production-gate.ratchet.yaml) | the production gate of a spec-executed service | operators, API consumers | a consumer's survey of 2026-11-25, not published |
+| [`release-quality.ratchet.yaml`](release-quality.ratchet.yaml) | the quality of a release, in a gate that only reports | maintainers, end users | a consumer's request that reviews each release |
 | [`ratchet.toml`](ratchet.toml) | local config (§ 5) | one checkout | swell |
 
 ## 1. ESS UI behavior
@@ -472,10 +473,13 @@ the digest of the preset file:
   `condition: {operator: eq, value: 0}` on the number of items of the set filtered to
   `severity: [critical]`, with no reference and no new key. `no_new_items` on the same set
   would admit a critical advisory once the accepted set holds it.
-- The gate is `kind: candidate`. A production gate is evaluated on a deployed environment, and
-  an operational gate takes only time-window plans without a `selection`, while the bound
-  presets' plans carry `selection: candidate` (§ 5; [`presets/production.md`](https://github.com/beyond10x/ratchet/blob/main/presets/production.md),
-  "Not expressible yet").
+- The gate is `kind: candidate` and states with `judges: {deployment: staging}` that it judges
+  the deployment in `staging`: a production gate is a candidate gate that names the deployment
+  it judges (§ 5 "Gate kinds"). An operational gate takes only time-window plans without
+  a `selection`, while the bound presets' plans carry `selection: candidate`. Which revision is
+  deployed in `staging` is left open in the design, so the gate judges the revision given to
+  `ratchet evaluate --candidate` ([`presets/production.md`](https://github.com/beyond10x/ratchet/blob/main/presets/production.md),
+  "Not expressible yet", point 1).
 - Ratchet sends no request, replays no scenario and verifies no signature: each report is
   written by the project's own probe runner, replay runner, scanner or verifier.
 - `sh spec/example-declarations.test.sh` reads the plan of check 6 against `advisory-report@1`
@@ -488,6 +492,43 @@ the digest of the preset file:
 **Sources.** A survey of a consumer that runs a prototype service which executes a
 specification (2026-11-25). The survey is not part of this repository, and nothing of the
 consumer is named here. The subject names, the paths and the class `staging` are illustrative.
+
+## 7. Quality of a release
+
+[`release-quality.ratchet.yaml`](release-quality.ratchet.yaml)
+
+**Checks.** One plan reads a report that the project's own review tool writes for a release and
+gives three exact counts, each with `better: lower`: the open defects of the release, the failed
+checks of its run, and the changes reverted since the release before. A requirement on each
+compares it with an accepted value, so a count that rises above the accepted one is a fail.
+One gate, `release`, lists the three as report entries, each with its `since`: the gate shows
+each verdict and blocks nothing, until an entry is switched to enforce.
+
+- The subject is the release, `product-release` with `kind: release`, a free label (§ 3 "Value
+  lists"). The target is a `revision`: how a record names the released version is not decided
+  yet, and the example states no `judges` (§ 5 "Gate kinds").
+- An exact count takes no tolerance: the accepted value is the bound (§ 3 "Comparisons").
+- The declaration [`release-counts@1`](quality/assessors/release-counts@1.assessor.yaml) declares
+  the three outputs, each a `number`, `exact`, with its unit and the scope `run`. Ratchet reads
+  no tracker and no forge: the review tool writes the report, and the program of the declaration
+  reads it.
+- `sh spec/example-declarations.test.sh` reads the plan against that declaration. No script
+  reads the gate, the requirements or `better`.
+
+**Audience.** Maintainers who review each release, and the end users of the product.
+
+**Sources.**
+
+| In the file | Source |
+| --- | --- |
+| a release as the subject | a consumer's request of 2026-11-25, not published |
+| exact counts, each `better: lower` | the same request |
+| a gate that starts report-only | the same request; § 5 "Gate modes" |
+| the three counts: open defects, failed checks, reverted changes | see [Numbers without a source](#numbers-without-a-source) |
+| `since: 2026-11-25` | see [Numbers without a source](#numbers-without-a-source) |
+
+The request is not part of this repository, and nothing of the consumer is named here. The
+project name, the subject name and the path of the report are illustrative.
 
 ## `ratchet.toml`
 
@@ -512,7 +553,7 @@ workstation checkout of example 5.
 - The second catalog source has no `git`: it is the directory `quality/assessors` of the checkout,
   relative to the root. The declaration of an assessor is a file there, such as
   `command-timing@1.assessor.yaml` (§ 5, local config; § 12). The directory
-  [`quality/assessors/`](quality/assessors/) holds the declaration of each of the nine assessors
+  [`quality/assessors/`](quality/assessors/) holds the declaration of each of the ten assessors
   the examples name, all but `record-series@1`, which is Ratchet's own and has none. A
   declaration there is an illustration that no plan binds by its digest, unlike a file of
   `presets/`, so a change of the format changes it in place and gives it no new version.
@@ -744,3 +785,9 @@ Found while rewriting the examples to revision 4. Each: what an example needed, 
   Only the count of three and the dates are from the answers.
 - **Paths** (examples 1, 2, 3, 4 and `ratchet.toml`). Report paths, reference `paths`, the `when`
   list and the directory of the job log are illustrative. No answer names them.
+- **The three counts of a release** (example 7, `release-quality`). The request asks for exact
+  counts where a lower value is better and names none. Open defects, failed checks and reverted
+  changes are generic counts of a release review; their units `defects`, `checks` and
+  `changes` are those of the illustrative declaration `release-counts@1`.
+- **`since: 2026-11-25`** (example 7, `release-quality`). The request says that the gate starts
+  report-only, not since when. The date is the day of the request.

@@ -73,13 +73,17 @@ callables:
     # section is not ignored (design § 5 "Local config" rule 3). An operational gate takes no
     # candidate and assesses its time-window plans first, each window ending at the evaluation
     # (design § 5 "Gate kinds"); `--candidate` with one is `operational_gate_takes_no_candidate`,
-    # a name this specification proposes. Without `--trusted` the policy is read at the merge
-    # base of `HEAD` and `origin/main` (design § 5 "Proposed CLI").
+    # a name this specification proposes. A candidate gate with `judges: {tag: <pattern>}`
+    # judges only the commit of a tag the pattern matches; for another candidate it writes no
+    # decision and returns `candidate_not_tagged`, naming the gate and the pattern (design § 5
+    # "Gate kinds"). Without `--trusted` the policy is read at the merge base of `HEAD` and
+    # `origin/main` (design § 5 "Proposed CLI").
     errors:
       gate_failed: ratchet.cli.GateReport
       insufficient_evidence: ratchet.cli.GateReport
       unknown_gate: ratchet.cli.Refusal
       operational_gate_takes_no_candidate: ratchet.cli.Refusal
+      candidate_not_tagged: ratchet.cli.Refusal
       record_store_unreachable: ratchet.cli.Refusal
       local_skips_refused: ratchet.cli.Refusal
   # `reference propose` writes nothing; `reference adopt` writes what propose prints, into the
