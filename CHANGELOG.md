@@ -11,6 +11,10 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 - `examples/quality/assessors/` holds the `ratchet-assessor/1` declarations of nine assessors, one for each of the ten assessor ids the examples name but the built-in `record-series@1`, with the outputs, units, scopes, inputs and coverage units the examples use, as files a project can copy into its own catalog; no program of these assessors ships with them
 - `task check:spec` refuses an assessor of `examples/*.ratchet.yaml` without a declaration file, a measurement that names an output, a unit or a scope its declaration does not declare, and a measurement of a window over `runs_of` that does not keep the unit and the scope of the measurement it reads; it does not check the keys and types of those declarations
 
+### Changed
+
+- `task check` runs the `ess` release `spec/ess-inputs.yaml` requires also on a host whose `ess` in `PATH` is newer and holds that release beside it: `ESS_TOOLCHAIN` in `Taskfile.yml` pins it to the release the forge installs, and `task check:scripts` fails when the pin differs from the forge's or from the requirement; the scripts that run `ess` get the pin only when started through `task`
+
 ## [0.0.2] - 2026-11-25
 
 ### Added

@@ -5,6 +5,9 @@ includes:
     taskfile: acceptance/Taskfile.yml
     optional: true
 
+env:
+  ESS_TOOLCHAIN: "0.98.0"
+
 tasks:
   check:
     desc: Run the repository gate.
