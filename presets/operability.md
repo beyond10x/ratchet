@@ -170,11 +170,12 @@ key to a format; each point names the place in the specification
    `ratchet.specification.RatchetPolicy` names no assessment
    ([functional.md](functional.md), "Not expressible yet", point 1).
 2. **A requirement over two sets.** "Every exposed name is documented" compares the set of the
-   scrape with the set of the list. `ratchet.specification.QualityRequirement` names one
-   measurement, and `ratchet.specification.ComparisonOperator` has no operator between two
-   sets ([functional.md](functional.md), point 2). So the program of `metrics-scrape@1` makes
-   the comparison and returns its two sides as two outputs, and the list is an input of the
-   assessor and no measurement.
+   scrape with the set of the list. The program of `metrics-scrape@1` makes the comparison and
+   returns its two sides as two outputs, and the list is an input of the assessor and no
+   measurement. `subset_of` with `against` states it once the list is a measurement of a plan:
+   `ratchet.specification.Condition.against` names that plan, and every exposed name is in the
+   listed set ([functional.md](functional.md), point 2). `metrics-scrape@1` stays as released;
+   a version of the preset with a plan over the list is not written.
 3. **The items an assertion must have.** An assertion takes no reference
    ([`docs/design.md`](../docs/design.md) § 3, "Comparisons"):
    `ratchet.specification.ReferenceKind` has `generated` and `accepted_value`, and neither

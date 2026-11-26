@@ -7,7 +7,7 @@ implementation does? Three presets judge it from reports a project already produ
 | --- | --- | --- |
 | [`conformance-cases@1`](conformance-cases@1.preset.yaml) | The result of each case of a conformance or contract suite | An imported conformance report, [`conformance-report@1`](conformance-report@1.assessor.yaml) |
 | [`differential-equality@1`](differential-equality@1.preset.yaml) and [`differential-equality@2`](differential-equality@2.preset.yaml) | The answers of a candidate compared with those of a reference implementation, case by case | An imported comparison report, [`comparison-report@1`](comparison-report@1.assessor.yaml); `@2` names [`comparison-report@2`](comparison-report@2.assessor.yaml), which lists the values of `class` |
-| [`known-failures@1`](known-failures@1.preset.yaml) | The list of cases that are known to fail | An imported list of case ids, [`case-list@1`](case-list@1.assessor.yaml) |
+| [`known-failures@1`](known-failures@1.preset.yaml) and [`known-failures@2`](known-failures@2.preset.yaml) | The list of cases that are known to fail; `@2` also that every failed case of the suite is on it | An imported list of case ids, [`case-list@1`](case-list@1.assessor.yaml); `@2` also the conformance report, [`conformance-report@2`](conformance-report@2.assessor.yaml) |
 
 Every measurement of the family is exact: a count or a set of case ids. Its tolerance is 0, and
 no preset of the family has an input for it.
@@ -73,8 +73,10 @@ from, writes it as `inputs.report.revision`, and refuses a report that states no
 `ratchet assess` refuses a report of another revision than the candidate's
 ([`docs/evidence-format.md`](../docs/evidence-format.md) § 10, "The revision"; no release
 builds that command yet). A report left
-from a run of another revision then does not count as the candidate's. No preset names it
-yet: a later version of `conformance-cases` does. The file `@1` stays as it was released.
+from a run of another revision then does not count as the candidate's. It also declares the set
+`failing_cases`, one item per failed case, which `known-failures@2` compares with the list of
+known failures. A later version of `conformance-cases` names it too. The file `@1` stays as it
+was released.
 
 ```yaml
 presets:
@@ -208,11 +210,62 @@ presets:
       environments: [ci]
 ```
 
+## `known-failures@2`
+
+`known-failures@1` judges the list alone and does not see whether it matches the failures of
+the suite. `known-failures@2` also reads the report of the suite, through
+[`conformance-report@2`](conformance-report@2.assessor.yaml), and every case that fails there is
+on the list. The plan of the list is `list`, with the measurements and the two requirements of
+`known-failures@1`; the plan of the suite is `known-failures`, whose set `failing-cases` is
+compared with the listed cases through `against` and `subset_of`
+([`docs/design.md`](../docs/design.md) § 3, "Comparisons"). The files `@1` stay as they were
+released.
+
+| Input | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `subject` | string | yes | The subject of the project that the list belongs to, such as `orders-api` |
+| `list` | path | yes | The list, relative to the root of the tree |
+| `report` | path | yes | The report of the suite, relative to the root of the tree |
+| `environments` | list of string | yes | The target classes the plans run in, such as `[ci]` |
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `known-failures@2/list/listed-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `case-list@1`, output `cases` |
+| `known-failures@2/list/size` | Lower | `cases` | 0, no input | `case-list@1`, output `count` |
+| `known-failures@2/known-failures/failing-cases` | Lower: every case of the set is on the list | None: a set of case ids | 0, no input | `conformance-report@2`, output `failing_cases` |
+
+| Requirement | Measurement | Comparison |
+| --- | --- | --- |
+| `no-new-known-failure` | `listed-cases` | `no_new_items` against the accepted set |
+| `size-does-not-rise` | `size` | Not above the accepted value |
+| `every-failed-case-listed` | `failing-cases` | `subset_of` the set `listed-cases` of the plan `list`, through `against` |
+
+`every-failed-case-listed` has no reference: the list of the same revision is the other side.
+A case that fails and is not on the list fails the requirement with the cause `new_items`, and
+the result names it. A case on the list that passes is not refused here; `no-new-known-failure`
+and `size-does-not-rise` hold the list from growing.
+
+What the program of `conformance-report@2` returns beside the outputs of `conformance-report@1`:
+`failing_cases` holds one item per failed case, with the id under `case_id`.
+
+```yaml
+presets:
+  known:
+    use: known-failures@2
+    digest: sha256:<digest of the preset file>
+    with:
+      subject: orders-api
+      list: conformance/known-failures.txt
+      report: target/conformance/report.json
+      environments: [ci]
+```
+
 ## Candidate against a reference implementation
 
-A requirement of `ratchet/1` compares a measurement with a fixed limit or with a protected
-reference. It does not compare two measurements. The family expresses "the candidate against the
-reference implementation" in two ways:
+A requirement of `ratchet/1` compares a measurement with a fixed limit, with a protected
+reference, or through `against` with another measurement of the same preset, as
+`known-failures@2` does. A preset names no measurement of another binding; a project names
+one in its own file. The family expresses "the candidate against the reference implementation" in two ways:
 
 1. **In the evidence.** `differential-equality@1` reads a report in which a comparison has
    already set the two implementations side by side. The reference implementation is no subject
@@ -241,10 +294,13 @@ point names the place in the specification
 2. **A requirement over two measurements.** "Every failed case is on the known-failure list" and
    "the candidate passes no fewer cases than the reference implementation" each compare two
    measurements. `ratchet.specification.QualityRequirement` names one `assessment` and one
-   `measurement`, `ratchet.specification.Condition.value` is a decimal, and
-   `ratchet.specification.ComparisonOperator` has no operator between two sets. So
-   `known-failures@1` judges the list alone and does not see whether it matches the failures of
-   the suite.
+   `measurement`, and `known-failures@1` judges the list alone and does not see whether it
+   matches the failures of the suite. Answered for the known-failure list from `known-failures@2`
+   on: `ratchet.specification.Condition.against` names a second measurement of the preset, and
+   the operator `subset_of` holds when every failed case is on the list. "No fewer passed cases
+   than the reference implementation" still waits for a reference from another plan (point 1)
+   in a preset: the passed cases of the reference implementation are a measurement of another
+   binding, which `against` names only in a project's own file.
 3. **The values of an item field.** The classes `equal`, `allowed` and `different` are a closed
    list, and no declaration can say so: `ratchet.assessor.AssessorOutput.item_fields` is a list
    of field names without their values. A `filter` on a class that no program returns selects no

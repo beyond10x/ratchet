@@ -539,28 +539,98 @@ types:
   # `holds` takes an assertion.
   - name: ratchet.specification.ComparisonOperator
     kind: enum
-    variants: [lt, lte, gt, gte, eq, no_new_items, no_lost_items, holds]
+    variants: [lt, lte, gt, gte, eq, no_new_items, no_lost_items, holds, within, subset_of]
 
   - name: ratchet.specification.Condition
     kind: struct
     naming:
       summary: >-
-        A comparison with a fixed limit (§ 3 "Comparisons"). It states the unit of its
-        measurement when the measurement has one, and none otherwise; another unit is a
-        validation error.
+        A comparison with a fixed limit, or with another measurement through `against` (§ 3
+        "Comparisons"). It states the unit of its measurement when the measurement has one,
+        and none otherwise; another unit is a validation error.
     fields:
       - name: operator
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<Decimal>
         summary: >-
-          The limit; absent for `no_new_items`, `no_lost_items` and `holds`. In a file, the
-          decimal of the number's text as written (docs/design.md § 12).
+          The limit; absent for `no_new_items`, `no_lost_items`, `holds`, `within` and
+          `subset_of`, and beside a `digest` or `against`. In a file, the decimal of the
+          number's text as written (docs/design.md § 12).
+      - name: digest
+        type: Optional<ratchet.specification.DigestValue>
+        summary: >-
+          The digest a measurement of the value type `digest` equals, with the operator `eq`
+          (§ 3 "Comparisons"). The verdict names the stated and the observed digest. A
+          `digest` on another value type is a validation error, which needs the declaration of
+          the assessor.
+      - name: min
+        type: Optional<Decimal>
+        summary: >-
+          The lower bound of a range, with the operator `within` alone (§ 3 "Comparisons"):
+          inclusive, in the unit of the measurement.
+      - name: max
+        type: Optional<Decimal>
+        summary: >-
+          The upper bound of a range, with the operator `within` alone: inclusive, in the unit
+          of the measurement, and not below `min`.
+      - name: against
+        type: Optional<ratchet.specification.MeasurementRef>
+        summary: >-
+          Another measurement of the same specification that the measurement is compared
+          with, in place of a fixed limit (§ 3 "Comparisons"): `lt`, `lte`, `gt`, `gte` and
+          `eq` compare two numbers of one unit or the numbers of items of two sets, and
+          `subset_of` holds when every item of the measured set is in the other set. Within a
+          preset it names an assessment of the preset. The two measurements are of one value
+          type (`against_value_type_mismatch`) and, for numbers, of one unit
+          (`against_unit_mismatch`), which `ratchet validate` reads from the declarations of
+          the two assessors.
       - name: unit
         type: Optional<ratchet.specification.Unit>
         summary: >-
           Present exactly when the assessor declares a unit for the measurement's output
           (`unit_missing`, `unit_mismatch`, `unit_not_declared`).
+    invariants:
+      # § 3 "Comparisons": a digest is compared with `eq`, and a condition with a `digest` has
+      # no `value`.
+      - any: ["not defined(digest)", "operator == eq"]
+      - any: ["not defined(digest)", "not defined(value)"]
+      # § 3 "Comparisons": `within` has both bounds and no `value`, `min` and `max` stand on no
+      # other operator, and the lower bound is not above the upper.
+      - any: ["operator != within", "defined(min)"]
+      - any: ["operator != within", "defined(max)"]
+      - any: ["operator != within", "not defined(value)"]
+      - any: ["operator == within", "not defined(min)"]
+      - any: ["operator == within", "not defined(max)"]
+      - any: ["operator != within", "min <= max"]
+      # § 3 "Comparisons": `against` takes no `value`, `digest`, `min` or `max`, and
+      # `subset_of` compares with `against`.
+      - any: ["not defined(against)", "not defined(value)"]
+      - any: ["not defined(against)", "not defined(digest)"]
+      - any: ["not defined(against)", "not defined(min)"]
+      - any: ["not defined(against)", "not defined(max)"]
+      - any: ["operator != subset_of", "defined(against)"]
+
+  - name: ratchet.specification.MeasurementRef
+    kind: struct
+    naming:
+      summary: >-
+        A measurement of the same specification that a condition names with `against`: its
+        assessment, and its measurement, left out where the plan has one, as on a requirement
+        (§ 3 "Comparisons").
+    fields:
+      - name: assessment
+        type: ratchet.specification.AssessmentName
+      - name: measurement
+        type: Optional<ratchet.specification.MeasurementName>
+
+  - name: ratchet.specification.DigestValue
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A digest that a condition states, `sha256:<64 lowercase hex digits>`, the form of
+        `ratchet.evidence.Digest` (§ 3 "Comparisons").
 
   # § 3 value lists: Ratchet, closed.
   - name: ratchet.specification.ReferenceKind

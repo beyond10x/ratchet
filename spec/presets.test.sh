@@ -91,14 +91,23 @@
 #             input: that assessor takes none
 #   compare   a requirement compares its measurement as the table of docs/design.md § 3
 #             "Comparisons" allows for the value type of the output. `lt`, `lte`, `gt`, `gte`
-#             and `eq` take a number or a set and have a `value`. `no_new_items` and
+#             and `eq` take a number or a set and have a `value`. `within` takes a number
+#             or a set and has `min` and `max`, `min` not above `max`, and no `value`;
+#             `min` and `max` stand on no other operator. `no_new_items` and
 #             `no_lost_items` take a set, have no `value` and need a reference of the kind
-#             `accepted_value`. `holds` takes an assertion and has no `value`. A digest has
-#             no condition. The reference of a number and of a set is `accepted_value`, that
-#             of a digest `generated`, and an assertion has none. A set with a reference has a
-#             condition. A number that is compared with a reference states `better`. A
-#             condition states the unit of the output, or none where the output has none. An
-#             assertion that its measurement aggregates with `pass_rate` is a number here
+#             `accepted_value`. `subset_of` takes a set and has `against`. `against`
+#             names an assessment of the preset and a measurement of it, the one it holds
+#             where it holds one, and with it `lt`, `lte`, `gt`, `gte` and `eq` have no
+#             `value`; the output of that measurement has the value type and, for a
+#             number, the unit of the output (`against_value_type_mismatch`,
+#             `against_unit_mismatch`). `holds` takes an assertion and has no `value`. A digest
+#             takes `eq` with a `digest` and no `value`, and a `digest` stands on a
+#             condition of no other value type. The reference of a number and of a set is
+#             `accepted_value`, that of a digest `generated`, and an assertion has none. A
+#             set with a reference has a condition. A number that is compared with a
+#             reference states `better`. A condition states the unit of the output, or none
+#             where the output has none. An assertion that its measurement aggregates with
+#             `pass_rate` is a number here
 #   sampled   what docs/design.md § 3 and § 5 say `ratchet validate` reports. The plan of a
 #             measurement of the kind `sampled` declares at least one condition under
 #             `observation.conditions`, unless it reads the runs of another plan (`runs_of`),
@@ -173,9 +182,12 @@
 #     its output: the repeats are samples of that run (evidence format § 1), and the result
 #     carries their number in `samples`." The script cannot see whether a command repeats its
 #     measurement itself
-#   - the invariants of the types, beside the four of an assessment plan under `series`: they
+#   - the invariants of the types, beside the four of an assessment plan under `series` and
+#     those of a condition that `compare` reads (`within` with its two bounds in order, `min`
+#     and `max` on no other operator, `subset_of` with `against`, a `digest` with `eq`): they
 #     are written in the expression language of ESS, and `ess generate synthesize` writes
-#     them as Rust
+#     them as Rust. So a `digest` beside a `value` on a number, and `against` beside a
+#     `value`, a `digest`, a `min` or a `max`, are left to the decoder
 #   - a value that an input gives, where a rule reads the value: the binding passes it. These
 #     are the assessor of an assessment, and with it every rule that reads its declaration;
 #     the output of a measurement, and with it the rules on that measurement and on the
@@ -1294,19 +1306,42 @@ check_catalog() {
         opr = text(F, path SEP "condition" SEP "operator")
         rk = text(F, path SEP "reference" SEP "kind")
         hv = has(F, path SEP "condition" SEP "value")
-        if (hc && vt == "digest") fail(F, n_line[i], named(path) "has a condition, and " is ", which takes none")
-        else if (hc && opr != "" && !given(opr)) {
+        hd = has(F, path SEP "condition" SEP "digest")
+        hmin = has(F, path SEP "condition" SEP "min"); hmax = has(F, path SEP "condition" SEP "max")
+        ha = has(F, path SEP "condition" SEP "against")
+        if (hc && vt == "digest") {
+          if (hv) fail(F, n_line[i], named(path) "has a `value`, and " is ", which is compared with a `digest` and takes no `value`")
+          if (opr != "" && !given(opr) && opr != "eq") fail(F, n_line[i], named(path) "has the operator `" opr "`, and " is ", which takes `eq` with a `digest`")
+          if (!hd) fail(F, n_line[i], named(path) "has a condition without a `digest`, and " is ", which takes `eq` with a `digest`")
+        } else if (hc && opr != "" && !given(opr)) {
           limit = (opr ~ /^(lt|lte|gt|gte|eq)$/)
+          range = (opr == "within")
           if (opr == "holds") {
             if (vt != "assertion") fail(F, n_line[i], named(path) "has the operator `holds`, which takes an assertion, and " is)
           } else if (opr == "no_new_items" || opr == "no_lost_items") {
             if (vt != "identity_set") fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes an identity set, and " is)
             else if (rk != "accepted_value") fail(F, n_line[i], named(path) "has the operator `" opr "` and no reference of the kind `accepted_value`, the set it compares with")
-          } else if (limit && vt != "number" && vt != "identity_set")
+          } else if (opr == "subset_of") {
+            if (vt != "identity_set") fail(F, n_line[i], named(path) "has the operator `subset_of`, which takes an identity set, and " is)
+            if (!ha) fail(F, n_line[i], named(path) "has the operator `subset_of` and no `against`, the set it is compared with")
+          } else if ((limit || range) && vt != "number" && vt != "identity_set")
             fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes a number or the number of items of a set, and " is)
-          if (limit && !hv) fail(F, n_line[i], named(path) "has the operator `" opr "` and no `value`, the limit")
-          if (!limit && hv) fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes no `value`")
+          if (limit && !hv && !ha) fail(F, n_line[i], named(path) "has the operator `" opr "` and no `value`, the limit")
+          if (!limit && !range && hv) fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes no `value`")
+          if (range) {
+            mn = text(F, path SEP "condition" SEP "min"); mx = text(F, path SEP "condition" SEP "max")
+            if (hv) fail(F, n_line[i], named(path) "has the operator `within`, which takes `min` and `max` and no `value`")
+            if (!hmin) fail(F, n_line[i], named(path) "has the operator `within` and no `min`, its lower bound")
+            if (!hmax) fail(F, n_line[i], named(path) "has the operator `within` and no `max`, its upper bound")
+            if (hmin && hmax && !given(mn) && !given(mx) && mn + 0 > mx + 0)
+              fail(F, n_line[i], named(path) "has the operator `within` with the `min` " mn " above the `max` " mx)
+          }
         }
+        if (hc && opr != "" && !given(opr) && opr != "within") {
+          if (hmin) fail(F, n_line[i], named(path) "has a `min`, and the operator `" opr "`: `min` and `max` stand on `within` alone")
+          if (hmax) fail(F, n_line[i], named(path) "has a `max`, and the operator `" opr "`: `min` and `max` stand on `within` alone")
+        }
+        if (hd && vt != "digest") fail(F, n_line[i], named(path) "has a condition with a `digest`, and " is ", which takes no `digest`")
         if (hc) {
           has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
           has_cu = has(F, path SEP "condition" SEP "unit"); cu = text(F, path SEP "condition" SEP "unit")
@@ -1326,6 +1361,34 @@ check_catalog() {
           # These two read that there is a reference, and not its kind.
           if (vt == "identity_set" && !hc) fail(F, n_line[i], named(path) "compares a set with a reference and has no condition: `no_new_items` or `no_lost_items` says which way is worse")
           if (vt == "number" && !has(F, mp SEP "better")) fail(F, n_line[at[F, mp]], "`" shown(mp) "` states no `better`, and `" shown(path) "` compares it with a reference")
+        }
+        # A comparison with another measurement of the preset: `against` names an assessment
+        # of the preset and a measurement of it, whose output has the value type of this one
+        # and, for a number, its unit. Last, because it reads a second declaration.
+        if (ha) {
+          ap = path SEP "condition" SEP "against"
+          aa = text(F, ap SEP "assessment")
+          if (given(aa)) continue
+          if (!has(F, "assessments" SEP aa)) {
+            fail(F, n_line[i], named(path) "has `against` the assessment `" aa "`, which the preset does not hold"); continue
+          }
+          amp = compared(F, ap)
+          if (amp == "") {
+            if (!has(F, ap SEP "measurement"))
+              fail(F, n_line[i], named(path) "has `against` the assessment `" aa "` and names no measurement of it, and the assessment holds " (nkeys[F, "assessments" SEP aa SEP "measurements"] + 0))
+            else if (!given(text(F, ap SEP "measurement")))
+              fail(F, n_line[i], named(path) "has `against` the measurement `" text(F, ap SEP "measurement") "`, which the assessment `" aa "` does not hold")
+            continue
+          }
+          aop = output_of(F, amp)
+          if (aop == "") continue
+          avt = text(D, aop SEP "value_type")
+          if (avt == "assertion" && text(F, amp SEP "aggregation" SEP "kind") == "pass_rate") avt = "number"
+          if (avt != vt) {
+            fail(F, n_line[i], named(path) "has `against` `" shown(amp) "` of the value type `" avt "`, and " is " (`against_value_type_mismatch`)"); continue
+          }
+          if (vt == "number" && (has(D, aop SEP "unit") != has_du || text(D, aop SEP "unit") != du))
+            fail(F, n_line[i], named(path) "has `against` `" shown(amp) "` in the unit `" (has(D, aop SEP "unit") ? text(D, aop SEP "unit") : "none") "`, and " what " declares `" (has_du ? du : "none") "` (`against_unit_mismatch`)")
         }
       }
     }
@@ -1428,6 +1491,10 @@ page='functional.md'
 # The second version of the comparison: no case edits it, and its rows stand on the page.
 differ2='differential-equality@2.preset.yaml'
 differ2_d='comparison-report@2.assessor.yaml'
+# The second version of the list of known failures and the declaration it names: no case edits
+# them, and the rows of the preset stand on the page.
+known2='known-failures@2.preset.yaml'
+conf2_d='conformance-report@2.assessor.yaml'
 
 # The set: the files a copy holds. They are `README.md`, which every directory of the catalog
 # holds, and the functional family: its presets, the declarations they name and its page. A
@@ -1435,7 +1502,7 @@ differ2_d='comparison-report@2.assessor.yaml'
 # one check of presets/ above and to no copy. The set is a directory of its own,
 # target/presets/set, which is valid alone: the case `harness-unchanged` below fails where it
 # is not. A file of the set that presets/ does not hold stops the run.
-set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $known $known_d"
+set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $known $known_d $known2 $conf2_d"
 set_dir=$work/set
 mkdir "$set_dir"
 for set_file in $set_files; do
@@ -2086,7 +2153,7 @@ mv "$c.new" "$c/$conf"
 refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
 
 again file-last-line-of-one-file-alone
-refused 'presets: 8 of 9 file(s) valid, 13 of 13 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
+refused 'presets: 10 of 11 file(s) valid, 16 of 16 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -2907,7 +2974,7 @@ refused '`requirements.refused-does-not-rise` has the reference `accepted_value`
 
 again compare-condition-on-a-digest
 swap "$differ_d" '    value_type: identity_set' '    value_type: digest'
-refused '`requirements.different-cases-within-limit` has a condition, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes none' "a requirement with a condition reads an output that is a digest"
+refused '`requirements.different-cases-within-limit` has a condition without a `digest`, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes `eq` with a `digest`' "a requirement with a condition reads an output that is a digest"
 
 again compare-value-without-limit
 swap "$known" '    condition: {operator: no_new_items}' '    condition: {operator: no_new_items, value: 3}'
@@ -2916,6 +2983,122 @@ refused '`requirements.no-new-known-failure` has the operator `no_new_items`, wh
 copy compare-set-without-condition
 drop "$conf" "$set_rule"
 refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has a reference and no operator"
+
+# A digest is compared with `eq` and a `digest`. The copies make the output `refused` of
+# `conformance-report@1` a digest without a unit, and `refused-does-not-rise`, the fifth
+# requirement of conformance-cases@1, compares it. case-list@1 is no file to edit here:
+# known-failures@2 names it too.
+digest_output='  refused: {value_type: digest, kind: exact, scopes: []}'
+pinned='sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
+number_refused='  refused: {value_type: number, kind: exact, scopes: [], unit: cases}'
+# digest_copy <case>: a fresh copy whose measurement `refused` reads a digest.
+digest_copy() {
+  copy "$1"
+  swap "$conf_d" "$number_refused" "$digest_output"
+  drop "$conf" '        unit: cases' 4
+  drop "$conf" '        better: lower' 3
+}
+
+digest_copy compare-digest-eq
+swap "$conf" "$accepted_value" '    condition: {operator: eq, digest: "'"$pinned"'"}' 5
+accepts "a requirement on a digest output with the operator eq and a digest"
+
+digest_copy compare-digest-with-lt
+swap "$conf" "$accepted_value" '    condition: {operator: lt, digest: "'"$pinned"'"}' 5
+refused '`requirements.refused-does-not-rise` has the operator `lt`, and the output `refused` of `conformance-report@1` has the value type `digest`, which takes `eq` with a `digest`' "a digest condition with the operator lt"
+
+# the third is the reference of `failed-does-not-rise`
+again compare-digest-on-a-number
+swap "$conf" "$accepted_value" '    condition: {operator: eq, digest: "'"$pinned"'", unit: cases}' 3
+refused '`requirements.failed-does-not-rise` has a condition with a `digest`, and the output `failed` of `conformance-report@1` has the value type `number`, which takes no `digest`' "a digest condition on a number output"
+
+digest_copy compare-value-on-a-digest
+swap "$conf" "$accepted_value" '    condition: {operator: eq, value: "'"$pinned"'"}' 5
+refused '`requirements.refused-does-not-rise` has a `value`, and the output `refused` of `conformance-report@1` has the value type `digest`, which is compared with a `digest` and takes no `value`' "a value on a digest output"
+
+# A range is `within` with `min` and `max`. The copies hold the plan of `add_runs`, whose
+# measurement `step-time` reads a number in `s`, with the median of its runs, and add a
+# requirement on it at the end of conformance-cases@1, where the map `requirements` ends.
+# add_range <requirement> <condition>: that requirement on `step-time`.
+add_range() {
+  printf '  %s:\n    meaning: The median time of the step is in its range.\n    assessment: conformance\n    measurement: step-time\n    condition: %s\n' "$1" "$2" >> "$c/$conf"
+}
+# range_copy <case>: a fresh copy with the plan of `add_runs` and the median of `step-time`.
+range_copy() {
+  runs_copy "$1"
+  swap "$conf" '        unit: s' '        unit: s\n        aggregation: {kind: median}'
+}
+
+range_copy compare-within
+add_range step-time-in-range '{operator: within, min: 50, max: 60, unit: s}'
+accepts "a requirement on a number in s with the operator within, min 50 and max 60"
+
+range_copy compare-range-with-a-value
+add_range range-with-value '{operator: within, min: 50, max: 60, value: 55, unit: s}'
+refused '`requirements.range-with-value` has the operator `within`, which takes `min` and `max` and no `value`' "a range with a value"
+
+again compare-range-without-max
+add_range range-without-max '{operator: within, min: 50, unit: s}'
+refused '`requirements.range-without-max` has the operator `within` and no `max`, its upper bound' "a range without max"
+
+again compare-min-on-lte
+add_range min-on-lte '{operator: lte, value: 60, min: 50, unit: s}'
+refused '`requirements.min-on-lte` has a `min`, and the operator `lte`: `min` and `max` stand on `within` alone' "min on the operator lte"
+
+again compare-range-min-above-max
+add_range min-above-max '{operator: within, min: 60, max: 50, unit: s}'
+refused '`requirements.min-above-max` has the operator `within` with the `min` 60 above the `max` 50' "a range whose min is above its max"
+
+# the median of `step-time` is in `s`, and `failed` counts `cases`
+again compare-against-two-units
+add_range two-units '{operator: lte, against: {assessment: conformance, measurement: failed}, unit: s}'
+refused '`requirements.two-units` has `against` `assessments.conformance.measurements.failed` in the unit `cases`, and the output `duration` of `conformance-report@1` declares `s` (`against_unit_mismatch`)' "against compares two units"
+
+# A requirement over two measurements: `against` names a measurement of another plan of the
+# preset. The copies give conformance-report@1 the set `failing_cases` and known-failures@1 a
+# second plan, `suite`, that reads it as `failing-cases`, with its row.
+suite_plan='  suite:\n    subject: ${inputs.subject}\n    assessor: conformance-report@1\n    inputs:\n      report: ${inputs.report}\n    target:\n      kind: revision\n      environments: ${inputs.environments}\n      selection: candidate\n    observation:\n      kind: snapshot\n    measurements:\n      failing-cases:\n        kind: exact\n        output: failing_cases\n        scope: run\n        identity: [case_id]\n\nrequirements:'
+# subset_copy <case>: a fresh copy with the plan `suite` in known-failures@1.
+subset_copy() {
+  copy "$1"
+  printf '  failing_cases:\n    value_type: identity_set\n    kind: exact\n    scopes: []\n    identity_key: [case_id]\n' >> "$c/$conf_d"
+  swap "$known" '    list: {type: path, required: true}' '    list: {type: path, required: true}\n    report: {type: path, required: true}'
+  swap "$known" 'requirements:' "$suite_plan"
+  add_row '| `known-failures@1/suite/failing-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `conformance-report@1`, output `failing_cases` |'
+}
+# add_compare <requirement> <assessment> <measurement> <condition>: that requirement at the end
+# of known-failures@1, where the map `requirements` ends.
+add_compare() {
+  printf '  %s:\n    meaning: The two measurements compare.\n    assessment: %s\n    measurement: %s\n    condition: %s\n' "$1" "$2" "$3" "$4" >> "$c/$known"
+}
+
+subset_copy compare-subset-of
+add_compare every-failed-case-listed suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: listed-cases}}'
+accepts "the failing cases of one plan subset_of the listed cases of another plan of the preset, through against"
+
+subset_copy compare-against-set-and-number
+add_compare set-and-number suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: size}}'
+refused '`requirements.set-and-number` has `against` `assessments.known-failures.measurements.size` of the value type `number`, and the output `failing_cases` of `conformance-report@1` has the value type `identity_set` (`against_value_type_mismatch`)' "against compares a set with a number"
+
+again compare-against-assessment-not-held
+add_compare not-held suite failing-cases '{operator: subset_of, against: {assessment: nowhere, measurement: cases}}'
+refused '`requirements.not-held` has `against` the assessment `nowhere`, which the preset does not hold' "against names an assessment the preset does not hold"
+
+again compare-against-without-measurement
+add_compare without-measurement suite failing-cases '{operator: subset_of, against: {assessment: known-failures}}'
+refused '`requirements.without-measurement` has `against` the assessment `known-failures` and names no measurement of it, and the assessment holds 2' "against names no measurement of an assessment with two"
+
+again compare-against-measurement-not-held
+add_compare measurement-not-held suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: unlisted-cases}}'
+refused '`requirements.measurement-not-held` has `against` the measurement `unlisted-cases`, which the assessment `known-failures` does not hold' "against names a measurement its assessment does not hold"
+
+again compare-subset-of-without-against
+add_compare without-against suite failing-cases '{operator: subset_of}'
+refused '`requirements.without-against` has the operator `subset_of` and no `against`, the set it is compared with' "subset_of without against"
+
+again compare-subset-of-on-a-number
+add_compare on-a-number known-failures size '{operator: subset_of, against: {assessment: known-failures, measurement: size}, unit: cases}'
+refused '`requirements.on-a-number` has the operator `subset_of`, which takes an identity set, and the output `count` of `case-list@1` has the value type `number`' "subset_of on a number output"
 
 # -- rows ----------------------------------------------------------------------------------------
 

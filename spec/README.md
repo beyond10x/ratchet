@@ -42,7 +42,7 @@ runs twelve steps, and `task check` calls it:
 1. `ess specify validate --path spec --strict-requires`;
 2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
 3. `sh spec/record-fields.test.sh`, which reads every field row of `docs/evidence-format.md`
-   § 3 and § 10 and fails when one is not declared in `domains/evidence.yaml` or
+   § 3, § 10 and § 12 and fails when one is not declared in `domains/evidence.yaml` or
    `domains/assessor.yaml` under the name the row gives. Its last line is
    `record-fields: <n> of <n> field rows declared`;
 4. `sh spec/record-types.test.sh`, which compares the same rows with the declarations in both
@@ -50,7 +50,8 @@ runs twelve steps, and `task check` calls it:
    declared field of a struct that the two documents hold has a row. Its last line is
    `record-types: <n> of <n> field rows as declared, <m> of <m> declared fields have a row`;
 5. `sh spec/record-examples.test.sh`, which reads the JSON examples of
-   `docs/evidence-format.md` § 6 with `jq` and fails when a member is not declared, a required
+   `docs/evidence-format.md` § 6 and § 12 with `jq`, each against the root type its shape or
+   the value of its `format` gives, and fails when a member is not declared, a required
    member is absent, or a value does not have the declared type. Its last line is
    `record-examples: <n> of <n> members of <b> example(s) decode under the specification`;
 6. `sh spec/contract-examples.test.sh`, which reads the YAML examples of
@@ -67,7 +68,8 @@ runs twelve steps, and `task check` calls it:
 9. `sh spec/gate-inputs.test.sh`, which copies `spec/` and the two documents into the ignored
    `target/gate-inputs/`, hides one defect per copy behind a change of form, and fails when
    the six scripts above accept a copy, or when `spec/record-examples.test.sh` does not refuse
-   with its digest message a copy whose `evidence` of § 6 example 1 has one byte changed. Its
+   with its digest message a copy whose `evidence` of § 6 example 1 has one byte changed, or
+   with its message a copy whose example of § 12 holds a member that is not declared. Its
    last line is
    `gate-inputs: <n> of <n> broken inputs refused`;
 10. `sh spec/presets.test.sh`, which reads every file of the preset catalog `presets/`: a file
@@ -131,10 +133,11 @@ runs twelve steps, and `task check` calls it:
 
 Each script states how much it reads and fails on another number, so that a section, a table
 or an example which an edit moves out of the form the script looks for is not skipped: 82 field
-rows in 13 tables of § 3 and 23 in 2 tables of § 10 (`record-fields`, `record-types`, a number
-per table), 9 examples in § 6 (`record-examples`), 4 examples in § 10 (`contract-examples`), 2
-places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
-table or an example that is added or removed needs the new number in the script.
+rows in 13 tables of § 3, 23 in 2 tables of § 10 and 7 in 1 table of § 12 (`record-fields`,
+`record-types`, a number per table), 9 examples in § 6 and 1 in § 12 (`record-examples`), 4
+examples in § 10 (`contract-examples`), 2 places that report coverage (`cli-coverage-row`), and
+3 named errors (`cli-errors`). A row, a table or an example that is added or removed needs the
+new number in the script.
 `presets.test.sh` states no number of the catalog, because the catalog grows by a family at a
 time. The one line of counts it states, in the case `file-last-line-of-one-file-alone`, counts
 the files and the measurements of the set of its copies, which a new family does not change.
@@ -150,8 +153,9 @@ the run in a tree whose `presets/` lacks a file of the set; a refusal
 counts only with the message of the rule of its case, also for a case that shares its copy
 with a case that is refused rightly; and an accepted copy gives exit 1. Its
 header lists what it does not check, each with the reason: the invariants of the types beside
-the four of a plan over `runs_of`, a value that an input gives where a rule reads the value
-(only the kind of a target is read from the default of its input), a measurement of a plan of
+the four of a plan over `runs_of` and those of a condition that the rule `compare` reads, a
+value that an input gives where a rule reads the value (only the kind of a target is read from
+the default of its input), a measurement of a plan of
 `record-series@1` against the measurement of the source plan, the plan that `runs_of` names,
 the class a condition is declared for, the value of a `Json` other than a passed input and a
 default, the values of a `filter`, the prose of the four cells, whether an input is referred
@@ -247,8 +251,8 @@ in the domain files, and is the implementation's to check.
   `via:` cannot name a member of a struct (`evidence.project`), so the three links of an
   assessment run have no relation entry.
 
-Rules of `docs/evidence-format.md` § 3, § 4 and § 10 that stay the reader's to check; § 8 of
-that document lists the same rules:
+Rules of `docs/evidence-format.md` § 3, § 4, § 10 and § 12 that stay the reader's to check; § 8
+of that document lists those of § 3, § 4 and § 10:
 
 - **§ 3, a window exactly for a time-window plan.** `evidence.target.window` is present exactly
   on a run of a time-window plan. The kind of the observation is in the plan, and
@@ -272,6 +276,10 @@ that document lists the same rules:
 - **§ 10, a result against its declaration.** Output, kind, scope, value type, unit, boundary,
   identity key and item fields of a result against the assessor's declaration: each joins a
   run and an assessor.
+- **§ 12, no id twice in a proof record.** `planted`, `refused` and `accepted` of
+  `ratchet.evidence.ProofRecord` each hold an id once. `ess generate synthesize` evaluates
+  `distinct` only in the invariants of a struct and refuses it in those of an entity; that the
+  two lists hold only ids of `planted`, and no id in both, is declared.
 - **The exit status of an assessor.** Which completion the CLI records for which exit is a
   comment on `ratchet.assessor.AssessorExit` and on `assess` in `cli.yaml`: ESS declares no
   map from an enum value to another.

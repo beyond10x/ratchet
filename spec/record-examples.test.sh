@@ -1,7 +1,7 @@
 #!/bin/sh
-# The JSON examples of docs/evidence-format.md § 6 decode under the specification: every member
-# of every example is a field the type at its place declares (spec/domains/*.yaml), with a JSON
-# value of the declared type, and every object holds the fields its struct requires.
+# The JSON examples of docs/evidence-format.md § 6 and § 12 decode under the specification: every
+# member of every example is a field the type at its place declares (spec/domains/*.yaml), with a
+# JSON value of the declared type, and every object holds the fields its struct requires.
 #
 # spec/record-fields.test.sh compares the field tables of § 3 with the specification, and
 # nothing compares the examples with either. A rename made in the table and in the
@@ -19,14 +19,17 @@
 #   required  a struct's object has every field that is not `Optional<...>`
 # Not checked: the invariants of the types. `ess generate synthesize` writes them as Rust.
 #
-# The root type of an example is read from its shape: an object with `format` is a
-# `ratchet.evidence.AssessmentRun`; an array of objects with `output` is a list of
-# `ratchet.evidence.MeasurementResult`; an array of objects with `state` is a list of
-# `ratchet.evidence.NotExecutedUnit`. An example of another shape fails.
+# The root type of an example is read from its shape: an object with `format` takes its type
+# from the value of `format`, `ratchet-evidence/1` a `ratchet.evidence.AssessmentRun` and
+# `ratchet-proof/1` a `ratchet.evidence.ProofRecord`; an array of objects with `output` is a list
+# of `ratchet.evidence.MeasurementResult`; an array of objects with `state` is a list of
+# `ratchet.evidence.NotExecutedUnit`. An example of another shape, and an object with another
+# `format`, fails.
 #
 # § 6 holds 9 examples, each a block fenced `json`; `want_examples` below states the number.
-# Another number fails, and so does a fenced block of § 6 that is not fenced `json`, because
-# this script does not read it, and a document without a section "## 6. ".
+# § 12 holds 1 example, the proof record `ratchet-proof/1`; `want_examples_12` states it.
+# Another number fails, and so does a fenced block of § 6 or § 12 that is not fenced `json`,
+# because this script does not read it, and a document without a section "## 6. " or "## 12. ".
 #
 # The evidence digest of the first example: § 6 states it in one line, between the first and
 # the second example, of the form
@@ -37,7 +40,7 @@
 # there twice, or states another digest than `sha256sum` gives for those bytes.
 #
 # Usage:
-#   sh spec/record-examples.test.sh                       the examples of § 6
+#   sh spec/record-examples.test.sh                       the examples of § 6 and § 12
 #   sh spec/record-examples.test.sh --json <type> <file>  one JSON file against one type
 # Needs `jq` and `sha256sum`. Work files go to the ignored target/record-examples.
 #
@@ -45,9 +48,9 @@
 #   `record-examples: <n> of <n> members of <b> example(s) decode under the specification`,
 # and the line before it, without `--json`,
 #   `record-examples: the evidence digest of § 6 example 1 is sha256:<hex>, as § 6 states`.
-# Exit 1: each member that does not decode is named with its example and path; or § 6 is not
-# found, holds another number of examples than stated, or holds a fenced block that is not read;
-# or the line of the evidence digest is missing or states another digest.
+# Exit 1: each member that does not decode is named with its example and path; or § 6 or § 12 is
+# not found, holds another number of examples than stated, or holds a fenced block that is not
+# read; or the line of the evidence digest is missing or states another digest.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -55,6 +58,8 @@ doc=$root/docs/evidence-format.md
 work=$root/target/record-examples
 # The number of examples of docs/evidence-format.md § 6.
 want_examples=9
+# The number of examples of docs/evidence-format.md § 12.
+want_examples_12=1
 # The line of the evidence digest, once it is checked; none with `--json`.
 digest_ok=
 
@@ -89,59 +94,83 @@ if [ "${1:-}" = "--json" ]; then
   examples=1
 else
   [ -r "$doc" ] || { echo "record-examples: cannot read docs/evidence-format.md" >&2; exit 1; }
-  # The blocks of § 6: one file per block fenced `json`; a line in unread.txt per block fenced
-  # otherwise, and per block that does not close.
+  # The blocks of § 6 and § 12: one file per block fenced `json`, `example-<n>.json` for § 6 and
+  # `s12-example-<n>.json` for § 12; a line in unread.txt per block fenced otherwise, and per
+  # block that does not close.
   : > "$work/unread.txt"
   : > "$work/section.txt"
   : > "$work/digest.txt"
   awk -v dir="$work" '
     /^## / {
-      if (inside) { printf "the block that opens at line %d does not close inside § 6\n", opened >> (dir "/unread.txt"); close(out); inside = 0 }
+      if (inside) { printf "§ %d, the block that opens at line %d does not close inside § %d\n", section, opened, section >> (dir "/unread.txt"); close(out); inside = 0 }
       skipping = 0
-      section = ($0 ~ /^## 6\. /)
-      if (section) print NR > (dir "/section.txt")
+      section = 0
+      if ($0 ~ /^## 6\. /) section = 6
+      if ($0 ~ /^## 12\. /) section = 12
+      if (section) print section > (dir "/section.txt")
     }
     !section { next }
     /^ *(```|~~~)/ {
       if (inside) { if ($0 ~ /^```$/) { close(out); inside = 0 } else print > out; next }
       if (skipping) { skipping = 0; next }
-      if ($0 ~ /^```json$/) { n++; out = dir "/example-" n ".json"; printf "" > out; inside = 1; opened = NR; next }
+      if ($0 ~ /^```json$/) {
+        n[section]++
+        out = dir "/" (section == 6 ? "" : "s" section "-") "example-" n[section] ".json"
+        printf "" > out; inside = 1; opened = NR; next
+      }
       fence = $0; sub(/^ */, "", fence)
-      printf "line %d: a block fenced \"%s\"\n", NR, fence >> (dir "/unread.txt")
+      printf "§ %d, line %d: a block fenced \"%s\"\n", section, NR, fence >> (dir "/unread.txt")
       skipping = 1
       next
     }
     inside { print > out; next }
-    !skipping && index($0, "The evidence digest of the example above is ") == 1 { printf "%d\t%d\t%s\n", NR, n, $0 >> (dir "/digest.txt") }
-    END { if (inside) printf "the block that opens at line %d does not close\n", opened >> (dir "/unread.txt") }
+    section == 6 && !skipping && index($0, "The evidence digest of the example above is ") == 1 { printf "%d\t%d\t%s\n", NR, n[6], $0 >> (dir "/digest.txt") }
+    END { if (inside) printf "§ %d, the block that opens at line %d does not close\n", section, opened >> (dir "/unread.txt") }
   ' "$doc"
-  [ -s "$work/section.txt" ] || { echo "record-examples: docs/evidence-format.md has no section \"## 6. \", which holds the examples"; exit 1; }
+  grep -q -x 6 "$work/section.txt" || { echo "record-examples: docs/evidence-format.md has no section \"## 6. \", which holds the examples"; exit 1; }
+  grep -q -x 12 "$work/section.txt" || { echo "record-examples: docs/evidence-format.md has no section \"## 12. \", which holds the example of \`ratchet-proof/1\`"; exit 1; }
   if [ -s "$work/unread.txt" ]; then
-    sed 's/^/not read: § 6, /' "$work/unread.txt"
-    echo "record-examples: § 6 of docs/evidence-format.md holds a fenced block this script does not read; an example is fenced \`json\`"
+    sed 's/^/not read: /' "$work/unread.txt"
+    echo "record-examples: § 6 or § 12 of docs/evidence-format.md holds a fenced block this script does not read; an example is fenced \`json\`"
     exit 1
   fi
-  found=0
-  for f in "$work"/example-*.json; do
-    [ -r "$f" ] && found=$((found + 1))
-  done
-  if [ "$found" -ne "$want_examples" ]; then
-    echo "record-examples: § 6 of docs/evidence-format.md holds $found example(s), and spec/record-examples.test.sh states $want_examples"
-    exit 1
-  fi
+  # count <section> <file prefix> <stated number>: the section holds the stated number of examples.
+  count() {
+    found=0
+    for f in "$work"/"$2"example-*.json; do
+      [ -r "$f" ] && found=$((found + 1))
+    done
+    if [ "$found" -ne "$3" ]; then
+      echo "record-examples: § $1 of docs/evidence-format.md holds $found example(s), and spec/record-examples.test.sh states $3"
+      exit 1
+    fi
+  }
+  count 6 "" "$want_examples"
+  count 12 s12- "$want_examples_12"
   examples=0
-  for f in "$work"/example-*.json; do
-    examples=$((examples + 1))
-    label="§ 6 example $examples"
-    type=$(jq -r '
-      if type == "object" and has("format") then "ratchet.evidence.AssessmentRun"
-      elif type == "array" and length > 0 and all(.[]; type == "object" and has("output")) then "List<ratchet.evidence.MeasurementResult>"
-      elif type == "array" and length > 0 and all(.[]; type == "object" and has("state")) then "List<ratchet.evidence.NotExecutedUnit>"
-      else "" end
-    ' "$f") || { echo "record-examples: $label is not JSON"; exit 1; }
-    [ -n "$type" ] || { echo "record-examples: $label has a shape with no root type in spec/record-examples.test.sh"; exit 1; }
-    nodes "$label" "$type" "$f"
-  done
+  # read_examples <section> <file prefix>: the nodes of each example of the section, with the
+  # root type its shape gives, and for an object the value of its `format`.
+  read_examples() {
+    i=0
+    for f in "$work"/"$2"example-*.json; do
+      i=$((i + 1))
+      examples=$((examples + 1))
+      label="§ $1 example $i"
+      type=$(jq -r '
+        if type == "object" and has("format") then
+          if .format == "ratchet-evidence/1" then "ratchet.evidence.AssessmentRun"
+          elif .format == "ratchet-proof/1" then "ratchet.evidence.ProofRecord"
+          else "" end
+        elif type == "array" and length > 0 and all(.[]; type == "object" and has("output")) then "List<ratchet.evidence.MeasurementResult>"
+        elif type == "array" and length > 0 and all(.[]; type == "object" and has("state")) then "List<ratchet.evidence.NotExecutedUnit>"
+        else "" end
+      ' "$f") || { echo "record-examples: $label is not JSON"; exit 1; }
+      [ -n "$type" ] || { echo "record-examples: $label has a shape or a \`format\` with no root type in spec/record-examples.test.sh"; exit 1; }
+      nodes "$label" "$type" "$f"
+    done
+  }
+  read_examples 6 ""
+  read_examples 12 s12-
 
   # The evidence digest of the first example (§ 2): its line, then the bytes of the value of
   # `evidence` in the block as it stands, and their SHA-256.

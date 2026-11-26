@@ -685,11 +685,15 @@ entities:
         defects run, and the ids refused and accepted. `ratchet prove` runs the assessment once
         per defect, never in the working tree, and expects the verdict fail; insufficient
         evidence is not a refusal. A gate report marks an enforced requirement with no proof
-        record and no recorded fail as unproven.
+        record and no recorded fail as unproven. One JSON document of the format
+        `ratchet-proof/1` (format § 12); its id, `proof:<digest>` of its bytes, is no member.
     identity:
       name: proof
       type: ratchet.evidence.ProofId
     fields:
+      - name: format
+        type: String
+        summary: "`ratchet-proof/1`."
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: revision
@@ -707,6 +711,16 @@ entities:
           evidence: a reading of "insufficient evidence is not a refusal" (§ 4).
       - name: recorded_at
         type: Timestamp
+    invariants:
+      - "format == \"ratchet-proof/1\""
+      # format § 12: `refused` and `accepted` hold only ids of `planted`, and no id is in both.
+      # That no list holds an id twice is the reader's to check: `ess generate synthesize`
+      # evaluates `distinct` only in the invariants of a struct, and this is an entity
+      # (spec/README.md).
+      - forall: {in: refused, as: r, that: {exists: {in: planted, as: p, that: "r == p"}}}
+      - forall: {in: accepted, as: a, that: {exists: {in: planted, as: p, that: "a == p"}}}
+      - not:
+          exists: {in: refused, as: r, that: {exists: {in: accepted, as: a, that: "r == a"}}}
     relations:
       - name: requirement
         kind: references

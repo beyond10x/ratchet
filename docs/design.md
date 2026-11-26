@@ -189,17 +189,20 @@ This is how a per-candidate plan feeds a requirement about a host or a pool. One
 
 ### Comparisons
 
-A measurement returns one of four value types: a **number**, an **identity set**, a **digest**, or an **assertion**. A requirement compares it in up to two ways, and both must hold. `condition` compares with a fixed limit. `reference` compares with the protected reference (§ 5).
+A measurement returns one of four value types: a **number**, an **identity set**, a **digest**, or an **assertion**. A requirement compares it in up to two ways, and both must hold. `condition` compares with a fixed limit, or with another measurement through `against`. `reference` compares with the protected reference (§ 5).
 
 | Value type | `condition` | `reference` |
 | --- | --- | --- |
-| Number | `lt`, `lte`, `gt`, `gte`, or `eq` with a `value` | `accepted_value`: not worse than the accepted value by more than the tolerance. `better: lower` or `better: higher` on the measurement says which way is worse. |
-| Identity set | The same five operators, on the number of items. `no_new_items` or `no_lost_items`, against the accepted set. | `accepted_value`. The two set operators need it. |
-| Digest | None | `generated`: equal to a fresh generation, tolerance 0 |
+| Number | `lt`, `lte`, `gt`, `gte`, or `eq` with a `value`, or with `against` another number of the same unit; or `within` with `min` and `max` | `accepted_value`: not worse than the accepted value by more than the tolerance. `better: lower` or `better: higher` on the measurement says which way is worse. |
+| Identity set | The same five operators, on the number of items, or `within` with `min` and `max`. `no_new_items` or `no_lost_items`, against the accepted set. `subset_of` with `against`, against another set. | `accepted_value`. The two set operators need it. |
+| Digest | `eq` with a `digest` | `generated`: equal to a fresh generation, tolerance 0 |
 | Assertion | `holds` | None |
 
 - A requirement with a `reference` and no `condition` is valid for a number and for a digest. `ratchet validate` reports a number that has a reference and no `better`.
 - `no_new_items` holds when every item of the candidate’s set is in the accepted set. `no_lost_items` holds when every item of the accepted set is in the candidate’s set. A set of passing cases takes `no_lost_items`, so a case that fails or stops running is lost (§ 4). A set of failing cases with `no_new_items` does not see a deleted case.
+- A range is one condition, `{operator: within, min: 50, max: 60, unit: s}`, where two requirements on one measurement would say nothing of the two bounds belonging together. `within` takes no `value`, and `min` and `max` stand on no other operator; both bounds are inclusive and in the unit of the measurement, and `min` is not above `max`. A value outside the range fails with the cause `limit_crossed` and names the bound crossed. The gate report and `ratchet explain` show the range as one limit.
+- A requirement over two measurements names the second under `against`, its assessment and, where the plan has more than one, its measurement: `{operator: subset_of, against: {assessment: listed-cases}}` holds when every item of the measured set is in the set of the plan `listed-cases`, and `{operator: gte, against: {assessment: reference, measurement: passed}, unit: cases}` when the measured number is not below the other. `lt`, `lte`, `gt`, `gte` and `eq` compare two numbers, or the numbers of items of two sets, as they are, with no factor and no tolerance. `against` takes no `value`, no `min`, no `max` and no `digest`, and the two measurements are of one value type and, for numbers, of one unit: `ratchet validate` reports another value type as `against_value_type_mismatch` and another unit as `against_unit_mismatch`. Both are measured for the candidate, and the verdict names the runs of both plans. Within a preset `against` names an assessment of the preset; a project names the assessment of another binding in its own file, as `<binding>.<assessment>`.
+- A digest is compared with a digest that the specification states, `{operator: eq, digest: "sha256:..."}`, written `sha256:` and 64 lowercase hex digits as in a record. It holds when the observed digest is that one, and the verdict names the stated and the observed digest. A condition with a `digest` has the operator `eq` and no `value`, and a `digest` on another value type is a validation error.
 - An assertion holds or does not hold for each item of its scope: a scenario passing, an expectation of an imported ESS UI result. `holds` requires it for every item, and the result names the items where it does not hold.
 - A tolerance is `{percent: 10}`, `{absolute: 30}` in the unit of the measurement, or both. With both, the wider band applies. Absolute bands are in use: 0.01 for layout shift in 3 answers (ux-ui B5, spindle B5, slot B5), and the 30 seconds of § 5. `ratchet validate` reports a sampled measurement with an accepted value and no tolerance. Ratchet ships no default band.
 - A number has a `unit` exactly when the assessor declares one for the output. The measurement states that unit, and so does its `condition`. `ratchet/1` converts no units, and a different unit is a validation error. An output has one unit, and every value of it, a limit, an absolute tolerance, and a result, is written in that unit: 45 minutes of an output in `s` is `2700`. Two assessors may declare two units for the same kind of value: in `examples/ci-turnaround.ratchet.yaml` the forge’s workflow timing is in `min` and the timing of a command in `s`, and each requirement compares in the unit of its own output. An output without a unit, such as a layout shift, a ratio, or the number of items of a set, takes no `unit` on the measurement, on the `condition`, or in a record, and an absolute tolerance on it is a bare number. A `unit` written for such an output is a validation error, so no stand-in such as `score` is needed.
@@ -217,7 +220,7 @@ Ratchet defines some values. An assessor or the author defines the others. Value
 | Target class (`environments`) | `local`, `ci`, `ephemeral`, `staging`, `production` | Ratchet, closed |
 | Target kind | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, `document` (one file, identified by its byte digest; evidence format E1) | Ratchet, closed |
 | Selection | `candidate`, `merge_result` | Ratchet, closed |
-| Operator | `lt`, `lte`, `gt`, `gte`, `eq`, `no_new_items`, `no_lost_items`, `holds` | Ratchet, closed |
+| Operator | `lt`, `lte`, `gt`, `gte`, `eq`, `no_new_items`, `no_lost_items`, `holds`, `within`, `subset_of` | Ratchet, closed |
 | Aggregation kind | `sum`, `median`, `percentile`, `best_of_n`, `pass_rate` | Ratchet, closed |
 | Direction (`better`) | `lower`, `higher` | Ratchet, closed |
 | Reference kind | `generated`, `accepted_value` | Ratchet, closed |
@@ -546,7 +549,7 @@ The bound entries join the project under the binding’s name, such as `ux.steps
 
 `${inputs.<name>}` is the whole of a value. It stands where a scalar or a list stands, and no text stands beside it. A name by which one entry of a preset names another entry of the same preset is written out and is no reference: the `assessment` and the `measurement` of a requirement, and the statements it `serves`. A measurement of a preset is named `<name>@<version>/<assessment>/<measurement>`, and that name is fixed before a binding gives a value. The type of the input fits the place: `string` or `path` stands for text and for a value of a closed list, `integer` for an integer and a decimal, `decimal` for a decimal, `boolean` for a boolean, and an input that declares `list` for a list. Inside a flow collection the reference is quoted, `"${inputs.<name>}"`. No key is a reference, and the `preset` block holds none. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text.
 
-**A candidate against a reference implementation.** A requirement compares a measurement with a fixed limit or with a protected reference, and not with another measurement (§ 3, “Comparisons”). A project that judges a candidate against a reference implementation of the same service has two ways to say it.
+**A candidate against a reference implementation.** A requirement compares a measurement with a fixed limit, with a protected reference, or with another measurement of the same specification (§ 3, “Comparisons”). A preset names no measurement of another binding, so within a preset that comparison waits for a reference from another plan; a project writes it in its own file with `against`. A project that judges a candidate against a reference implementation of the same service has two ways to say it.
 
 - **In the evidence.** Where a tool compares the answers of the two implementations, the comparison is the evidence. The assessor returns one identity set of cases, with the class of each case as an item field: equal, allowed, or different. Measurements read the classes through `filter`. Requirements hold the sets with `no_lost_items` and `no_new_items`, and bound the number of different cases with `lte`. The reference implementation is then no subject and no target of the plan. `differential-equality@1` is written this way.
 - **As the protected reference.** Where a value of the candidate means something only against the same value of the reference implementation, that value is the accepted value of the candidate’s requirement, adopted under the same declared conditions (§ 5, “Protected references”, rule 5). `ratchet/1` holds such an accepted value. It has no adoption that names the plan the value comes from, so a project binds a preset once per implementation, and each is judged against its own accepted values.
@@ -616,6 +619,8 @@ Results include the requirement ID, target revision, observed and allowed values
 | --- | --- | --- |
 | Fail | On the candidate | `limit_crossed`, `regression`, `new_items`, `lost_items`, `assertion_not_held`, `generated_reference_differs`, `stale_reference_not_adopted` |
 | Insufficient evidence | On the assessment | `too_few_samples`, `assessor_timed_out`, `assessor_infrastructure_failure`, `stale_telemetry`, `incompatible_target`, `conditions_outside_declared`, `coverage_below_plan`, `tool_mismatch`, `reference_missing`, `reference_not_comparable`, `not_attributable_to_candidate`, `not_assessable_here`, `skipped_locally`, `evidence_missing` |
+
+A `subset_of` that does not hold is the cause `new_items`, as a set that gains an item against its accepted set is: the result names the items of the measured set that the other set lacks.
 
 Two cases are named here because no rule above decided them (taken 2026-11-24, § 12).
 
@@ -773,7 +778,7 @@ Store observations, decisions, and reference changes as separate records. This m
 | Gate decision | Candidate, or for an operational gate the window bounds of each requirement. Gate, the revision of the policy, evidence IDs, and the verdict of the gate. Per requirement: the protected reference or absolute limit, the mode, the verdict with its cause and next step, exceptions applied, and whether it is proven. Entries that were not applicable. |
 | Reference change | One requirement, the kind of change (first adoption, regeneration, tightening, loosening, trade-off), previous and adopted references, the conditions of the adopted one, supporting evidence, the trade-off it belongs to, and the revision or decision that authorized adoption. |
 | Trade-off | Reason, owner reference, the gains and the loosened values with their requirements and scope items, and the decision that authorized it. |
-| Proof | Requirement, revision, the planted defects run, and the ids refused and accepted. |
+| Proof | Requirement, revision, the planted defects run, and the ids refused and accepted. One JSON document of the format `ratchet-proof/1`. |
 
 An exception is an entry of the specification and not a record of its own. A gate decision copies the exceptions it applied, with their reason, owner reference, and expiry.
 

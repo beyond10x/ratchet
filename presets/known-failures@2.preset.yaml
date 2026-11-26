@@ -1,0 +1,72 @@
+format: ratchet/1
+
+preset:
+  name: known-failures
+  version: "2"
+  inputs:
+    subject: {type: string, required: true}
+    list: {type: path, required: true}
+    report: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+
+assessments:
+  list:
+    subject: ${inputs.subject}
+    assessor: case-list@1
+    inputs:
+      list: ${inputs.list}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      listed-cases:
+        kind: exact
+        output: cases
+        scope: run
+        identity: [case_id]
+      size:
+        kind: exact
+        output: count
+        scope: run
+        unit: cases
+        better: lower
+  known-failures:
+    subject: ${inputs.subject}
+    assessor: conformance-report@2
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      failing-cases:
+        kind: exact
+        output: failing_cases
+        scope: run
+        identity: [case_id]
+
+requirements:
+  no-new-known-failure:
+    meaning: The list holds no case that the accepted list does not hold.
+    assessment: list
+    measurement: listed-cases
+    condition: {operator: no_new_items}
+    reference: {kind: accepted_value}
+  size-does-not-rise:
+    meaning: The list is not longer than the accepted list.
+    assessment: list
+    measurement: size
+    reference: {kind: accepted_value}
+  every-failed-case-listed:
+    meaning: Every case that fails in the suite is on the list of known failures.
+    assessment: known-failures
+    measurement: failing-cases
+    condition:
+      operator: subset_of
+      against: {assessment: list, measurement: listed-cases}

@@ -706,7 +706,7 @@ The consumer made these seven changes in its commit `edbbc27`. What revision 2 a
 
 The format should later be a projection of the specification and not a second definition. Items 1 to 17 are against revision 3 of [`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md). Revision 4 has since brought the coverage unit (10, 14), `local_inputs` (3), and the window counts (11, as `WindowItems` on the run, with other names). Items 18 to 25 are from revision 2 of this document, against revision 4.
 
-**Status, 2026-11-24.** The specification now declares both formats. Each item ends with what was done about it: **Done**, with the spelling in the specification, or **Left out of 0.1.0**, with the reason. 19 items are done, 3 are done in part (4, 10, 25), and 3 are left out (15, 17, 24), all three because they are ESS’s to supply. `spec/record-fields.test.sh` reads every field row of § 3 and § 10 and fails the gate when the specification does not declare one under the name the row gives.
+**Status, 2026-11-24.** The specification now declares both formats. Each item ends with what was done about it: **Done**, with the spelling in the specification, or **Left out of 0.1.0**, with the reason. 19 items are done, 3 are done in part (4, 10, 25), and 3 are left out (15, 17, 24), all three because they are ESS’s to supply. `spec/record-fields.test.sh` reads every field row of § 3, § 10 and § 12 and fails the gate when the specification does not declare one under the name the row gives.
 
 In [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
 
@@ -766,7 +766,7 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 
 - **A paired run** (design § 3). Its evidence is two values of one run, and the specification has no field for the second.
 - **Raw samples.** A result is one value. An assessor that aggregates names the aggregation and the number of samples.
-- **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
+- **The other records** of design § 6: gate decision, reference change, and trade-off. A reference and a trade-off have a format name in the design; none of the three has a field list like this one. The proof has its format, `ratchet-proof/1`, in § 12.
 - **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
 - **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision`, `document` or `build` and the selection `candidate`, and a time-window plan without a selection; an assessor learns the keys of the plan’s observation and its window through `observation_inputs`, and the fields of its population filter as arguments. It does not say how an assessor learns a `merge_result` selection or a target of another kind. The first assessor needs none of these.
 - **A proof that an artifact was built from its revision.** For a target of the kind `build`, that the artifact was built from the revision Ratchet passes is the project’s statement: the plan names a path that its build at that revision writes (§ 10). A record that the build writes, or a digest of the artifact that the plan pins, would let a reader check it; version 1 has neither.
@@ -988,3 +988,37 @@ The 13 questions of the consumer, from its implementation at `edbbc27`, and wher
 | Q11 | How does an assessor declare its outputs, units, scopes, coverage unit, and item fields? | In a document `ratchet-assessor/1` | § 10 Declaration; E8 | Adds the file `ux-static@1.assessor.yaml`: E8 is taken as A |
 | Q12 | Inputs that do not belong together: exit 1 and no document? | Yes. The CLI records the run as `refused_inputs`. | § 10 Exit status; E9 | No change. An unknown `--class` and an empty `--project` or `--assessment` are exit 2, where they are exit 1 today. |
 | Q13 | Does an absent condition read as unknown for a static run? | No. Only a declared condition can be unknown, and the assessor declares none. | § 3 `evidence.conditions` | No change |
+
+## 12. The proof record `ratchet-proof/1`
+
+A requirement can declare planted defects, and `ratchet prove` runs its assessment once per defect, never in the working tree, and expects the verdict fail (design § 4). It writes what it found as one record of design § 6, the proof: one JSON object of the format `ratchet-proof/1`, UTF-8 without a byte order mark, written by the CLI and not by an assessor. The types are those of § 1. The id of the record is `proof:` and the SHA-256 of its bytes, as the id of a run is `run:` and the digest of its file (design § 6); the id is no member. The command is not built yet: `ratchet prove` answers `cli_handler_unavailable`, and this section is the form it writes.
+
+A defect is in `refused` when its run returned fail, in `accepted` when its run returned pass, and in neither when its run returned insufficient evidence, which is not a refusal. `refused` and `accepted` hold only ids of `planted`, and no id is in both: the invariants of `ratchet.evidence.ProofRecord`. No list holds an id twice, which a reader checks (an invariant of the entity cannot say it). A reader of version 1 rejects a member it does not know, as it does for `evidence` (§ 1).
+
+### Fields of `ratchet-proof/1`
+
+| Field | Type | Required | Meaning | From |
+| --- | --- | --- | --- | --- |
+| `format` | text | yes | `ratchet-proof/1` | new: a record is versioned JSON (design § 6) |
+| `requirement` | text | yes | The name of the requirement whose planted defects were run | spec: `ProofRecord.requirement` |
+| `revision` | text | yes | The revision the defects were planted into, each in a scratch copy | spec: `ProofRecord.revision` |
+| `planted` | list of text | yes | The ids of the planted defects run, each an `id` of the requirement's `planted_defects` | spec: `ProofRecord.planted` |
+| `refused` | list of text | yes | The ids whose run returned fail | spec: `ProofRecord.refused` |
+| `accepted` | list of text | yes | The ids whose run returned pass: the check did not refuse them | spec: `ProofRecord.accepted` |
+| `recorded_at` | time | yes | When the record was written | spec: `ProofRecord.recorded_at` |
+
+### Example
+
+The requirement `no-new-search-findings` of design § 4 with three planted defects: the check refused one, passed one, and the run of the third returned insufficient evidence, so it is in neither list.
+
+```json
+{
+  "format": "ratchet-proof/1",
+  "requirement": "no-new-search-findings",
+  "revision": "4f2a9c1",
+  "planted": ["unlabelled-button", "contrast-below-minimum", "missing-landmark"],
+  "refused": ["unlabelled-button"],
+  "accepted": ["contrast-below-minimum"],
+  "recorded_at": "2026-11-26T09:14:02Z"
+}
+```

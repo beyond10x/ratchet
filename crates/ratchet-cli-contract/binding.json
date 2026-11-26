@@ -626,6 +626,18 @@
                     "of": {
                       "kind": "struct",
                       "fields": {
+                        "max": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "min": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
                         "operator": {
                           "kind": "enum",
                           "variants": [
@@ -636,7 +648,9 @@
                             "eq",
                             "no_new_items",
                             "no_lost_items",
-                            "holds"
+                            "holds",
+                            "within",
+                            "subset_of"
                           ]
                         },
                         "unit": {
@@ -1098,6 +1112,18 @@
                       "of": {
                         "kind": "struct",
                         "fields": {
+                          "max": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "min": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
                           "operator": {
                             "kind": "enum",
                             "variants": [
@@ -1108,7 +1134,9 @@
                               "eq",
                               "no_new_items",
                               "no_lost_items",
-                              "holds"
+                              "holds",
+                              "within",
+                              "subset_of"
                             ]
                           },
                           "unit": {
@@ -1569,6 +1597,18 @@
                       "of": {
                         "kind": "struct",
                         "fields": {
+                          "max": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
+                          "min": {
+                            "kind": "optional",
+                            "of": {
+                              "kind": "string"
+                            }
+                          },
                           "operator": {
                             "kind": "enum",
                             "variants": [
@@ -1579,7 +1619,9 @@
                               "eq",
                               "no_new_items",
                               "no_lost_items",
-                              "holds"
+                              "holds",
+                              "within",
+                              "subset_of"
                             ]
                           },
                           "unit": {
@@ -2176,6 +2218,18 @@
               "of": {
                 "kind": "struct",
                 "fields": {
+                  "max": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
+                  "min": {
+                    "kind": "optional",
+                    "of": {
+                      "kind": "string"
+                    }
+                  },
                   "operator": {
                     "kind": "enum",
                     "variants": [
@@ -2186,7 +2240,9 @@
                       "eq",
                       "no_new_items",
                       "no_lost_items",
-                      "holds"
+                      "holds",
+                      "within",
+                      "subset_of"
                     ]
                   },
                   "unit": {
@@ -3541,6 +3597,18 @@
                     "of": {
                       "kind": "struct",
                       "fields": {
+                        "max": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
+                        "min": {
+                          "kind": "optional",
+                          "of": {
+                            "kind": "string"
+                          }
+                        },
                         "operator": {
                           "kind": "enum",
                           "variants": [
@@ -3551,7 +3619,9 @@
                             "eq",
                             "no_new_items",
                             "no_lost_items",
-                            "holds"
+                            "holds",
+                            "within",
+                            "subset_of"
                           ]
                         },
                         "unit": {

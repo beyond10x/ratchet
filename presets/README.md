@@ -102,7 +102,8 @@ A file in another form is refused, also where a YAML reader would accept it:
   because the format ships none: its preset declares the tolerance as a required input, and the
   page says so.
 - **A value against a reference implementation.** A requirement compares a measurement with a
-  fixed limit or with a protected reference, and not with another measurement. The catalog
+  fixed limit, with a protected reference, or through `against` with another measurement of
+  the same preset, and a preset names no measurement of another binding. The catalog
   expresses a candidate against a reference implementation with what `ratchet/1` has. What that
   cannot say is named on the page of the family under "Not expressible yet". The catalog adds no
   key to the format.

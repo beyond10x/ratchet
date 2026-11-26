@@ -57,6 +57,14 @@ types:
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<String>
+      - name: min
+        type: Optional<String>
+        summary: >-
+          The lower bound of a range with the operator `within`, the exact decimal text as
+          `value` is, so a range is one limit.
+      - name: max
+        type: Optional<String>
+        summary: The upper bound of a range with the operator `within`, as `min`.
       - name: unit
         type: Optional<ratchet.specification.Unit>
 

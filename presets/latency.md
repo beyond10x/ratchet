@@ -271,8 +271,11 @@ key to a format; each point names the place in the specification
    ([functional.md](functional.md), "Not expressible yet", point 1).
 2. **A requirement over two measurements.** "The p95 of the candidate is at most 10 percent
    above the p95 of the reference implementation" compares two measurements.
-   `ratchet.specification.QualityRequirement` names one ([functional.md](functional.md),
-   point 2).
+   `ratchet.specification.Condition.against` names a second measurement, and `against` compares
+   two numbers of one unit, with no tolerance: it states "not above the p95 of the reference
+   implementation" and not a band over it ([functional.md](functional.md), point 2). The band
+   of 10 percent over the binding for the reference implementation waits for a reference from
+   another plan (point 1), which a tolerance then applies to.
 3. **The conditions of a plan as an input.** A project may want a bound on the host load for
    the class `local` and a runner for the class `ci`. `ratchet.specification.ObservationPlan`
    holds `conditions` as a map from a class to its conditions, and
