@@ -13,7 +13,9 @@ The web UI loop of [`slot`](https://github.com/beyond10x/slot) (`ui/ux/`): a com
 Its first gap: no command reads a result file, compares it with a reference committed in the tree
 and fails with the requirement, the scenario, the observed and the allowed value.
 Second consumer: [`uxui`](https://github.com/beyond10x/uxui), whose assessor writes
-`ratchet-evidence/1` that nothing reads.
+`ratchet-evidence/1` that nothing reads. Its first gaps, in its order, none of them closed before 0.1.0:
+`ratchet evaluate --gate` on a fixed limit, `ratchet assess --report`, `ratchet validate`, then
+evidence with `target.kind: build` (`story:build-target-invocation`).
 
 ## Waves to 0.1.0
 
@@ -78,7 +80,7 @@ Record: `.engineering/waves/0.1.0-wave-3.md`.
 
 ## Beside the waves
 
-Two epics run beside the waves to 0.1.0 and change the content of none of their stories.
+Three epics run beside the waves to 0.1.0 and change the content of none of their stories.
 
 - `epic:preset-catalog`: a standard catalog of quality criteria as `ratchet/1` presets, ordered
   by the owner on 2026-11-24. Four stories, one after another: `story:preset-catalog-functional`
@@ -98,11 +100,24 @@ Two epics run beside the waves to 0.1.0 and change the content of none of their 
   read from a build and from the tree (build, artifact, code), nine assessor declarations
   and three pages; `presets/` holds the eight families. Of the twelve 0.1.0 judges the
   seven of the artifact and the code family. Record: `.engineering/waves/catalog-factory.md`.
-- `epic:format-gaps-first-format-consumer`: 22 findings from the quality definition the first
-  consumer of the formats wrote against them (`beyond10x/inference`), as seventeen draft
+- `epic:format-gaps-first-format-consumer`: 22 places (23 findings, one withdrawn) from the quality definition the first
+  consumer of the formats wrote against them (`beyond10x/inference`), as nineteen draft
   stories. They wait for the waves to 0.1.0, except `story:example-assessor-declarations`,
   taken ahead of them on 2026-11-25 and delivered on 2026-11-26: nine declarations in
-  `examples/quality/assessors/` and their check `spec/example-declarations.test.sh`.
+  `examples/quality/assessors/` and their check `spec/example-declarations.test.sh`, and the
+  four of the wave below.
 - `epic:format-gaps-second-format-consumer`: 3 findings from the draft quality definition of
   a second repository (`beyond10x/swell`, a script engine that also compares itself with
   other engines), as three draft stories. They wait for the waves to 0.1.0.
+
+One wave runs ahead of the waves to 0.1.0, chosen by the owner on 2026-11-26: every planned
+wave starts behind `story:cli-skeleton-validate`, which waits for an ESS release
+(beyond10x/ess#836). Its nine stories need no `ratchet` command and are built in sequence on one
+branch and merged as one pull request: `story:workflow-run-target-identifiers`,
+`story:candidate-under-merge-result`, `story:cache-condition-one-name`,
+`story:specification-answers-first-format-consumer`,
+`story:plan-with-exact-and-sampled-measurements`, `story:preset-check-unlisted-forms`,
+`story:value-over-all-runs`, `story:item-field-values`,
+`story:production-gate-spec-executed-service`. The parts that need the command are five
+`-in-ratchet` drafts that wait for the waves to 0.1.0. Record:
+`.engineering/waves/0.1.0-ahead-1.md`.

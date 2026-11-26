@@ -7,7 +7,7 @@ title: A standard catalog of quality criteria as ratchet/1 presets
 summary: presets/ with the preset files and assessor declarations of eight families, a page per family, a check in the gate, and binding resolution.
 relations:
 - decomposes: initiative:first-milestone
-revision: 2
+revision: 3
 ---
 ## Context
 
@@ -46,6 +46,10 @@ Eight families:
 8. **Operability.** The documented metric names a scrape exposes; health and readiness
    behaviour.
 
+`story:production-gate-spec-executed-service` extends the catalog with a ninth family: probe
+assertions and artifact verification of a spec-executed service, with the example
+`examples/production-gate.ratchet.yaml`.
+
 For each criterion the consumer asks for: the direction (lower or higher is better), the unit,
 a default tolerance where one makes sense, how the evidence is produced (an assessor that runs
 a command, or an imported report), and how a value that only means something against a
@@ -60,7 +64,9 @@ none, and the source of the evidence. The gate checks every preset file and ever
 against the specification, and that each measurement of a preset has its row on the page of
 its family with those four cells filled, so a renamed field or a criterion without a row fails
 the gate. A project binds a preset by name, version and digest, and `ratchet validate`
-resolves the binding from a directory.
+resolves the binding from a directory. `story:production-gate-spec-executed-service` adds a
+ninth family, probe assertions and artifact verification of a spec-executed service, and the
+example `examples/production-gate.ratchet.yaml`.
 
 ## Rules of the catalog
 
@@ -95,6 +101,13 @@ resolves the binding from a directory.
 - `story:preset-binding-resolution`: `ratchet validate` resolves a binding from a path source.
   After 0.1.0. A `git` source is a later story, filed when a consumer needs it; until then a
   consumer reads the catalog from a checkout of this repository at a commit.
+
+The wave of `.engineering/waves/0.1.0-ahead-1.md`, chosen by the owner on 2026-11-26, takes
+five later stories of this epic ahead of the waves to 0.1.0: `story:cache-condition-one-name`,
+`story:preset-check-unlisted-forms`, `story:value-over-all-runs`, `story:item-field-values` and
+`story:production-gate-spec-executed-service`. The parts of three of them that need a `ratchet`
+command are `story:cache-condition-one-name-in-ratchet`, `story:value-over-all-runs-in-ratchet`
+and `story:item-field-values-in-ratchet`, which wait for the waves to 0.1.0.
 
 ## Order
 
