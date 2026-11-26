@@ -1,0 +1,16 @@
+format: ratchet-assessor/1
+name: ess-conformance-report
+version: "1"
+command: ess-conformance-report
+targets: [deployment]
+inputs:
+  report: {type: path, required: true}
+conditions: []
+coverage_unit: case
+coverage: [executed, skipped]
+outputs:
+  passing_cases:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [case_id]

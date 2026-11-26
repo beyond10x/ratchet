@@ -81,7 +81,7 @@ tasks:
         exit "$status"
 
   check:spec:
-    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, check the preset catalog presets/ against it and against the pages of the catalog, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
+    desc: Validate the ESS specification and the ess-cli/2 binding of the ratchet commands, check the field rows and the examples of the record formats and the errors the design names against it, check that those checks refuse a hidden defect, check the preset catalog presets/ against it and against the pages of the catalog, check that every assessor examples/*.ratchet.yaml names has a declaration and that each measurement names an output, a unit and a scope it declares, and synthesize the Rust crate into target/check-spec without a refusal. Needs jq.
     cmds:
       - |
         command -v jq > /dev/null 2>&1 || { echo "check:spec: jq is not installed, and spec/record-examples.test.sh reads the JSON examples with it"; exit 1; }
@@ -95,6 +95,7 @@ tasks:
       - sh spec/cli-errors.test.sh
       - sh spec/gate-inputs.test.sh
       - sh spec/presets.test.sh
+      - sh spec/example-declarations.test.sh
       - |
         set -eu
         out=target/check-spec

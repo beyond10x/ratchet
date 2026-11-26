@@ -6,6 +6,11 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+### Added
+
+- `examples/quality/assessors/` holds the `ratchet-assessor/1` declarations of the nine assessors the examples name, with the outputs, units, scopes, inputs and coverage units the examples use, as files a project can copy into its own catalog; no program of these assessors ships with them
+- `task check:spec` refuses an assessor of `examples/*.ratchet.yaml` without a declaration file, a measurement that names an output, a unit or a scope its declaration does not declare, and a measurement of a window over `runs_of` that does not keep the unit and the scope of the measurement it reads; it does not check the keys and types of those declarations
+
 ## [0.0.2] - 2026-11-25
 
 ### Added

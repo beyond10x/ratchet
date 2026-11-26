@@ -1,0 +1,22 @@
+format: ratchet-assessor/1
+name: ux-eval
+version: "1"
+command: ux-eval
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  layout_shift_exclusion_ms: {type: integer, required: false}
+conditions: []
+coverage_unit: walk
+coverage: [executed, skipped, not_run, unsupported]
+outputs:
+  steps: {value_type: number, kind: exact, scopes: [journey], unit: steps}
+  actions_per_fix: {value_type: number, kind: exact, scopes: [journey], unit: actions}
+  cue_accuracy: {value_type: number, kind: exact, scopes: [journey], unit: percent}
+  layout_shift: {value_type: number, kind: exact, scopes: [journey]}
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: [page]
+    identity_key: [rule, node_path, environment]
+    item_fields: [severity]
