@@ -6,6 +6,8 @@ A release is the workspace version at a bare tag such as `0.1.0`, with Linux arc
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-27
+
 ### Added
 
 - A record of results kept as a file of the tree, such as the results of a run made by hand, names the import source `tree_file` with its path relative to the root and holds `target.revision`, the commit the file was read at: `docs/evidence-format.md` § 3 and `spec/` declare it, with § 6 example 7; no command imports a record yet
