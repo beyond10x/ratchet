@@ -1,0 +1,22 @@
+format: ratchet-assessor/1
+name: timing-report
+version: "2"
+command: timing-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+  workload: {type: string, required: true}
+  runs: {type: integer, required: true}
+  min_samples: {type: integer, required: true}
+observation_inputs: {workload: workload, runs: runs, min_samples: min_samples}
+conditions: []
+coverage_unit: request
+coverage: [executed, not_run, passed, failed]
+outputs:
+  duration:
+    value_type: number
+    kind: sampled
+    scopes: [operation]
+    unit: ms
+    boundaries: [request_start_to_response_complete, request_start_to_event_observed]
+  throughput: {value_type: number, kind: sampled, scopes: [], unit: requests/s}

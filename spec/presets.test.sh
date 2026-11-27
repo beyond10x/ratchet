@@ -41,14 +41,29 @@
 #   inputs    no input of a preset is local, and a default is a value of the type of its
 #             input. A scalar of a preset that holds `${` or `{inputs.` is
 #             `${inputs.<name>}` alone, `<name>` is a declared input of the preset, and the
-#             type of the input fits the place (`ratchet.specification.InputReference`).
+#             type of the input fits the place (`ratchet.specification.InputReference`). An
+#             input of the type `conditions` stands as the whole value of
+#             `observation.conditions` of a plan, a map from a target class to its
+#             conditions, and nowhere else, and only a preset declares one: an input of a
+#             declaration of that type is refused, because an assessor reads no plan's
+#             conditions as an input.
 #             `<name>` is the key of the input as this script reads a key, so
 #             `${inputs.a.b}` refers to the input `a.b`: the specification gives the name of
 #             an input no type but text. In a declaration `${` is text, and only a scalar
 #             that is `${inputs.<name>}` alone is refused there: a declaration has no
 #             inputs to refer to. An input of a declaration has no name of
 #             `ratchet.assessor.ReservedArgument`, such as `out`: Ratchet passes those
-#             arguments itself (docs/evidence-format.md § 10, "Reserved names")
+#             arguments itself (docs/evidence-format.md § 10, "Reserved names"), and no name
+#             of one of its `population_fields`: Ratchet passes each field of a population
+#             filter as `--<field>` ("The population of the plan"). An input of
+#             the type `string` that lists `values` (`InputDeclaration.values`) is read
+#             against them: its default, of a preset or of a declaration, and each item of a
+#             list default is one of the values, and a reference to it at the place of an
+#             enum, such as `better`, stands there only where each of its values is a value
+#             of that enum. An input of the type `string` without `values` stays accepted at
+#             the place of an enum, as `code-lines@1` writes it: the binding passes the word.
+#             A literal that a plan passes to an input of its assessor's declaration with
+#             `values` is checked by the rule `assessor`
 #   names     a requirement names an assessment of its preset and a measurement of that
 #             assessment, and the statements it serves are statements of the preset. These
 #             three names are written out: a reference there is refused, because no row
@@ -59,7 +74,19 @@
 #             of the declaration that is not local, and its value has the declared type: a
 #             literal by its YAML kind, a reference by the type of the input of the preset
 #             (an `integer` also where a `decimal` is declared), and so each item of a list.
-#             Every required input that is not local is passed. A measurement names an
+#             A literal, and each item of a literal list, is one of the `values` the
+#             declaration lists for the input, where it lists them.
+#             Every required input that is not local is passed. An input that the
+#             declaration names in `observation_inputs` under a key
+#             is passed by the key of the plan's `observation`: a plan has that key where
+#             the input is required, and passes the input under `inputs` nowhere
+#             (docs/evidence-format.md § 10, "Invocation"). `window_length` and
+#             `window_last` are the `length` and the `last` of `observation.window`, and
+#             `window_ends_at`, the instant of the assessment, is there on a time-window plan
+#             and on no other ("The window of the plan"). A key of `observation_inputs` is
+#             one of `ratchet.assessor.ObservationKey` and names an input of the declaration,
+#             and so does each entry of `revision_inputs`.
+#             A measurement names an
 #             output of the declaration, the kind of that output (`kind_mismatch`), its unit
 #             or none where it has none, the scope `run` or one the output declares, a
 #             boundary the output declares (`run_time` and `queue_wait`, which are Ratchet's,
@@ -69,12 +96,19 @@
 #             `item_values`, only those values; a field without such a list is open. A key of
 #             `item_values` is a field of `item_fields` of its output. `pass_rate` aggregates
 #             an assertion and nothing else, and the measurement of such a rate may be
-#             `sampled`. A condition of the observation is `host_load_per_cpu`, `tools`,
-#             `runner` or one the declaration lists, and a field of a population filter is one
-#             of its `population_fields` (`population_field_mismatch`). The cache condition is
-#             `cache_profile`, the member of the record: a condition `cache` of a plan and an
-#             item `cache` of the `conditions` of a declaration are refused, also where the two
-#             agree
+#             `sampled`. A condition of the observation is one of the seven that have a field
+#             in ratchet.specification.ObservationConditions (`host_load_per_cpu`, `tools`,
+#             `runner`, `cpu_model`, `memory`, `accelerator` and `build_profile`, read from
+#             the specification) or one the declaration lists, and a field of a population
+#             filter is one of its `population_fields` (`population_field_mismatch`). The
+#             cache condition is `cache_profile`, the member of the record: a condition
+#             `cache` of a plan and an item `cache` of the `conditions` of a declaration are
+#             refused, also where the two agree. The output `coverage.<count>` is Ratchet's
+#             where the declaration declares no output of that name: it reads a count of the
+#             coverage of the run, so the count is a value of `ratchet.assessor.CoverageCount`
+#             that the declaration lists under `coverage`, and the measurement is `exact`, at
+#             the scope `run` and without a unit, and is compared as a number without a unit
+#             (docs/design.md § 3 "Evidence coverage")
 #   series    `record-series@1` is the assessor of Ratchet itself that reads the runs of
 #             another plan (spec/domains/assessor.yaml). The name is reserved: no file of
 #             the directory declares it, and a plan that names it needs no declaration. As
@@ -84,18 +118,28 @@
 #             input: that assessor takes none
 #   compare   a requirement compares its measurement as the table of docs/design.md § 3
 #             "Comparisons" allows for the value type of the output. `lt`, `lte`, `gt`, `gte`
-#             and `eq` take a number or a set and have a `value`. `no_new_items` and
+#             and `eq` take a number or a set and have a `value`. `within` takes a number
+#             or a set and has `min` and `max`, `min` not above `max`, and no `value`;
+#             `min` and `max` stand on no other operator. `no_new_items` and
 #             `no_lost_items` take a set, have no `value` and need a reference of the kind
-#             `accepted_value`. `holds` takes an assertion and has no `value`. A digest has
-#             no condition. The reference of a number and of a set is `accepted_value`, that
-#             of a digest `generated`, and an assertion has none. A set with a reference has a
-#             condition. A number that is compared with a reference states `better`. A
-#             condition states the unit of the output, or none where the output has none. An
-#             assertion that its measurement aggregates with `pass_rate` is a number here
+#             `accepted_value`. `subset_of` takes a set and has `against`. `against`
+#             names an assessment of the preset and a measurement of it, the one it holds
+#             where it holds one, and with it `lt`, `lte`, `gt`, `gte` and `eq` have no
+#             `value`; the output of that measurement has the value type and, for a
+#             number, the unit of the output (`against_value_type_mismatch`,
+#             `against_unit_mismatch`). `holds` takes an assertion and has no `value`. A digest
+#             takes `eq` with a `digest` and no `value`, and a `digest` stands on a
+#             condition of no other value type. The reference of a number and of a set is
+#             `accepted_value`, that of a digest `generated`, and an assertion has none. A
+#             set with a reference has a condition. A number that is compared with a
+#             reference states `better`. A condition states the unit of the output, or none
+#             where the output has none. An assertion that its measurement aggregates with
+#             `pass_rate` is a number here
 #   sampled   what docs/design.md § 3 and § 5 say `ratchet validate` reports. The plan of a
 #             measurement of the kind `sampled` declares at least one condition under
 #             `observation.conditions`, unless it reads the runs of another plan (`runs_of`),
-#             which declares none. A requirement that compares such a measurement with a
+#             which declares none, or an input of the type `conditions` gives them. A
+#             requirement that compares such a measurement with a
 #             reference of the kind `accepted_value` has a `reference.tolerance` with a
 #             `percent` or an `absolute`, and a `reference.adoption`. The last two are read
 #             without a declaration, so also on a plan of `record-series@1`. A measurement of
@@ -111,6 +155,14 @@
 #             measurements of one run"). The design refuses no mix, so no rule reads it: the
 #             copy `valid-plans` holds a sampled pass rate beside the exact counts of a
 #             snapshot plan, and it is accepted
+#   adoption  an adoption `{from: assessment, assessment: <plan>, measurement: <measurement>}`
+#             (docs/design.md § 5 "The ratchet policy") names an assessment of the preset and a
+#             measurement of it, and that measurement has the value type and the unit of the
+#             requirement's measurement, read from the outputs the two declarations declare,
+#             as for `against` under `compare`. It names both, and `assessment` and
+#             `measurement` stand on `from: assessment` alone: the invariants of
+#             `ratchet.specification.RatchetPolicy`. The adopted plan may be the requirement's
+#             own
 #   row       a measurement is named `<name>@<version>/<assessment>/<measurement>`. It has one
 #             row in the tables of the pages, the rows of one preset stand on one page, the
 #             four cells after the name are not empty, and a row names a measurement. A table
@@ -160,23 +212,32 @@
 #     sampled measurement of a plan with more than one run and forbids it nowhere else, and an
 #     exact value is the same in every run
 #   - `runs: 1` with an aggregation. docs/design.md § 3, "One run per candidate is valid":
-#     "With `runs: 1` a measurement may declare one of the existing aggregation kinds when the
-#     command repeats its measurement itself within the one run, such as a command that times
-#     its work three times and prints the median, or one that prints a value per segment of
-#     its output: the repeats are samples of that run (evidence format § 1), and the result
-#     carries their number in `samples`." The script cannot see whether a command repeats its
-#     measurement itself
-#   - the invariants of the types, beside the four of an assessment plan under `series`: they
-#     are written in the expression language of ESS, and `ess generate synthesize` writes
-#     them as Rust
+#     "An aggregation of one value is that value", so a measurement may declare its
+#     aggregation for every value of `runs`, and a preset whose `runs` is an input does so,
+#     such as `workload-throughput@1`; at `runs: 1` with a command that measures once the
+#     result carries `samples: 1` and is judged as observed. And "With `runs: 1` a measurement
+#     may declare one of the existing aggregation kinds when the command repeats its
+#     measurement itself within the one run": the repeats are samples of that run. So the form
+#     is valid whether or not the command repeats its measurement, which the script cannot see
+#   - the invariants of the types, beside the four of an assessment plan under `series` and
+#     those of a condition that `compare` reads (`within` with its two bounds in order, `min`
+#     and `max` on no other operator, `subset_of` with `against`, a `digest` with `eq`) and the
+#     four of an adoption that `adoption` reads: they are written in the expression language
+#     of ESS, and `ess generate synthesize` writes them as Rust. So a `digest` beside a
+#     `value` on a number, and `against` beside a `value`, a `digest`, a `min` or a `max`,
+#     are left to the decoder, and so are a default and a `list` on an input of the type
+#     `conditions`, and `values` on an input of another type than `string`, whose default
+#     and literals are then not read against `values`
 #   - a value that an input gives, where a rule reads the value: the binding passes it. These
 #     are the assessor of an assessment, and with it every rule that reads its declaration;
 #     the output of a measurement, and with it the rules on that measurement and on the
 #     requirements that compare it; the kind, the unit, the scope, the boundary and the
 #     identity key of a measurement, also where one item of the key is a reference; a value of
 #     a `filter`; the kind of an aggregation over an assertion; the `runs` of a plan and the
-#     `over_all_runs` of a measurement; an operator; the unit of a condition; and the kind of a
-#     reference. Only the kind of a target is read from the default of its input
+#     `over_all_runs` of a measurement; an operator; the unit of a condition; the kind of a
+#     reference; the conditions of a plan, which the rule `sampled` then counts as
+#     declared; and a reference that a plan passes to an input of its assessor that lists
+#     `values`. Only the kind of a target is read from the default of its input
 #   - a measurement of a plan of `record-series@1` against the measurement of the source plan
 #     it reads (the output, the kind, the unit, the scope, the boundary, the identity key,
 #     the fields of a `filter`), and the comparison of a requirement on it: its outputs are
@@ -378,6 +439,14 @@ check_catalog() {
   function holds(file, path, x,    j) {
     for (j = 1; has(file, path SEP "[" j "]"); j++) if (text(file, path SEP "[" j "]") == x) return 1
     return 0
+  }
+  # The key of `observation_inputs` of the declaration `d` that names the input `x`, or "".
+  function observed_by(d, x,    j, k) {
+    for (j = 1; j <= nkeys[d, "observation_inputs"]; j++) {
+      k = keyof[d, "observation_inputs", j]
+      if (text(d, "observation_inputs" SEP k) == x) return k
+    }
+    return ""
   }
   function variants(type,    i, s) {
     s = ""
@@ -619,9 +688,16 @@ check_catalog() {
     return n == 4 && s[3] == "serves"
   }
 
+  # 1 when `path` is the `observation.conditions` of a plan, where an input of the type
+  # `conditions` stands.
+  function plan_conditions(path,    n, s) {
+    n = split(path, s, SEP)
+    return n == 4 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions"
+  }
+
   # A scalar of a preset that holds `${` or `{inputs.`, or a scalar of a declaration that is
   # `${inputs.<name>}` alone: a reference to an input of the preset.
-  function reference(i, F, fk, path, t,    x, name, ip, it, il, u, e, b, ok, here) {
+  function reference(i, F, fk, path, t,    x, name, ip, it, il, u, e, b, ok, here, j, v) {
     x = n_text[i]
     here = "`" shown(path) "` "
     if (x !~ REF) { fail(F, n_line[i], here "holds `${` or `{inputs.` and is not `${inputs.<name>}` alone: a reference to an input is the whole of a value and has this one spelling"); return }
@@ -642,13 +718,23 @@ check_catalog() {
       if (il) { fail(F, n_line[i], here "takes one value (`" u "`), and the input `" name "` declares a list"); return }
       e = u
     }
-    if (e ~ /^Map<String, / || e ~ /^List</ || is_struct(e)) { fail(F, n_line[i], here "is a `" e "`, and an input stands for a scalar or a list of scalars"); return }
+    # An input of the type `conditions` stands as the whole value of `observation.conditions`
+    # of a plan, and nowhere else.
+    if (it == "conditions" && plan_conditions(path)) return
+    if (e ~ /^Map<String, / || e ~ /^List</ || is_struct(e)) { fail(F, n_line[i], here "is a `" e "`, and an input stands for a scalar or a list of scalars" (plan_conditions(path) ? ", or for the conditions of a plan where it has the type `conditions`" : "")); return }
     b = base(e)
     if (b == "Integer") ok = (it == "integer")
     else if (b == "Decimal") ok = (it == "integer" || it == "decimal")
     else if (b == "Boolean") ok = (it == "boolean")
     else ok = (it == "string" || it == "path")
-    if (!ok) fail(F, n_line[i], here "takes `" e "`, and the input `" name "` has the type `" it "`")
+    if (!ok) { fail(F, n_line[i], here "takes `" e "`, and the input `" name "` has the type `" it "`"); return }
+    # An input with `values` stands at the place of a closed list only where each of its
+    # values is a value of that list.
+    if (kind[b] == "enum" && it == "string" && has(F, ip SEP "values"))
+      for (j = 1; has(F, ip SEP "values" SEP "[" j "]"); j++) {
+        v = text(F, ip SEP "values" SEP "[" j "]")
+        if (!((b, v) in variant)) { fail(F, n_line[i], here "takes `" e "`, and the input `" name "` lists the value `" v "`, which is no value of " b); return }
+      }
   }
 
   # ---- what joins two places of the directory -----------------------------------------------
@@ -686,13 +772,23 @@ check_catalog() {
 
   # The path of the output a measurement reads, in the declaration of its assessor; "" where
   # the output is not declared. Sets A (the assessor), D (its declaration, "" without one)
-  # and O (the name of the output).
+  # and O (the name of the output). An output `coverage.<count>` that the declaration does
+  # not declare reads a count of the coverage of the run (docs/design.md § 3 "Evidence
+  # coverage"): CC is then the count, a variant of ratchet.assessor.CoverageCount or not,
+  # and "" for every other output, and counted is 1 where the declaration lists the count
+  # under `coverage`.
   function output_of(F, mp,    s) {
     split(mp, s, SEP)
     A = text(F, "assessments" SEP s[2] SEP "assessor"); D = ""; O = text(F, mp SEP "output")
+    CC = ""; counted = 0
     if (!(A in declaration)) return ""
     D = declaration[A]
-    return has(D, "outputs" SEP O) ? "outputs" SEP O : ""
+    if (has(D, "outputs" SEP O)) return "outputs" SEP O
+    if (substr(O, 1, 9) == "coverage.") {
+      CC = substr(O, 10)
+      counted = (("ratchet.assessor.CoverageCount", CC) in variant) && holds(D, "coverage", CC)
+    }
+    return ""
   }
 
   # The path of the measurement a requirement compares: the one it names, or the one its
@@ -714,6 +810,22 @@ check_catalog() {
     return c + 0
   }
   function last(path) { sub(/^.*\037/, "", path); return path }
+
+  # The first value at `path` of the file F, or the first item of the list there, that the
+  # list at `vp` of the file VF does not hold; "" where it holds each. With `refs`, where a
+  # plan passes the list, an item that is a reference is not read: the binding passes its
+  # value. A scalar reference never comes here: the rule `assessor` reads it as a reference.
+  function outside(F, path, VF, vp, refs,    j, x) {
+    if (has(F, path SEP "[1]")) {
+      for (j = 1; has(F, path SEP "[" j "]"); j++) {
+        x = text(F, path SEP "[" j "]")
+        if (!(refs && given(x)) && !holds(VF, vp, x)) return x
+      }
+      return ""
+    }
+    x = text(F, path)
+    return holds(VF, vp, x) ? "" : x
+  }
 
   # ---- a page: what Markdown does not show ---------------------------------------------------
 
@@ -1029,9 +1141,13 @@ check_catalog() {
       if (s[n] == "default" && ((fk == "preset" && n == 4 && s[1] == "preset" && s[2] == "inputs") || (fk == "assessor" && n == 3 && s[1] == "inputs"))) {
         ip = substr(path, 1, length(path) - 8)
         it = text(F, ip SEP "type"); il = (text(F, ip SEP "list") == "true")
-        if (("ratchet.specification.InputType", it) in variant) {
+        # An input of the type `conditions` has no default: the decoder reads that invariant.
+        if (("ratchet.specification.InputType", it) in variant && it != "conditions") {
           m = unfit(F, path, it, il, 0)
           if (m != "") fail(F, n_line[i], named(path) m ", and its input has the type " typed(it, il))
+          # A default is one of the values of its input.
+          else if (it == "string" && has(F, ip SEP "values") && (v = outside(F, path, F, ip SEP "values", 0)) != "")
+            fail(F, n_line[i], named(path) (il ? "holds the item `" : "is `") v "`, which is none of the values `" items(F, ip SEP "values") "` of the input `" last(ip) "`")
         }
       }
       # The cache condition has one name in a plan, a declaration and a record:
@@ -1042,6 +1158,27 @@ check_catalog() {
       # passes those arguments itself (docs/evidence-format.md § 10, "Reserved names").
       if (fk == "assessor" && n == 2 && s[1] == "inputs" && (("ratchet.assessor.ReservedArgument", s[2]) in variant))
         fail(F, n_line[i], named(path) "has the name of a reserved argument, which Ratchet passes itself (ratchet.assessor.ReservedArgument: " variants("ratchet.assessor.ReservedArgument") "); an assessor declares no input of these names")
+      # Nor the name of one of its population fields: Ratchet passes each field of a
+      # population filter as `--<field>` (docs/evidence-format.md § 10, "The population of the
+      # plan").
+      if (fk == "assessor" && n == 2 && s[1] == "inputs" && holds(F, "population_fields", s[2]))
+        fail(F, n_line[i], named(path) "has the name of a population field, which Ratchet passes as `--" s[2] "` from the population filter of the plan (`population_fields` " items(F, "population_fields") "); an assessor declares no input with such a name")
+      # An assessor reads the conditions of no plan as an input: only a preset declares an
+      # input of the type `conditions` (ratchet.specification.InputDeclaration).
+      if (fk == "assessor" && n == 3 && s[1] == "inputs" && s[3] == "type" && n_text[i] == "conditions")
+        fail(F, n_line[i], "`inputs." s[2] "` has the type `conditions`, and only a preset declares an input of the type `conditions`: an assessor reads no plan'"'"'s conditions as an input")
+      # A key of `observation_inputs` is a key of the observation that Ratchet passes, and
+      # names an input of the declaration (docs/evidence-format.md § 10, "Invocation").
+      if (fk == "assessor" && n == 2 && s[1] == "observation_inputs") {
+        if (!(("ratchet.assessor.ObservationKey", s[2]) in variant))
+          fail(F, n_line[i], named(path) "is no key of the observation that Ratchet passes (ratchet.assessor.ObservationKey: " variants("ratchet.assessor.ObservationKey") ")")
+        if (!has(F, "inputs" SEP n_text[i]))
+          fail(F, n_line[i], named(path) "names the input `" n_text[i] "`, which the declaration does not declare under `inputs`")
+      }
+      # An entry of `revision_inputs` names an input of the declaration
+      # (docs/evidence-format.md § 10, "The revision").
+      if (fk == "assessor" && n == 2 && s[1] == "revision_inputs" && s[2] ~ /^\[[0-9]+\]$/ && !has(F, "inputs" SEP n_text[i]))
+        fail(F, n_line[i], named(path) "names the input `" n_text[i] "`, which the declaration does not declare under `inputs`")
       # The values of an item field are listed under a field of `item_fields`
       # (docs/evidence-format.md § 10).
       if (fk == "assessor" && n == 4 && s[1] == "outputs" && s[3] == "item_values" && !holds(F, "outputs" SEP s[2] SEP "item_fields", s[4]))
@@ -1068,7 +1205,23 @@ check_catalog() {
         D = declaration[a]
         for (j = 1; j <= nkeys[D, "inputs"]; j++) {
           dp = "inputs" SEP keyof[D, "inputs", j]
-          if (text(D, dp SEP "required") == "true" && text(D, dp SEP "local") != "true" && !has(F, path SEP dp))
+          if (text(D, dp SEP "required") != "true" || text(D, dp SEP "local") == "true") continue
+          # An input that the declaration names in `observation_inputs` is passed by that
+          # key of the `observation` of the plan. `window_length` and `window_last` are the
+          # `length` and the `last` of its `window`, and `window_ends_at` is the instant a
+          # time-window plan is assessed (docs/evidence-format.md § 10, "The window of the
+          # plan").
+          okey = observed_by(D, keyof[D, "inputs", j])
+          if (okey == "window_ends_at") {
+            okind = text(F, path SEP "observation" SEP "kind")
+            if (okind != "time_window" && !given(okind))
+              fail(F, n_line[i], named(path) "is no time-window plan, and `" a "` passes as its required input `" keyof[D, "inputs", j] "` the key `window_ends_at`, the instant a time-window plan is assessed (`observation_inputs`)")
+          } else if (okey != "") {
+            opath = okey
+            if (okey == "window_length" || okey == "window_last") opath = "window" SEP substr(okey, 8)
+            if (!has(F, path SEP "observation" SEP opath))
+              fail(F, n_line[i], named(path) "has no `observation." shown(opath) "`, which `" a "` passes as its required input `" keyof[D, "inputs", j] "` (`observation_inputs`)")
+          } else if (!has(F, path SEP dp))
             fail(F, n_line[i], named(path) "passes no `" keyof[D, "inputs", j] "`, which `" a "` requires")
         }
       }
@@ -1101,6 +1254,8 @@ check_catalog() {
         D = declaration[a]; dp = "inputs" SEP s[4]
         if (!has(D, dp)) { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` does not declare"); continue }
         if (text(D, dp SEP "local") == "true") { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` declares local: the local config supplies it (`local_input_in_specification`)"); continue }
+        okey = observed_by(D, s[4])
+        if (okey != "") { fail(F, n_line[i], named(path) "passes the input `" s[4] "`, which `" a "` takes from the key `" okey "` of the plan'"'"'s `observation` (`observation_inputs`); the plan writes the value once, under `observation`"); continue }
         dt = text(D, dp SEP "type"); dl = (text(D, dp SEP "list") == "true")
         x = n_text[i]
         if (n_kind[i] != "map" && n_kind[i] != "list" && (index(x, "${") > 0 || index(x, "{inputs.") > 0)) {
@@ -1112,6 +1267,9 @@ check_catalog() {
         } else {
           m = unfit(F, path, dt, dl, 1)
           if (m != "") fail(F, n_line[i], named(path) m ", and `" a "` declares the input `" s[4] "` as " typed(dt, dl))
+          # A literal is one of the values that the declaration lists for the input.
+          else if (dt == "string" && has(D, dp SEP "values") && (v = outside(F, path, D, dp SEP "values", 1)) != "")
+            fail(F, n_line[i], named(path) (dl ? "holds the item `" : "is `") v "`, which is none of the values `" items(D, dp SEP "values") "` that `" a "` declares for the input `" s[4] "`")
         }
       }
 
@@ -1122,8 +1280,10 @@ check_catalog() {
         # Sampled evidence qualifies under declared conditions (docs/design.md § 3,
         # "Measurement kind and observation conditions"). A window over the runs of another
         # plan declares none: only runs that qualified under the source plan enter it.
+        # Conditions that an input of the type `conditions` gives are passed by the binding,
+        # and not read.
         plan = "assessments" SEP s[2]
-        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0)
+        if (text(F, path SEP "kind") == "sampled" && !has(F, plan SEP "observation" SEP "population" SEP "runs_of") && conditions_of(F, plan) == 0 && !given(text(F, plan SEP "observation" SEP "conditions")))
           fail(F, n_line[i], named(path) "is sampled, and the plan `" s[2] "` declares no condition under `observation.conditions`: sampled evidence qualifies under declared conditions")
         # A sampled measurement of a plan with more than one run states an aggregation, or
         # `over_all_runs: true`, a value the assessor computes over all runs of the plan, which
@@ -1145,6 +1305,28 @@ check_catalog() {
         # Nothing is joined without a declaration (`record-series@1`, an assessor that an
         # input gives, an assessor that is named as absent) and where an input gives the output.
         if (D == "" || !has(F, path SEP "output") || given(O)) continue
+        # A count of the coverage of the run, `coverage.<count>`, is an output of Ratchet itself:
+        # a count the declaration lists under `coverage`, read as an exact number at the scope
+        # `run` without a unit (docs/design.md § 3 "Evidence coverage").
+        if (op == "" && CC != "") {
+          what = "the coverage count `" O "`"
+          if (!(("ratchet.assessor.CoverageCount", CC) in variant)) {
+            fail(F, n_line[i], named(path) "names the output `" O "`, and `" CC "` is no count of the coverage: `coverage.<count>` takes one of " variants("ratchet.assessor.CoverageCount")); continue
+          }
+          if (!counted) {
+            fail(F, n_line[i], named(path) "names the output `" O "`, and `" A "` lists the counts `" items(D, "coverage") "` under `coverage`, not `" CC "`"); continue
+          }
+          mk = text(F, path SEP "kind")
+          if (has(F, path SEP "kind") && !given(mk) && mk != "exact")
+            fail(F, n_line[i], named(path) "has the kind `" mk "`, and " what " is `exact` (`kind_mismatch`)")
+          mu = text(F, path SEP "unit")
+          if (has(F, path SEP "unit") && !given(mu))
+            fail(F, n_line[i], named(path) "states the unit `" mu "`, and " what " has none (`unit_not_declared`)")
+          sc = text(F, path SEP "scope")
+          if (has(F, path SEP "scope") && sc != "run" && !given(sc))
+            fail(F, n_line[i], named(path) "has the scope `" sc "`, and " what " has the scope `run` alone")
+          continue
+        }
         if (op == "") { fail(F, n_line[i], named(path) "names the output `" O "`, which `" A "` does not declare"); continue }
         what = "the output `" O "` of `" A "`"
         vt = text(D, op SEP "value_type")
@@ -1195,9 +1377,11 @@ check_catalog() {
           }
       }
 
-      # A condition of the observation, under its class: one of the three that have a field
-      # in ratchet.specification.ObservationConditions, or one the declaration lists. The
-      # cache condition is `cache_profile` and never `cache`, also where a declaration lists it.
+      # A condition of the observation, under its class: one of the seven that have a field
+      # in ratchet.specification.ObservationConditions (`host_load_per_cpu`, `tools`,
+      # `runner`, `cpu_model`, `memory`, `accelerator`, `build_profile`), or one the
+      # declaration lists. The cache condition is `cache_profile` and never `cache`, also
+      # where a declaration lists it.
       if (n == 6 && s[1] == "assessments" && s[3] == "observation" && s[4] == "conditions") {
         a = text(F, "assessments" SEP s[2] SEP "assessor")
         if (s[6] == "cache")
@@ -1243,10 +1427,23 @@ check_catalog() {
           if (!has(F, path SEP "reference" SEP "adoption"))
             fail(F, n_line[i], named(path) "compares the sampled measurement `" last(mp) "` with an accepted value and has no `reference.adoption`, which says from which runs the value is adopted")
         }
+        # An adoption from another assessment (docs/design.md § 5 "The ratchet policy"): it
+        # names the assessment and the measurement, and the two stand on `from: assessment`
+        # alone. The measurement it names is read below, once the output is known.
+        adp = path SEP "reference" SEP "adoption"
+        afrom = text(F, adp SEP "from")
+        adopted = (afrom == "assessment")
+        if (has(F, adp) && afrom != "" && !given(afrom) && !adopted) {
+          if (has(F, adp SEP "assessment")) fail(F, n_line[i], named(path) "has an adoption with `assessment`, and `from: " afrom "`: `assessment` and `measurement` stand on `from: assessment` alone")
+          if (has(F, adp SEP "measurement")) fail(F, n_line[i], named(path) "has an adoption with `measurement`, and `from: " afrom "`: `assessment` and `measurement` stand on `from: assessment` alone")
+        }
+        if (adopted && !has(F, adp SEP "assessment")) { fail(F, n_line[i], named(path) "has an adoption `from: assessment` and names no `assessment`"); adopted = 0 }
+        if (adopted && !has(F, adp SEP "measurement")) { fail(F, n_line[i], named(path) "has an adoption `from: assessment` and names no `measurement`"); adopted = 0 }
         op = output_of(F, mp)
-        if (op == "") continue
-        vt = text(D, op SEP "value_type")
-        what = "the output `" O "` of `" A "`"
+        if (op == "" && !counted) continue
+        # A coverage count is a number without a unit.
+        vt = counted ? "number" : text(D, op SEP "value_type")
+        what = counted ? "the coverage count `" O "` of `" A "`" : "the output `" O "` of `" A "`"
         is = what " has the value type `" vt "`"
         # An assertion that the measurement aggregates with `pass_rate` is compared as a
         # number (docs/design.md § 3, "A series of runs as a population"). Where an input
@@ -1258,19 +1455,42 @@ check_catalog() {
         opr = text(F, path SEP "condition" SEP "operator")
         rk = text(F, path SEP "reference" SEP "kind")
         hv = has(F, path SEP "condition" SEP "value")
-        if (hc && vt == "digest") fail(F, n_line[i], named(path) "has a condition, and " is ", which takes none")
-        else if (hc && opr != "" && !given(opr)) {
+        hd = has(F, path SEP "condition" SEP "digest")
+        hmin = has(F, path SEP "condition" SEP "min"); hmax = has(F, path SEP "condition" SEP "max")
+        ha = has(F, path SEP "condition" SEP "against")
+        if (hc && vt == "digest") {
+          if (hv) fail(F, n_line[i], named(path) "has a `value`, and " is ", which is compared with a `digest` and takes no `value`")
+          if (opr != "" && !given(opr) && opr != "eq") fail(F, n_line[i], named(path) "has the operator `" opr "`, and " is ", which takes `eq` with a `digest`")
+          if (!hd) fail(F, n_line[i], named(path) "has a condition without a `digest`, and " is ", which takes `eq` with a `digest`")
+        } else if (hc && opr != "" && !given(opr)) {
           limit = (opr ~ /^(lt|lte|gt|gte|eq)$/)
+          range = (opr == "within")
           if (opr == "holds") {
             if (vt != "assertion") fail(F, n_line[i], named(path) "has the operator `holds`, which takes an assertion, and " is)
           } else if (opr == "no_new_items" || opr == "no_lost_items") {
             if (vt != "identity_set") fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes an identity set, and " is)
             else if (rk != "accepted_value") fail(F, n_line[i], named(path) "has the operator `" opr "` and no reference of the kind `accepted_value`, the set it compares with")
-          } else if (limit && vt != "number" && vt != "identity_set")
+          } else if (opr == "subset_of") {
+            if (vt != "identity_set") fail(F, n_line[i], named(path) "has the operator `subset_of`, which takes an identity set, and " is)
+            if (!ha) fail(F, n_line[i], named(path) "has the operator `subset_of` and no `against`, the set it is compared with")
+          } else if ((limit || range) && vt != "number" && vt != "identity_set")
             fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes a number or the number of items of a set, and " is)
-          if (limit && !hv) fail(F, n_line[i], named(path) "has the operator `" opr "` and no `value`, the limit")
-          if (!limit && hv) fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes no `value`")
+          if (limit && !hv && !ha) fail(F, n_line[i], named(path) "has the operator `" opr "` and no `value`, the limit")
+          if (!limit && !range && hv) fail(F, n_line[i], named(path) "has the operator `" opr "`, which takes no `value`")
+          if (range) {
+            mn = text(F, path SEP "condition" SEP "min"); mx = text(F, path SEP "condition" SEP "max")
+            if (hv) fail(F, n_line[i], named(path) "has the operator `within`, which takes `min` and `max` and no `value`")
+            if (!hmin) fail(F, n_line[i], named(path) "has the operator `within` and no `min`, its lower bound")
+            if (!hmax) fail(F, n_line[i], named(path) "has the operator `within` and no `max`, its upper bound")
+            if (hmin && hmax && !given(mn) && !given(mx) && mn + 0 > mx + 0)
+              fail(F, n_line[i], named(path) "has the operator `within` with the `min` " mn " above the `max` " mx)
+          }
         }
+        if (hc && opr != "" && !given(opr) && opr != "within") {
+          if (hmin) fail(F, n_line[i], named(path) "has a `min`, and the operator `" opr "`: `min` and `max` stand on `within` alone")
+          if (hmax) fail(F, n_line[i], named(path) "has a `max`, and the operator `" opr "`: `min` and `max` stand on `within` alone")
+        }
+        if (hd && vt != "digest") fail(F, n_line[i], named(path) "has a condition with a `digest`, and " is ", which takes no `digest`")
         if (hc) {
           has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
           has_cu = has(F, path SEP "condition" SEP "unit"); cu = text(F, path SEP "condition" SEP "unit")
@@ -1290,6 +1510,56 @@ check_catalog() {
           # These two read that there is a reference, and not its kind.
           if (vt == "identity_set" && !hc) fail(F, n_line[i], named(path) "compares a set with a reference and has no condition: `no_new_items` or `no_lost_items` says which way is worse")
           if (vt == "number" && !has(F, mp SEP "better")) fail(F, n_line[at[F, mp]], "`" shown(mp) "` states no `better`, and `" shown(path) "` compares it with a reference")
+        }
+        # The measurement an adoption from another assessment names: a measurement of an
+        # assessment of the preset, whose output has the value type and the unit of this one.
+        # It reads a second declaration, so the unit of this output is kept first.
+        if (adopted) {
+          aa = text(F, adp SEP "assessment")
+          am = text(F, adp SEP "measurement")
+          has_ru = (op != "" && has(D, op SEP "unit")); ru = has_ru ? text(D, op SEP "unit") : ""
+          if (given(aa) || given(am)) {
+          } else if (!has(F, "assessments" SEP aa)) {
+            fail(F, n_line[i], named(path) "adopts from the assessment `" aa "`, which the preset does not hold")
+          } else if ((dmp = compared(F, adp)) == "") {
+            fail(F, n_line[i], named(path) "adopts from the measurement `" am "`, which the assessment `" aa "` does not hold")
+          } else if ((dop = output_of(F, dmp)) != "" || counted) {
+            dvt = counted ? "number" : text(D, dop SEP "value_type")
+            if (dvt == "assertion" && text(F, dmp SEP "aggregation" SEP "kind") == "pass_rate") dvt = "number"
+            has_au = (dop != "" && has(D, dop SEP "unit")); au = has_au ? text(D, dop SEP "unit") : ""
+            if (dvt != vt)
+              fail(F, n_line[i], named(path) "adopts from `" shown(dmp) "` of the value type `" dvt "`, and " is)
+            else if (has_au != has_ru || au != ru)
+              fail(F, n_line[i], named(path) "adopts from `" shown(dmp) "` in the unit `" (has_au ? au : "none") "`, and " what " declares `" (has_ru ? ru : "none") "`")
+          }
+        }
+        # A comparison with another measurement of the preset: `against` names an assessment
+        # of the preset and a measurement of it, whose output has the value type of this one
+        # and, for a number, its unit. Last, because it reads a second declaration.
+        if (ha) {
+          ap = path SEP "condition" SEP "against"
+          aa = text(F, ap SEP "assessment")
+          if (given(aa)) continue
+          if (!has(F, "assessments" SEP aa)) {
+            fail(F, n_line[i], named(path) "has `against` the assessment `" aa "`, which the preset does not hold"); continue
+          }
+          amp = compared(F, ap)
+          if (amp == "") {
+            if (!has(F, ap SEP "measurement"))
+              fail(F, n_line[i], named(path) "has `against` the assessment `" aa "` and names no measurement of it, and the assessment holds " (nkeys[F, "assessments" SEP aa SEP "measurements"] + 0))
+            else if (!given(text(F, ap SEP "measurement")))
+              fail(F, n_line[i], named(path) "has `against` the measurement `" text(F, ap SEP "measurement") "`, which the assessment `" aa "` does not hold")
+            continue
+          }
+          aop = output_of(F, amp)
+          if (aop == "" && !counted) continue
+          avt = counted ? "number" : text(D, aop SEP "value_type")
+          if (avt == "assertion" && text(F, amp SEP "aggregation" SEP "kind") == "pass_rate") avt = "number"
+          if (avt != vt) {
+            fail(F, n_line[i], named(path) "has `against` `" shown(amp) "` of the value type `" avt "`, and " is " (`against_value_type_mismatch`)"); continue
+          }
+          if (vt == "number" && (has(D, aop SEP "unit") != has_du || text(D, aop SEP "unit") != du))
+            fail(F, n_line[i], named(path) "has `against` `" shown(amp) "` in the unit `" (has(D, aop SEP "unit") ? text(D, aop SEP "unit") : "none") "`, and " what " declares `" (has_du ? du : "none") "` (`against_unit_mismatch`)")
         }
       }
     }
@@ -1392,6 +1662,13 @@ page='functional.md'
 # The second version of the comparison: no case edits it, and its rows stand on the page.
 differ2='differential-equality@2.preset.yaml'
 differ2_d='comparison-report@2.assessor.yaml'
+# The second version of the list of known failures and the declaration it names: no case edits
+# them, and the rows of the preset stand on the page.
+known2='known-failures@2.preset.yaml'
+conf2_d='conformance-report@2.assessor.yaml'
+# The third version of the comparison, which adopts from another plan: no case edits it, its
+# rows stand on the page, and the two declarations it names are in the set.
+differ3='differential-equality@3.preset.yaml'
 
 # The set: the files a copy holds. They are `README.md`, which every directory of the catalog
 # holds, and the functional family: its presets, the declarations they name and its page. A
@@ -1399,7 +1676,7 @@ differ2_d='comparison-report@2.assessor.yaml'
 # one check of presets/ above and to no copy. The set is a directory of its own,
 # target/presets/set, which is valid alone: the case `harness-unchanged` below fails where it
 # is not. A file of the set that presets/ does not hold stops the run.
-set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $known $known_d"
+set_files="README.md $page $conf $conf_d $differ $differ_d $differ2 $differ2_d $differ3 $known $known_d $known2 $conf2_d"
 set_dir=$work/set
 mkdir "$set_dir"
 for set_file in $set_files; do
@@ -1899,11 +2176,17 @@ swap "$differ" '      kind: revision' '      kind: ${inputs.target_kind}'
 # a measurement with the boundary queue_wait on an output that declares no boundaries
 swap "$conf" '        output: failed' '        output: failed\n        boundary: queue_wait'
 # A condition and a field of a population filter that the declaration lists, beside a
-# condition of Ratchet itself.
+# condition of Ratchet itself, and two conditions of the machine and the build that the
+# declaration does not list: the rule reads the members of ObservationConditions. The plan
+# declares what its command needs, by name (ObservationPlan.needs).
 swap "$conf_d" 'conditions: []' 'conditions: [cache_profile]'
 printf 'population_fields: [service]\n' >> "$c/$conf_d"
-swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard}}'
-accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the condition runner and a declared field of a population filter"
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10\n      conditions: {all: {cache_profile: warm, runner: ci-standard, build_profile: release, cpu_model: \"AMD EPYC 7763\"}}\n      needs: {environment: [PROVIDER_TOKEN], billed: true}'
+# The conditions of a plan as the whole value of `observation.conditions`, given by an input
+# of the type `conditions`.
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    conditions: {type: conditions, required: true}'
+swap "$known" '      kind: snapshot' '      kind: snapshot\n      conditions: ${inputs.conditions}'
+accepts "an input named report.file, a text input as an item of a list, a target kind by an input with and without a default, the boundary queue_wait, a declared condition, the conditions runner, build_profile and cpu_model of Ratchet, a declared field of a population filter, the needs of a command and the conditions of a plan by an input of the type conditions"
 
 # A sampled measurement that aggregates an exact assertion with pass_rate, compared with a limit
 # and with a reference; and a second plan that names record-series@1 and reads the runs of the
@@ -2050,7 +2333,7 @@ mv "$c.new" "$c/$conf"
 refused 'conformance-cases@1.preset.yaml:80: the last line does not end with a line feed' "the last line of a preset has no line feed"
 
 again file-last-line-of-one-file-alone
-refused 'presets: 8 of 9 file(s) valid, 13 of 13 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
+refused 'presets: 11 of 12 file(s) valid, 21 of 21 measurement(s) with a row, 1 failure(s)' "the last line of one file has no line feed, in a directory with a quote and a space in its name"
 
 copy file-kind-undeclared
 mv "$c/$conf" "$c/conformance-cases@1.presets.yaml"
@@ -2344,6 +2627,26 @@ again type-decimal
 swap "$conf" "$of_failed" '    measurement: failed\n    condition: {operator: lte, value: 1e3, unit: cases}'
 refused '`requirements.failed-does-not-rise.condition.value` is not a decimal without exponent' "the limit of a condition is 1e3"
 
+# add_case_holds <meanings>: the preset conformance-cases@1 of the copy reads an assertion per
+# case that conformance-report@1 declares at the scope `case`, with the map `meanings` and its
+# row. It writes to the end of the declaration, which is the map `outputs`, and after the third
+# `better: lower`, that of `refused`, the last measurement of the plan.
+add_case_holds() {
+  printf '  case_holds: {value_type: assertion, kind: exact, scopes: [case]}\n' >> "$c/$conf_d"
+  swap "$conf" '        better: lower' '        better: lower\n      case-holds:\n        kind: exact\n        output: case_holds\n        scope: case\n        meanings: '"$1" 3
+  add_row '| `conformance-cases@1/conformance/case-holds` | Holds for every case | None: an assertion | 0, no input | `conformance-report@1`, output `case_holds` |'
+}
+
+# A statement per scope item of a measurement at the scope `case` (docs/design.md § 3 "Scope and
+# aggregation").
+copy measurement-meanings
+add_case_holds '{case-1: "the default timeout"}'
+accepts "a measurement at the scope case whose meanings state what the item case-1 stands for"
+
+copy type-meanings-number
+add_case_holds '{case-1: 1.5}'
+refused '`assessments.conformance.measurements.case-holds.meanings.case-1` is a YAML number where text is declared' "a statement of meanings is a number"
+
 copy type-without-rule
 own_spec
 edit_spec specification.yaml '
@@ -2359,6 +2662,11 @@ refused '`assessments.conformance.measurements.passed` has no `output`, which ra
 again required-field-of-declaration
 drop "$conf_d" 'coverage_unit: case'
 refused '`(root)` has no `coverage_unit`, which ratchet.assessor.Assessor requires' "a declaration states no coverage unit"
+
+# the third is the reference of `failed-does-not-rise`
+again required-source-cites
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: cases, source: {since: 2026-03-01}}\n'"$accepted_value" 3
+refused '`requirements.failed-does-not-rise.condition.source` has no `cites`, which ratchet.specification.NumberSource requires' "a source without cites"
 
 # `scopes` stays required where an output has the scope `run` alone: that output writes
 # `scopes: []` (spec/domains/assessor.yaml, AssessorOutput), as every output of the set does.
@@ -2390,7 +2698,7 @@ refused 'the input `report` is local, and a preset declares no local input' "an 
 
 # -- the inputs of a preset ----------------------------------------------------------------------
 
-# Eleven references, each at a path of its own in one copy.
+# Thirteen references, each at a path of its own in one copy, and an input of a declaration.
 copy input-undeclared
 swap "$conf" "$passes" '      report: ${inputs.reports}'
 refused 'refers to the input `reports`, which the preset does not declare' "an assessment refers to the input reports"
@@ -2435,6 +2743,23 @@ again input-integer-for-text
 swap "$differ" '    subject: ${inputs.subject}' '    subject: ${inputs.different_limit}'
 refused 'takes `ratchet.specification.SubjectName`, and the input `different_limit` has the type `integer`' "the subject of an assessment is an integer input"
 
+# An input of the type `conditions` stands as the whole value of `observation.conditions`, and
+# only a preset declares one.
+again conditions-input-at-a-scalar
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    conditions: {type: conditions, required: true}'
+swap "$known" '      kind: snapshot' '      kind: snapshot\n      conditions: {all: {runner: "${inputs.conditions}"}}'
+refused '`assessments.known-failures.observation.conditions.all.runner` takes `String`, and the input `conditions` has the type `conditions`' "the runner of a class is a conditions input"
+
+again conditions-input-in-a-declaration
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  machine: {type: conditions, required: false}'
+refused '`inputs.machine` has the type `conditions`, and only a preset declares an input of the type `conditions`' "a declaration declares an input of the type conditions"
+
+# An input with `values` stands at the place of an enum only where each value is a variant.
+again input-values-outside-enum
+swap "$conf" '    report: {type: path, required: true}' '    report: {type: path, required: true}\n    way: {type: string, required: true, values: [lower, sideways]}'
+swap "$conf" '        better: higher' '        better: ${inputs.way}'
+refused '`assessments.conformance.measurements.passed.better` takes `ratchet.specification.Direction`, and the input `way` lists the value `sideways`, which is no value of ratchet.specification.Direction' "an input whose values hold sideways stands at better"
+
 copy input-in-preset-block
 swap "$conf" '    subject: {type: string, required: true}' '    subject: {type: "${inputs.subject}", required: true}'
 refused '`preset.inputs.subject.type` is a reference inside the `preset` block' "the type of an input is a reference"
@@ -2447,7 +2772,8 @@ edit_spec specification.yaml '
   { print }'
 refused 'takes `Boolean`, and the input `subject` has the type `string`' "the specification makes the subject of a plan a boolean, and the presets pass a text input"
 
-# Five defaults of five inputs in one copy, and two more of two of those inputs in a second.
+# Five defaults of five inputs in one copy, and in a second two more of two of those inputs and
+# the default of an input with `values`.
 copy input-default-integer
 swap "$differ" '    different_limit: {type: integer, required: true}' '    different_limit: {type: integer, required: true, default: banana}'
 refused '`preset.inputs.different_limit.default` is no integer, and its input has the type `integer`' "the default of an integer input is a word"
@@ -2475,6 +2801,10 @@ refused '`preset.inputs.different_limit.default` is no decimal without exponent'
 again input-default-item
 swap "$conf" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true, default: [ci, 3]}'
 refused '`preset.inputs.environments.default` holds an item that is no text' "the default of a list of text holds the integer 3"
+
+again input-default-outside-values
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    direction: {type: string, required: false, values: [lower, higher], default: sideways}'
+refused '`preset.inputs.direction.default` is `sideways`, which is none of the values `[lower, higher]` of the input `direction`' "the default of an input is none of its values"
 
 # -- names inside a preset -----------------------------------------------------------------------
 
@@ -2596,6 +2926,15 @@ copy declaration-reserved-input
 swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  out: {type: path, required: false}'
 refused '`inputs.out` has the name of a reserved argument, which Ratchet passes itself' "a declaration has the input out"
 
+# Nor the name of one of its population fields (docs/evidence-format.md § 10, "The population
+# of the plan"): "Each field of `population: {filter}` is passed as `--<field> <value>`, under
+# its name in the declaration's `population_fields`, so an assessor declares no input with such
+# a name."
+copy population-field-as-input
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  service: {type: string, required: false}'
+printf 'population_fields: [service]\n' >> "$c/$conf_d"
+refused '`inputs.service` has the name of a population field, which Ratchet passes as `--service` from the population filter of the plan (`population_fields` [service])' "a declaration declares an input service and lists service under population_fields, so Ratchet would pass --service twice"
+
 # A `filter` names values that the declaration lists for its field under `item_values`
 # (docs/evidence-format.md § 10). A field without such a list stays open: any value is read.
 copy assessor-filter-value
@@ -2623,6 +2962,11 @@ refused '`assessments.comparison.inputs.exclude` holds an item that is the input
 again assessor-input-literal
 swap "$known" '      list: ${inputs.list}' '      list: 3'
 refused '`assessments.known-failures.inputs.list` is no text, and `case-list@1` declares the input `list` as `path`' "an assessment passes the integer 3 where a path is declared"
+
+again plan-literal-outside-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  mode: {type: string, required: false, values: [strict, lenient]}'
+swap "$known" '    inputs:' '    inputs:\n      mode: loose'
+refused '`assessments.known-failures.inputs.mode` is `loose`, which is none of the values `[strict, lenient]` that `case-list@1` declares for the input `mode`' "a plan passes a word that is none of the values of the input of its assessor"
 
 again assessor-unit-undeclared
 swap "$conf" '        identity: [case_id]' '        identity: [case_id]\n        unit: cases'
@@ -2666,6 +3010,107 @@ again assessor-input-list-in-a-list
 swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  exclude: {type: string, list: true, required: false}'
 swap "$differ" "$passes" '      report: ${inputs.report}\n      exclude: ["${inputs.environments}"]'
 refused '`assessments.comparison.inputs.exclude` holds an item that is the input `environments` of the preset, a list, and `comparison-report@1` declares the input `exclude` as a list of `string`' "an assessment passes a list of text with a list input as one item"
+
+# -- a count of the coverage as a measurement ----------------------------------------------------
+#
+# `coverage.<count>` is an output of Ratchet itself: the count of the run's coverage, for a
+# count that the declaration lists under `coverage`, an exact number at the scope `run` without
+# a unit (docs/design.md § 3 "Evidence coverage"). conformance-report@1 lists all six counts,
+# comparison-report@1 four, without `passed`.
+
+# add_count <file> <preset> <assessment> <measurement> <kind> <output> <scope> [<line>]: a
+# measurement of the plan, before the map `requirements` of the file, with its row; <line> is
+# a further key of the measurement, such as `unit: cases`.
+add_count() {
+  swap "$1" 'requirements:' "      $4:\n        kind: $5\n        output: $6\n        scope: $7${8:+\n        $8}\n\nrequirements:"
+  add_row "| \`$2/$3/$4\` | Higher | None | 0 | Ratchet, the count \`${6#coverage.}\` of the coverage |"
+}
+
+copy coverage-count-measurement
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-does-not-fall:\n    meaning: The number of executed cases is not below the accepted number.\n    assessment: conformance\n    measurement: executed\n    reference: {kind: accepted_value}\n' >> "$c/$conf"
+accepts "a requirement executed-does-not-fall on the count executed of the coverage, with better: higher and an accepted value"
+
+copy coverage-count-not-listed
+add_count "$differ" differential-equality@1 comparison passed-cases exact coverage.passed run
+refused '`assessments.comparison.measurements.passed-cases` names the output `coverage.passed`, and `comparison-report@1` lists the counts `[executed, skipped, not_run, unsupported]` under `coverage`, not `passed`' "a coverage count the declaration does not list"
+
+again coverage-count-with-unit
+add_count "$conf" conformance-cases@1 conformance executed-in-cases exact coverage.executed run 'unit: cases'
+refused '`assessments.conformance.measurements.executed-in-cases` states the unit `cases`, and the coverage count `coverage.executed` has none (`unit_not_declared`)' "a coverage count with a unit"
+
+again coverage-count-sampled
+add_count "$conf" conformance-cases@1 conformance sampled-skipped sampled coverage.skipped run
+refused '`assessments.conformance.measurements.sampled-skipped` has the kind `sampled`, and the coverage count `coverage.skipped` is `exact` (`kind_mismatch`)' "a coverage count that is sampled"
+
+again coverage-count-no-count
+add_count "$conf" conformance-cases@1 conformance passed-ids exact coverage.passed_ids run
+refused '`assessments.conformance.measurements.passed-ids` names the output `coverage.passed_ids`, and `passed_ids` is no count of the coverage' "a coverage name that is no count"
+
+again coverage-count-scope
+add_count "$conf" conformance-cases@1 conformance not-run-per-case exact coverage.not_run case
+refused '`assessments.conformance.measurements.not-run-per-case` has the scope `case`, and the coverage count `coverage.not_run` has the scope `run` alone' "a coverage count at another scope than run"
+
+# -- the inputs that hold the observation --------------------------------------------------------
+#
+# A declaration names under `observation_inputs` the input that Ratchet passes the value of a
+# key of the plan's `observation` as (docs/evidence-format.md § 10, "Invocation"). The plan
+# writes that value once, under `observation`, and passes nothing to the input under `inputs`.
+# A declaration writes `observation_inputs` at its end, where `outputs` ends.
+
+copy observation-input-passed-twice
+swap "$conf_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  workload: {type: string, required: true}'
+printf 'observation_inputs: {workload: workload}\n' >> "$c/$conf_d"
+swap "$conf" '      kind: snapshot' '      kind: snapshot\n      workload: ${inputs.subject}'
+swap "$conf" "$passes" "$passes"'\n      workload: ${inputs.subject}'
+refused '`assessments.conformance.inputs.workload` passes the input `workload`, which `conformance-report@1` takes from the key `workload` of the plan'"'"'s `observation` (`observation_inputs`)' "a plan passes under inputs the input that its assessor takes from observation.workload"
+
+again observation-input-absent
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  runs: {type: integer, required: true}'
+printf 'observation_inputs: {runs: runs}\n' >> "$c/$differ_d"
+refused '`assessments.comparison` has no `observation.runs`, which `comparison-report@1` passes as its required input `runs` (`observation_inputs`)' "a declaration takes a required input from observation.runs, and the plan has no runs"
+
+copy observation-input-undeclared
+printf 'observation_inputs: {workload: workload}\n' >> "$c/$conf_d"
+refused '`observation_inputs.workload` names the input `workload`, which the declaration does not declare under `inputs`' "a declaration takes from observation.workload an input it does not declare"
+
+again observation-input-key
+swap "$differ_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  warmup: {type: integer, required: false}'
+printf 'observation_inputs: {warmup: warmup}\n' >> "$c/$differ_d"
+refused '`observation_inputs.warmup` is no key of the observation that Ratchet passes (ratchet.assessor.ObservationKey: ' "a declaration takes an input from the key warmup, which is no observation key"
+
+# A declaration names under `revision_inputs` the inputs whose file states the revision it was
+# produced from (docs/evidence-format.md § 10, "The revision"); each is one of its inputs.
+again revision-input-undeclared
+printf 'revision_inputs: [lists]\n' >> "$c/$known_d"
+refused '`revision_inputs[1]` names the input `lists`, which the declaration does not declare under `inputs`' "a declaration lists under revision_inputs an input it does not declare"
+
+# The window of a time-window plan (docs/evidence-format.md § 10, "The window of the plan"):
+# "`window_length` and `window_last` are the `length` and the `last` of the plan's `window`,
+# each passed where the plan states it [...]; `window_ends_at` is the instant the plan is
+# assessed". The plan states `window: {last: 20}`, and holds no key `window_last` or
+# `window_ends_at` under `observation`. The declaration is a copy of conformance-report@1 as
+# window-report@1, which only the plan of conformance-cases@1 names.
+copy observation-input-window-keys
+window_d='window-report@1.assessor.yaml'
+sed 's/^name: conformance-report$/name: window-report/' "$c/$conf_d" > "$c/$window_d"
+swap "$window_d" '  report: {type: path, required: true}' '  report: {type: path, required: true}\n  last: {type: integer, required: true}\n  ends: {type: string, required: true}'
+printf 'population_fields: [service]\nobservation_inputs: {window_last: last, window_ends_at: ends}\n' >> "$c/$window_d"
+swap "$conf" '    assessor: conformance-report@1' '    assessor: window-report@1'
+swap "$conf" '      kind: snapshot' '      kind: time_window\n      window: {last: 20}\n      population: {filter: {service: orders-api}}\n      min_samples: 10'
+accepts "a time-window plan with window last 20 over a population outside the store, whose assessor takes window_last and window_ends_at as required inputs"
+
+# A required input taken from `window_length`, where the window states only its `last`.
+again observation-input-window-length-absent
+swap "$window_d" '  ends: {type: string, required: true}' '  ends: {type: string, required: true}\n  length: {type: string, required: true}'
+swap "$window_d" 'observation_inputs: {window_last: last, window_ends_at: ends}' 'observation_inputs: {window_last: last, window_ends_at: ends, window_length: length}'
+refused '`assessments.conformance` has no `observation.window.length`, which `window-report@1` passes as its required input `length` (`observation_inputs`)' "a declaration takes a required input from window_length, and the window of the plan states only its last"
+
+# A required input taken from `window_ends_at`, on a plan that is no time-window plan.
+again observation-input-window-end-on-snapshot
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  ends: {type: string, required: true}'
+printf 'observation_inputs: {window_ends_at: ends}\n' >> "$c/$known_d"
+refused '`assessments.known-failures` is no time-window plan, and `case-list@1` passes as its required input `ends` the key `window_ends_at`' "a declaration takes a required input from window_ends_at, and a snapshot plan names it"
 
 # -- a window over the runs of another plan ------------------------------------------------------
 
@@ -2837,7 +3282,7 @@ refused '`requirements.refused-does-not-rise` has the reference `accepted_value`
 
 again compare-condition-on-a-digest
 swap "$differ_d" '    value_type: identity_set' '    value_type: digest'
-refused '`requirements.different-cases-within-limit` has a condition, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes none' "a requirement with a condition reads an output that is a digest"
+refused '`requirements.different-cases-within-limit` has a condition without a `digest`, and the output `cases` of `comparison-report@1` has the value type `digest`, which takes `eq` with a `digest`' "a requirement with a condition reads an output that is a digest"
 
 again compare-value-without-limit
 swap "$known" '    condition: {operator: no_new_items}' '    condition: {operator: no_new_items, value: 3}'
@@ -2846,6 +3291,261 @@ refused '`requirements.no-new-known-failure` has the operator `no_new_items`, wh
 copy compare-set-without-condition
 drop "$conf" "$set_rule"
 refused '`requirements.no-case-lost` compares a set with a reference and has no condition' "a requirement on a set has a reference and no operator"
+
+# A limit on the items of a filtered set: `eq` with the value 0 and no reference, at the end of
+# differential-equality@1, where the map `requirements` ends.
+copy compare-eq-zero-on-filtered-set
+printf '  no-different-case:\n    meaning: No case is different.\n    assessment: comparison\n    measurement: different-cases\n    condition: {operator: eq, value: 0}\n' >> "$c/$differ"
+accepts "a requirement with eq and the value 0 on a set filtered by a field of its items, without a reference"
+
+# The source of a limit and of a band: prose for a reader, which no rule reads. The third
+# reference is that of `failed-does-not-rise`.
+copy condition-and-tolerance-with-source
+swap "$conf" "$accepted_value" '    condition: {operator: lte, value: 3, unit: cases, source: {cites: decision:x}}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 1, source: {cites: decision:x, since: 2026-03-01}}' 3
+accepts "a condition and a tolerance that each state their source"
+
+# A digest is compared with `eq` and a `digest`. The copies make the output `refused` of
+# `conformance-report@1` a digest without a unit, and `refused-does-not-rise`, the fifth
+# requirement of conformance-cases@1, compares it. case-list@1 is no file to edit here:
+# known-failures@2 names it too.
+digest_output='  refused: {value_type: digest, kind: exact, scopes: []}'
+pinned='sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
+number_refused='  refused: {value_type: number, kind: exact, scopes: [], unit: cases}'
+# digest_copy <case>: a fresh copy whose measurement `refused` reads a digest.
+digest_copy() {
+  copy "$1"
+  swap "$conf_d" "$number_refused" "$digest_output"
+  drop "$conf" '        unit: cases' 4
+  drop "$conf" '        better: lower' 3
+}
+
+digest_copy compare-digest-eq
+swap "$conf" "$accepted_value" '    condition: {operator: eq, digest: "'"$pinned"'"}' 5
+accepts "a requirement on a digest output with the operator eq and a digest"
+
+digest_copy compare-digest-with-lt
+swap "$conf" "$accepted_value" '    condition: {operator: lt, digest: "'"$pinned"'"}' 5
+refused '`requirements.refused-does-not-rise` has the operator `lt`, and the output `refused` of `conformance-report@1` has the value type `digest`, which takes `eq` with a `digest`' "a digest condition with the operator lt"
+
+# the third is the reference of `failed-does-not-rise`
+again compare-digest-on-a-number
+swap "$conf" "$accepted_value" '    condition: {operator: eq, digest: "'"$pinned"'", unit: cases}' 3
+refused '`requirements.failed-does-not-rise` has a condition with a `digest`, and the output `failed` of `conformance-report@1` has the value type `number`, which takes no `digest`' "a digest condition on a number output"
+
+digest_copy compare-value-on-a-digest
+swap "$conf" "$accepted_value" '    condition: {operator: eq, value: "'"$pinned"'"}' 5
+refused '`requirements.refused-does-not-rise` has a `value`, and the output `refused` of `conformance-report@1` has the value type `digest`, which is compared with a `digest` and takes no `value`' "a value on a digest output"
+
+# A range is `within` with `min` and `max`. The copies hold the plan of `add_runs`, whose
+# measurement `step-time` reads a number in `s`, with the median of its runs, and add a
+# requirement on it at the end of conformance-cases@1, where the map `requirements` ends.
+# add_range <requirement> <condition>: that requirement on `step-time`.
+add_range() {
+  printf '  %s:\n    meaning: The median time of the step is in its range.\n    assessment: conformance\n    measurement: step-time\n    condition: %s\n' "$1" "$2" >> "$c/$conf"
+}
+# range_copy <case>: a fresh copy with the plan of `add_runs` and the median of `step-time`.
+range_copy() {
+  runs_copy "$1"
+  swap "$conf" '        unit: s' '        unit: s\n        aggregation: {kind: median}'
+}
+
+range_copy compare-within
+add_range step-time-in-range '{operator: within, min: 50, max: 60, unit: s}'
+accepts "a requirement on a number in s with the operator within, min 50 and max 60"
+
+range_copy compare-range-with-a-value
+add_range range-with-value '{operator: within, min: 50, max: 60, value: 55, unit: s}'
+refused '`requirements.range-with-value` has the operator `within`, which takes `min` and `max` and no `value`' "a range with a value"
+
+again compare-range-without-max
+add_range range-without-max '{operator: within, min: 50, unit: s}'
+refused '`requirements.range-without-max` has the operator `within` and no `max`, its upper bound' "a range without max"
+
+again compare-min-on-lte
+add_range min-on-lte '{operator: lte, value: 60, min: 50, unit: s}'
+refused '`requirements.min-on-lte` has a `min`, and the operator `lte`: `min` and `max` stand on `within` alone' "min on the operator lte"
+
+again compare-range-min-above-max
+add_range min-above-max '{operator: within, min: 60, max: 50, unit: s}'
+refused '`requirements.min-above-max` has the operator `within` with the `min` 60 above the `max` 50' "a range whose min is above its max"
+
+# the median of `step-time` is in `s`, and `failed` counts `cases`
+again compare-against-two-units
+add_range two-units '{operator: lte, against: {assessment: conformance, measurement: failed}, unit: s}'
+refused '`requirements.two-units` has `against` `assessments.conformance.measurements.failed` in the unit `cases`, and the output `duration` of `conformance-report@1` declares `s` (`against_unit_mismatch`)' "against compares two units"
+
+# the median of `step-time` is in `s`, and its value is adopted from `failed`, which counts
+# `cases`
+again adoption-other-unit
+printf '  adopted-in-cases:\n    meaning: The median time of the step is not above the adopted value.\n    assessment: conformance\n    measurement: step-time\n    condition: {operator: lte, value: 60, unit: s}\n    reference:\n      kind: accepted_value\n      tolerance: {percent: 10}\n      adoption: {from: assessment, assessment: conformance, measurement: failed}\n' >> "$c/$conf"
+refused '`requirements.adopted-in-cases` adopts from `assessments.conformance.measurements.failed` in the unit `cases`, and the output `duration` of `conformance-report@1` declares `s`' "an adoption from another assessment in another unit"
+
+# A requirement over two measurements: `against` names a measurement of another plan of the
+# preset. The copies give conformance-report@1 the set `failing_cases` and known-failures@1 a
+# second plan, `suite`, that reads it as `failing-cases`, with its row.
+suite_plan='  suite:\n    subject: ${inputs.subject}\n    assessor: conformance-report@1\n    inputs:\n      report: ${inputs.report}\n    target:\n      kind: revision\n      environments: ${inputs.environments}\n      selection: candidate\n    observation:\n      kind: snapshot\n    measurements:\n      failing-cases:\n        kind: exact\n        output: failing_cases\n        scope: run\n        identity: [case_id]\n\nrequirements:'
+# subset_copy <case>: a fresh copy with the plan `suite` in known-failures@1.
+subset_copy() {
+  copy "$1"
+  printf '  failing_cases:\n    value_type: identity_set\n    kind: exact\n    scopes: []\n    identity_key: [case_id]\n' >> "$c/$conf_d"
+  swap "$known" '    list: {type: path, required: true}' '    list: {type: path, required: true}\n    report: {type: path, required: true}'
+  swap "$known" 'requirements:' "$suite_plan"
+  add_row '| `known-failures@1/suite/failing-cases` | Lower: the set gains no case | None: a set of case ids | 0, no input | `conformance-report@1`, output `failing_cases` |'
+}
+# add_compare <requirement> <assessment> <measurement> <condition>: that requirement at the end
+# of known-failures@1, where the map `requirements` ends.
+add_compare() {
+  printf '  %s:\n    meaning: The two measurements compare.\n    assessment: %s\n    measurement: %s\n    condition: %s\n' "$1" "$2" "$3" "$4" >> "$c/$known"
+}
+
+subset_copy compare-subset-of
+add_compare every-failed-case-listed suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: listed-cases}}'
+accepts "the failing cases of one plan subset_of the listed cases of another plan of the preset, through against"
+
+subset_copy compare-against-set-and-number
+add_compare set-and-number suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: size}}'
+refused '`requirements.set-and-number` has `against` `assessments.known-failures.measurements.size` of the value type `number`, and the output `failing_cases` of `conformance-report@1` has the value type `identity_set` (`against_value_type_mismatch`)' "against compares a set with a number"
+
+again compare-against-assessment-not-held
+add_compare not-held suite failing-cases '{operator: subset_of, against: {assessment: nowhere, measurement: cases}}'
+refused '`requirements.not-held` has `against` the assessment `nowhere`, which the preset does not hold' "against names an assessment the preset does not hold"
+
+again compare-against-without-measurement
+add_compare without-measurement suite failing-cases '{operator: subset_of, against: {assessment: known-failures}}'
+refused '`requirements.without-measurement` has `against` the assessment `known-failures` and names no measurement of it, and the assessment holds 2' "against names no measurement of an assessment with two"
+
+again compare-against-measurement-not-held
+add_compare measurement-not-held suite failing-cases '{operator: subset_of, against: {assessment: known-failures, measurement: unlisted-cases}}'
+refused '`requirements.measurement-not-held` has `against` the measurement `unlisted-cases`, which the assessment `known-failures` does not hold' "against names a measurement its assessment does not hold"
+
+again compare-subset-of-without-against
+add_compare without-against suite failing-cases '{operator: subset_of}'
+refused '`requirements.without-against` has the operator `subset_of` and no `against`, the set it is compared with' "subset_of without against"
+
+again compare-subset-of-on-a-number
+add_compare on-a-number known-failures size '{operator: subset_of, against: {assessment: known-failures, measurement: size}, unit: cases}'
+refused '`requirements.on-a-number` has the operator `subset_of`, which takes an identity set, and the output `count` of `case-list@1` has the value type `number`' "subset_of on a number output"
+
+# A reference adopted from the evidence of another plan (docs/design.md § 5 "The ratchet
+# policy"): `adoption: {from: assessment, assessment: <plan>, measurement: <measurement>}`.
+# The copies of `subset_copy` hold two plans of known-failures@1 whose sets have the value
+# type `identity_set` and no unit.
+# add_adopt <requirement> <assessment> <measurement> <condition> <adoption>: that requirement
+# at the end of known-failures@1, with a reference of the kind `accepted_value`.
+add_adopt() {
+  printf '  %s:\n    meaning: The set keeps to its adopted value.\n    assessment: %s\n    measurement: %s\n    condition: %s\n    reference:\n      kind: accepted_value\n      adoption: %s\n' "$1" "$2" "$3" "$4" "$5" >> "$c/$known"
+}
+
+subset_copy adoption-other-assessment
+add_adopt adopted-from-the-list suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: listed-cases}'
+accepts "the accepted set of the failing cases of one plan is adopted from the listed cases of another plan of the preset"
+
+subset_copy adoption-other-value-type
+add_adopt adopted-from-a-number suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: size}'
+refused '`requirements.adopted-from-a-number` adopts from `assessments.known-failures.measurements.size` of the value type `number`, and the output `failing_cases` of `conformance-report@1` has the value type `identity_set`' "an adoption from a measurement of another value type"
+
+again adoption-assessment-not-held
+add_adopt adopted-from-nowhere suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: nowhere, measurement: cases}'
+refused '`requirements.adopted-from-nowhere` adopts from the assessment `nowhere`, which the preset does not hold' "an adoption from an assessment the preset does not hold"
+
+again adoption-measurement-not-held
+add_adopt adopted-from-unlisted suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures, measurement: unlisted-cases}'
+refused '`requirements.adopted-from-unlisted` adopts from the measurement `unlisted-cases`, which the assessment `known-failures` does not hold' "an adoption from a measurement its assessment does not hold"
+
+again adoption-without-measurement
+add_adopt adopted-without-measurement suite failing-cases '{operator: no_new_items}' '{from: assessment, assessment: known-failures}'
+refused '`requirements.adopted-without-measurement` has an adoption `from: assessment` and names no `measurement`' "an adoption from an assessment without a measurement"
+
+again adoption-without-assessment
+add_adopt adopted-without-assessment suite failing-cases '{operator: no_new_items}' '{from: assessment, measurement: listed-cases}'
+refused '`requirements.adopted-without-assessment` has an adoption `from: assessment` and names no `assessment`' "an adoption from an assessment that names none"
+
+again adoption-assessment-on-trusted-revision
+add_adopt adopted-from-trusted suite failing-cases '{operator: no_new_items}' '{from: trusted_revision, runs: 1, assessment: known-failures, measurement: listed-cases}'
+refused '`requirements.adopted-from-trusted` has an adoption with `assessment`, and `from: trusted_revision`: `assessment` and `measurement` stand on `from: assessment` alone' "an adoption from the trusted revision that names an assessment"
+
+# -- forms of the rules of wave ahead 2 that no case above holds ---------------------------------
+#
+# Each case kills a mutant of a rule above that every other case leaves green.
+
+# An adoption from the trusted revision that names a measurement and no assessment: the second
+# half of the rule `adoption` on `from`.
+copy adoption-measurement-on-trusted-revision
+add_adopt adopted-measurement-from-trusted known-failures listed-cases '{operator: no_new_items}' '{from: trusted_revision, runs: 1, measurement: listed-cases}'
+refused '`requirements.adopted-measurement-from-trusted` has an adoption with `measurement`, and `from: trusted_revision`: `assessment` and `measurement` stand on `from: assessment` alone' "an adoption from the trusted revision that names a measurement"
+
+# `against` with `lte` and no `value`: the limit is the other measurement (docs/design.md § 3
+# "Comparisons"). Both measurements count `cases`.
+copy compare-against-lte
+printf '  failed-not-above-passed:\n    meaning: No more cases fail than pass.\n    assessment: conformance\n    measurement: failed\n    condition: {operator: lte, against: {assessment: conformance, measurement: passed}, unit: cases}\n' >> "$c/$conf"
+accepts "a requirement with lte against a measurement of the same plan in the same unit, without a value"
+
+# `within` without `min`, and `max` on another operator than `within`.
+range_copy compare-range-without-min
+add_range range-without-min '{operator: within, max: 60, unit: s}'
+refused '`requirements.range-without-min` has the operator `within` and no `min`, its lower bound' "a range without min"
+
+again compare-max-on-gte
+add_range max-on-gte '{operator: gte, value: 50, max: 60, unit: s}'
+refused '`requirements.max-on-gte` has a `max`, and the operator `gte`: `min` and `max` stand on `within` alone' "max on the operator gte"
+
+# The invariant is `min <= max`: equal bounds hold, and the bounds compare as numbers, so 9 is
+# below 10.
+range_copy compare-within-equal-and-numeric-bounds
+add_range equal-bounds '{operator: within, min: 50, max: 50, unit: s}'
+add_range numeric-bounds '{operator: within, min: 9, max: 10, unit: s}'
+accepts "a range whose min equals its max, and a range from 9 to 10"
+
+# `within` takes a number or a set, and not an assertion.
+copy compare-within-on-an-assertion
+add_case_holds '{case-1: "the default timeout"}'
+add_range holds-in-range '{operator: within, min: 0, max: 1}'
+swap "$conf" '    measurement: step-time' '    measurement: case-holds'
+refused '`requirements.holds-in-range` has the operator `within`, which takes a number or the number of items of a set, and the output `case_holds` of `conformance-report@1` has the value type `assertion`' "within on an assertion"
+
+# A plan passes a reference to an input of its assessor that lists `values`, as one value and as
+# an item of a list: the binding passes the value, so it is not read against them.
+copy plan-reference-to-input-with-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  mode: {type: string, required: false, values: [strict, lenient]}\n  modes: {type: string, list: true, required: false, values: [strict, lenient]}'
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    mode: {type: string, required: false}'
+swap "$known" '    inputs:' '    inputs:\n      mode: ${inputs.mode}\n      modes: ["${inputs.mode}"]'
+accepts "a plan passes a reference to an input with values, alone and as an item of a list"
+
+# A list default and a list literal with an item that is none of the values.
+copy input-list-default-outside-values
+swap "$known" '    environments: {type: string, list: true, required: true}' '    environments: {type: string, list: true, required: true}\n    directions: {type: string, list: true, required: false, values: [lower, higher], default: [lower, sideways]}'
+refused '`preset.inputs.directions.default` holds the item `sideways`, which is none of the values `[lower, higher]` of the input `directions`' "the list default of an input holds an item that is none of its values"
+
+again plan-list-literal-outside-values
+swap "$known_d" '  list: {type: path, required: true}' '  list: {type: path, required: true}\n  modes: {type: string, list: true, required: false, values: [strict, lenient]}'
+swap "$known" '    inputs:' '    inputs:\n      modes: [strict, loose]'
+refused '`assessments.known-failures.inputs.modes` holds the item `loose`, which is none of the values `[strict, lenient]` that `case-list@1` declares for the input `modes`' "a plan passes a list with an item that is none of the values of the input of its assessor"
+
+# A count of the coverage is compared as a number without a unit: with a limit, in a condition
+# that states a unit, against a number in `cases`, and adopted from a number in `cases`.
+copy coverage-count-limit
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-at-least:\n    meaning: At least ten cases are executed.\n    assessment: conformance\n    measurement: executed\n    condition: {operator: gte, value: 10}\n' >> "$c/$conf"
+accepts "a requirement with gte and the value 10 on the count executed of the coverage"
+
+copy coverage-count-condition-unit
+add_count "$conf" conformance-cases@1 conformance executed exact coverage.executed run 'better: higher'
+printf '  executed-in-cases:\n    meaning: At least ten cases are executed.\n    assessment: conformance\n    measurement: executed\n    condition: {operator: gte, value: 10, unit: cases}\n' >> "$c/$conf"
+refused '`requirements.executed-in-cases` has a condition in the unit `cases`, and the coverage count `coverage.executed` of `conformance-report@1` declares none (`unit_not_declared`)' "a condition on a coverage count states a unit"
+
+again coverage-count-against-cases
+printf '  failed-not-above-executed:\n    meaning: No more cases fail than are executed.\n    assessment: conformance\n    measurement: failed\n    condition: {operator: lte, against: {assessment: conformance, measurement: executed}, unit: cases}\n' >> "$c/$conf"
+refused '`requirements.failed-not-above-executed` has `against` `assessments.conformance.measurements.executed` in the unit `none`, and the output `failed` of `conformance-report@1` declares `cases` (`against_unit_mismatch`)' "against a coverage count from a number in cases"
+
+again coverage-count-adopted-from-cases
+printf '  executed-adopted:\n    meaning: The number of executed cases keeps to its adopted value.\n    assessment: conformance\n    measurement: executed\n    reference:\n      kind: accepted_value\n      adoption: {from: assessment, assessment: conformance, measurement: failed}\n' >> "$c/$conf"
+refused '`requirements.executed-adopted` adopts from `assessments.conformance.measurements.failed` in the unit `cases`, and the coverage count `coverage.executed` of `conformance-report@1` declares `none`' "a coverage count adopted from a number in cases"
+
+# A pass rate is a number on both sides of `against` and of an adoption.
+rate_copy pass-rate-against-and-adopted
+printf '  pass-rate-not-below-itself:\n    meaning: The pass rate is not below the pass rate.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, against: {assessment: conformance, measurement: pass-rate}}\n' >> "$c/$conf"
+printf '  pass-rate-adopted:\n    meaning: The pass rate keeps to its adopted value.\n    assessment: conformance\n    measurement: pass-rate\n    condition: {operator: gte, value: 0.9}\n    reference:\n      kind: accepted_value\n      tolerance: {absolute: 0.05}\n      adoption: {from: assessment, assessment: conformance, measurement: pass-rate}\n' >> "$c/$conf"
+accepts "a pass rate against a pass rate, and a pass rate adopted from a pass rate"
 
 # -- rows ----------------------------------------------------------------------------------------
 

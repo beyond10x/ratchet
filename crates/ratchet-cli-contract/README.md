@@ -46,6 +46,8 @@ Evaluate a named gate with qualifying evidence, or an operational gate over its 
 
 Callable: `evaluate`. Input: `ratchet.cli.EvaluateInput`. Result: `ratchet.cli.GateReport`.
 
+Error `candidate_not_tagged`: `ratchet.cli.Refusal`.
+
 Error `gate_failed`: `ratchet.cli.GateReport`.
 
 Error `insufficient_evidence`: `ratchet.cli.GateReport`.

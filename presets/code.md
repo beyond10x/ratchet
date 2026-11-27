@@ -6,7 +6,7 @@ reports the project's own tools write about a tree:
 
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
-| [`code-lines@1`](code-lines@1.preset.yaml) | The generated and the hand-written lines of code | An imported report of a line counter, [`line-count@1`](line-count@1.assessor.yaml) |
+| [`code-lines@1`](code-lines@1.preset.yaml) and [`code-lines@2`](code-lines@2.preset.yaml) | The generated and the hand-written lines of code; `@2` declares the values of the two inputs of the direction | An imported report of a line counter, [`line-count@1`](line-count@1.assessor.yaml) |
 | [`generator-obligations@1`](generator-obligations@1.preset.yaml) | The pieces of work a code generator leaves to the project | An imported report of the generator, [`obligation-report@1`](obligation-report@1.assessor.yaml) |
 | [`lint-findings@1`](lint-findings@1.preset.yaml) | The findings of a linter | An imported report of the linter, [`lint-report@1`](lint-report@1.assessor.yaml) |
 
@@ -110,6 +110,28 @@ presets:
       generated_better: lower
       handwritten_better: lower
 ```
+
+## `code-lines@2`
+
+`code-lines@1` whose two inputs of the direction declare the values they may have:
+`generated_better` and `handwritten_better` each state `values: [lower, higher]`, the two of
+`ratchet.specification.Direction` ([`docs/design.md`](../docs/design.md) § 4, "Custom
+assessors"). The preset file then says which words a binding may pass, and a binding that
+passes another word is refused at the input, when a command resolves the binding, and not
+where the value is used. The script of the catalog reads each of the values against the
+values of `better`. The other inputs, the requirements, the program of
+`line-count@1` and the binding are those of `code-lines@1`, with `use: code-lines@2`. The
+file `@1` stays as it was released.
+
+| Input | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `generated_better` | string, `values: [lower, higher]` | yes | Which way is better for the generated lines |
+| `handwritten_better` | string, `values: [lower, higher]` | yes | Which way is better for the hand-written lines |
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `code-lines@2/lines/generated` | The input `generated_better`: one of its values, lower or higher | `lines` | 0, no input | `line-count@1`, output `generated` |
+| `code-lines@2/lines/handwritten` | The input `handwritten_better`: one of its values, lower or higher | `lines` | 0, no input | `line-count@1`, output `handwritten` |
 
 ## `generator-obligations@1`
 
@@ -249,17 +271,29 @@ key to a format; each point names the place in the specification
 
 1. **A reference adopted from the evidence of another plan.** The accepted number of
    hand-written lines of the candidate should be that of the reference implementation.
-   `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   Answered in the format: `ratchet.specification.AdoptionSource` has the value `assessment`,
+   and `ratchet.specification.RatchetPolicy` names the plan and the measurement of the same
+   specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). No preset of the family
+   holds a plan of the reference implementation, so none adopts from one yet.
 2. **A requirement over two measurements.** "At least half of the lines are generated"
-   compares two measurements. `ratchet.specification.QualityRequirement` names one
-   ([functional.md](functional.md), point 2). A program could return the share as an output
-   of its own; `line-count@1` returns the two numbers the share is made of.
+   compares two measurements. Answered in the format:
+   `ratchet.specification.Condition.against` names the second
+   ([functional.md](functional.md), point 2), so `generated` with `gte` against `handwritten`
+   in the unit `lines` states it, from the two numbers `line-count@1` returns. Neither
+   `code-lines@1` nor `code-lines@2` holds that requirement, and a version that does is not
+   written.
 3. **The conditions of a plan as an input.** As for the latency family
-   ([latency.md](latency.md), "Not expressible yet", point 3): an input stands for a scalar or
-   a list of scalars and for no map, so a binding cannot pass the version of the linter or of
-   the generator as the condition `tools`.
+   ([latency.md](latency.md), "Not expressible yet", point 3): up to `operation-time@1` an input
+   stood for a scalar or a list of scalars and for no map, so a binding could not pass the
+   version of the linter or of the generator as the condition `tools`.
+   The input type `conditions` answers it from `operation-time@2` on, as the whole value of
+   `observation.conditions`. The presets of this family still fix their conditions, none,
+   until a version of their own takes the input.
 4. **The values an input may have.** `generated_better` and `handwritten_better` take `lower`
-   or `higher`. `ratchet.specification.InputDeclaration` has a type and no list of the values
-   an input may have, so the preset file does not say which words a binding may pass, and a
-   wrong word is found where the value is used and not at the input.
+   or `higher`. Up to `code-lines@1`, `ratchet.specification.InputDeclaration` had a type and
+   no list of the values an input may have, so the preset file does not say which words a
+   binding may pass, and a wrong word is found where the value is used and not at the input.
+   Answered from `code-lines@2` on: `InputDeclaration.values` lists them, `[lower, higher]`,
+   and a binding that passes another word is refused at the input. `code-lines@1` stays as it
+   was released.

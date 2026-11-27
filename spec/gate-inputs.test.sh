@@ -2,10 +2,11 @@
 # The scripts of `task check:spec` refuse a broken input that an edit of the form hides.
 #
 # Each script finds what it reads by a form: spec/record-fields.test.sh and
-# spec/record-types.test.sh by the number of a section (`## 3. `, `## 10. `) and the header
-# `| Field | Type | Required |`; spec/record-examples.test.sh by the fence ```json in § 6;
-# spec/contract-examples.test.sh by the fence ```yaml in § 10; spec/cli-coverage-row.test.sh by
-# the names of two structs; spec/cli-errors.test.sh by the words of a row of docs/design.md.
+# spec/record-types.test.sh by the number of a section (`## 3. `, `## 10. `, `## 12. `) and the
+# header `| Field | Type | Required |`; spec/record-examples.test.sh by the fence ```json in § 6
+# and § 12; spec/contract-examples.test.sh by the fence ```yaml in § 10;
+# spec/cli-coverage-row.test.sh by the names of two structs; spec/cli-errors.test.sh by the words
+# of a row of docs/design.md.
 # A table, a section or an example that an edit moves out of that form is no longer read. Each
 # script therefore states how much it reads, and this script holds them to it.
 #
@@ -14,10 +15,12 @@
 # the case holds when at least one of them exits non-zero, as the gate then does. The unchanged
 # copy runs first and has to pass all of them.
 #
-# One case holds a defect in the form, and one script has to refuse it with the message of its
+# Two cases hold a defect in the form, and one script has to refuse each with the message of its
 # rule: a byte inside `evidence` of § 6 example 1 is changed, so the evidence digest that § 6
 # states is not that of the bytes, and spec/record-examples.test.sh exits 1 with its digest
-# message.
+# message; and the example of § 12 holds a member that `ratchet.evidence.ProofRecord` does not
+# declare, and spec/record-examples.test.sh exits 1 naming it, which it does only when it reads
+# § 12 and takes the root type from the value of `format`.
 #
 # Exit 0: the last line is `gate-inputs: <n> of <n> broken inputs refused`.
 # Exit 1: each case that every script accepts is named with the last line of each script, and
@@ -204,6 +207,31 @@ edit "$doc" '
   first && $0 == "    \"project\": \"uxui\"," { sub(/"uxui"/, "\"uxuj\"") }
   { print }'
 expect_message record-examples "and the bytes of \`evidence\` of § 6 example 1 give sha256:" "one byte inside \`evidence\` of § 6 example 1 is changed, uxui to uxuj, and the stated evidence digest is not"
+
+copy proof-example-member
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 12\. /) }
+  s && /^```json$/ { inside = 1 }
+  inside && /^```$/ { inside = 0 }
+  inside && $0 == "  \"revision\": \"4f2a9c1\"," { print; print "  \"run\": \"run:0\","; next }
+  { print }'
+expect_message record-examples "\`run\` is not a field of ratchet.evidence.ProofRecord" "the example of § 12 holds a member \`run\`, which ProofRecord does not declare"
+
+copy example-format-unknown
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 6\. /) }
+  s && $0 == "  \"format\": \"ratchet-evidence/1\"," && ++seen == 2 { print "  \"format\": \"ratchet-evidence/2\","; next }
+  { print }'
+expect_message record-examples "§ 6 example 4 has a shape or a \`format\` with no root type" "§ 6 example 4, the second object of § 6, states the format ratchet-evidence/2, which no root type of the script names"
+
+copy proof-example-added
+edit "$doc" '
+  /^## / { s = ($0 ~ /^## 12\. /) }
+  s && /^```json$/ { inside = 1 }
+  inside { block = block $0 "\n" }
+  { print }
+  inside && /^```$/ { inside = 0; printf "\n%s", block }'
+expect_message record-examples "§ 12 of docs/evidence-format.md holds 2 example(s), and spec/record-examples.test.sh states 1" "§ 12 holds a second proof record, and the script states 1"
 
 if [ "$accepted" -gt 0 ]; then
   echo "gate-inputs: $((cases - accepted)) of $cases broken inputs refused, $accepted accepted"

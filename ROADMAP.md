@@ -105,10 +105,12 @@ Three epics run beside the waves to 0.1.0 and change the content of none of thei
   stories. They wait for the waves to 0.1.0, except `story:example-assessor-declarations`,
   taken ahead of them on 2026-11-25 and delivered on 2026-11-26: nine declarations in
   `examples/quality/assessors/` and their check `spec/example-declarations.test.sh`, and the
-  four of the wave below.
+  four of the wave below; fifteen more are built in the second wave below.
 - `epic:format-gaps-second-format-consumer`: 3 findings from the draft quality definition of
   a second repository (`beyond10x/swell`, a script engine that also compares itself with
-  other engines), as three draft stories. They wait for the waves to 0.1.0.
+  other engines), as three draft stories. The second wave below builds
+  `story:imported-report-revision-check` and rejects `story:peer-values-beside-candidate`; the
+  third waits for the waves to 0.1.0.
 
 One wave runs ahead of the waves to 0.1.0, chosen by the owner on 2026-11-26: every planned
 wave starts behind `story:cli-skeleton-validate`, which waits for an ESS release
@@ -121,3 +123,32 @@ branch and merged as one pull request: `story:workflow-run-target-identifiers`,
 `story:production-gate-spec-executed-service`. The parts that need the command are five
 `-in-ratchet` drafts that wait for the waves to 0.1.0. Record:
 `.engineering/waves/0.1.0-ahead-1.md`.
+
+A second wave runs ahead of the waves to 0.1.0 for the same reason, decided on 2026-11-26.
+Its 33 stories need no `ratchet` command either and are built in sequence on one branch, in
+eight batches, and merged as one pull request; it answers 15 stories of
+`epic:format-gaps-first-format-consumer`, 11 of `epic:preset-catalog`, and the rest from
+`epic:format-gaps-second-format-consumer`, `epic:ci-turnaround`,
+`epic:improvement-and-policy`, `epic:ess-ui-behavior` and `epic:runnable-cli`. The record
+formats: `story:readme-design-citations-by-place`, `story:coverage-count-lower-bound`,
+`story:import-source-tree-file`, `story:result-with-two-dimensions`,
+`story:assessor-learns-observation`, `story:window-over-outside-population`,
+`story:build-target-invocation`, `story:imported-report-revision-check`,
+`story:prove-command`. The comparisons of a requirement: `story:condition-on-digest-value`,
+`story:requirement-states-a-range`, `story:requirement-over-two-measurements`,
+`story:severity-limit-on-identity-set`, `story:number-states-its-source`,
+`story:coverage-count-with-reference`, `story:coverage-bound-on-failed-units`,
+`story:assertion-required-items`, `story:list-item-statement`. The observation plan and the
+inputs: `story:min-samples-per-scope-item`, `story:machine-as-a-condition`,
+`story:plan-conditions-from-binding`, `story:member-for-some-input-values`,
+`story:input-allowed-values`, `story:plan-declares-what-its-command-needs`,
+`story:plan-never-assessed`. References, the local config and gates:
+`story:new-item-without-accepted-value`, `story:reference-from-another-plan`,
+`story:records-tracked-baseline-directory`, `story:gate-entry-unless-only-paths`,
+`story:gate-judges-commit-of-a-tag`, `story:production-gate-kind`,
+`story:gate-joins-revision-and-document`, `story:example-release-quality`. A production gate
+is a candidate gate with `judges: {deployment: <class>}`, and
+`story:peer-values-beside-candidate` is rejected: a comparison of implementations is outside
+the boundary of Ratchet, and `docs/design.md` § 2 says what a consumer does instead.
+The parts that need the command are 29 `-in-ratchet` drafts that wait for the waves to
+0.1.0. Record: `.engineering/waves/0.1.0-ahead-2.md`.

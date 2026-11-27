@@ -1,13 +1,15 @@
 #!/bin/sh
-# Every field row of docs/evidence-format.md § 3 (`ratchet-evidence/1`) and § 10
-# (`ratchet-assessor/1`) is declared in spec/domains/ at the place, in the type and with the
-# optionality the row gives, and every declared field of a struct the rows describe has a row.
+# Every field row of docs/evidence-format.md § 3 (`ratchet-evidence/1`), § 10
+# (`ratchet-assessor/1`) and § 12 (`ratchet-proof/1`) is declared in spec/domains/ at the place,
+# in the type and with the optionality the row gives, and every declared field of a struct the
+# rows describe has a row.
 #
 # spec/record-fields.test.sh checks the name of a row against a type its own table names. This
 # script names no type: it walks the path of a row from the root of the document
-# (`ratchet.evidence.AssessmentRun` for § 3, `ratchet.assessor.Assessor` for § 10) through the
-# declared field types, so a member that is declared and hangs under another type, or is declared
-# with another type or optionality than its row says, fails here.
+# (`ratchet.evidence.AssessmentRun` for § 3, `ratchet.assessor.Assessor` for § 10,
+# `ratchet.evidence.ProofRecord` for § 12) through the declared field types, so a member that is
+# declared and hangs under another type, or is declared with another type or optionality than its
+# row says, fails here.
 #
 # A row is checked three ways:
 #   place        the path `<table>.<field>` resolves field by field from the root; `x[]` is an
@@ -24,8 +26,9 @@
 # Exit 1: each row or field that fails is named; a table or a Type cell this script has no rule
 # for fails too, and is never counted as checked. So does a section that is not found, and a
 # table that is not found or holds another number of rows than `expect` below states for it:
-# 78 rows in the 13 tables of § 3 and 20 in the 2 tables of § 10. A section that moves to
-# another number, a header that changes, or a row that is added or deleted changes a count.
+# 82 rows in the 13 tables of § 3, 23 in the 2 tables of § 10 and 7 in the 1 table of § 12. A
+# section that moves to another number, a header that changes, or a row that is added or deleted
+# changes a count.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -50,17 +53,18 @@ awk '
     expect(3, "### `evidence`", 12)
     expect(3, "### `evidence.target`", 6)
     expect(3, "### `evidence.target.window`", 5)
-    expect(3, "### `evidence.inputs.<name>`", 3)
+    expect(3, "### `evidence.inputs.<name>`", 4)
     expect(3, "### `evidence.conditions`", 8)
-    expect(3, "### `evidence.coverage`", 12)
-    expect(3, "### `evidence.results[]`", 10)
-    expect(3, "A result of the value type `number`:", 5)
+    expect(3, "### `evidence.coverage`", 13)
+    expect(3, "### `evidence.results[]`", 11)
+    expect(3, "A result of the value type `number`:", 6)
     expect(3, "A result of the value type `identity_set`:", 4)
     expect(3, "A result of the value type `digest` or `assertion`:", 2)
     expect(3, "### `evidence.source`", 2)
     expect(3, "### `run`", 6)
-    expect(10, "### Declaration `ratchet-assessor/1`", 12)
-    expect(10, "An output, `outputs.<name>`:", 8)
+    expect(10, "### Declaration `ratchet-assessor/1`", 14)
+    expect(10, "An output, `outputs.<name>`:", 9)
+    expect(12, "### Fields of `ratchet-proof/1`", 7)
   }
 
   # The declared type of the member a path names, from the type `t`; "" when a step does not
@@ -139,11 +143,12 @@ awk '
     next
   }
 
-  # docs/evidence-format.md: § 3 and § 10 only.
+  # docs/evidence-format.md: § 3, § 10 and § 12 only.
   /^## / {
     section = 0
     if ($0 ~ /^## 3\. /) { section = 3; doc_root = "ratchet.evidence.AssessmentRun" }
     if ($0 ~ /^## 10\. /) { section = 10; doc_root = "ratchet.assessor.Assessor" }
+    if ($0 ~ /^## 12\. /) { section = 12; doc_root = "ratchet.evidence.ProofRecord" }
     if (section) found[section] = 1
     in_table = 0
   }
@@ -156,6 +161,7 @@ awk '
     else if (section == 3 && label ~ /^A result of the value type /) { prefix = "evidence.results[]."; flat = 1 }
     else if (section == 10 && label ~ /^### Declaration `ratchet-assessor\/1`$/) prefix = ""
     else if (section == 10 && label == "An output, `outputs.<name>`:") prefix = "outputs.<name>."
+    else if (section == 12 && label == "### Fields of `ratchet-proof/1`") prefix = ""
     else { fail("no rule: the field table under \"" label "\" has no path in spec/record-types.test.sh"); known = 0 }
     if (known && !((section SUBSEP label) in want)) {
       fail("no rule: the field table under \"" label "\" in § " section " has no number of rows in spec/record-types.test.sh"); known = 0
@@ -195,6 +201,7 @@ awk '
   END {
     if (!(3 in found)) fail("not found: docs/evidence-format.md has no section \"## 3. \", which holds the fields of `ratchet-evidence/1`")
     if (!(10 in found)) fail("not found: docs/evidence-format.md has no section \"## 10. \", which holds the fields of `ratchet-assessor/1`")
+    if (!(12 in found)) fail("not found: docs/evidence-format.md has no section \"## 12. \", which holds the fields of `ratchet-proof/1`")
     for (i = 1; i <= nexp; i++) {
       k = exp_sec[i] SUBSEP exp_label[i]
       if (!(exp_sec[i] in found)) continue

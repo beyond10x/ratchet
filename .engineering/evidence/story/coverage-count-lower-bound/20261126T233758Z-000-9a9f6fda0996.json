@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T23:37:58Z",
+  "actor": "human:operator",
+  "artifact": "story:coverage-count-lower-bound",
+  "kind": "story",
+  "revision": 19,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check on the build node, whole gate on commit 8d7a065 (wave ahead 2 with the answers to attack 1): exit 0",
+    "reference": ".engineering/waves/0.1.0-ahead-2.md"
+  }
+}

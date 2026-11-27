@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T21:04:19Z",
+  "actor": "human:operator",
+  "artifact": "story:machine-as-a-condition",
+  "kind": "story",
+  "revision": 12,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:critics-scope-wave-ahead-2-round-2",
+    "reference": ".engineering/waves/0.1.0-ahead-2.md",
+    "review": "review-result:critics-scope-wave-ahead-2-round-2",
+    "outcome": "fixed"
+  }
+}

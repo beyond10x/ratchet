@@ -10,7 +10,10 @@
 #
 # Refused, each with the file and the line of the plan or the measurement:
 #   1  an assessor without a declaration file in either directory; the message names the id
-#   2  a measurement that names an output its assessor does not declare
+#   2  a measurement that names an output its assessor does not declare. `coverage.<count>` is
+#      an output of Ratchet itself where the assessor lists the count under `coverage`: it
+#      has the scope `run` and no unit, read by rules 5 and 6 (docs/design.md § 3 "Evidence
+#      coverage")
 #   3  a measurement that states no unit for an output that declares one (`unit_missing`)
 #   4  a measurement that states another unit than the output declares (`unit_mismatch`)
 #   5  a measurement that states a unit for an output that declares none (`unit_not_declared`)
@@ -56,7 +59,7 @@
 #     precedence between the sources, and the script reads `examples/quality/assessors/` first
 #   - the bytes of a file (UTF-8, characters that hide text) and every key the rules above do
 #     not read: these are the gate's for `presets/` alone
-#   - that a declaration is what its program does: none of the nine assessors is a program here
+#   - that a declaration is what its program does: none of the ten assessors is a program here
 #   - of a binding, everything but the file its `use:` names and its `digest`: the inputs it
 #     passes (`with`) against the preset, and the plans and requirements of the bound preset,
 #     which spec/presets.test.sh checks in `presets/`. The resolution of a binding by
@@ -406,7 +409,7 @@ check() {
   }
 
   # One plan of an example: rules 1 to 7.
-  function check_plan(F, P,    pp, A, al, D, j, M, mp, O, op, what, has_du, du, has_mu, mu, sc, before) {
+  function check_plan(F, P,    pp, A, al, D, j, M, mp, O, op, cc, what, has_du, du, has_mu, mu, sc, before) {
     pp = "assessments" SEP P
     if (!mapping(F, pp, "the plan `" P "` ")) return
     if (!mapping(F, pp SEP "measurements", named(pp SEP "measurements"))) return
@@ -423,8 +426,12 @@ check() {
       before = failed
       if (!has(F, mp SEP "output")) { fail(F, line_of(F, mp), named(mp) "names no output"); continue }
       O = text(F, mp SEP "output"); op = "outputs" SEP O
-      if (O == "" || !has(D, op)) { fail(F, line_of(F, mp), named(mp) "names the output `" O "`, which `" A "` does not declare"); continue }
-      what = "the output `" O "` of `" A "`"
+      # `coverage.<count>` is an output of Ratchet itself: a count of the coverage of the run
+      # that the declaration lists under `coverage`, at the scope `run` and without a unit
+      # (docs/design.md § 3 "Evidence coverage").
+      cc = (substr(O, 1, 9) == "coverage." && !has(D, op) && holds(D, "coverage", substr(O, 10)))
+      if (!cc && (O == "" || !has(D, op))) { fail(F, line_of(F, mp), named(mp) "names the output `" O "`, which `" A "` does not declare"); continue }
+      what = cc ? "the coverage count `" O "` of `" A "`" : "the output `" O "` of `" A "`"
       has_du = has(D, op SEP "unit"); du = text(D, op SEP "unit")
       has_mu = has(F, mp SEP "unit"); mu = text(F, mp SEP "unit")
       if (has_du && !has_mu) fail(F, line_of(F, mp), named(mp) "has no `unit`, and " what " declares `" du "` (`unit_missing`)")
@@ -786,13 +793,15 @@ cmp -s "$c/$ux_d" "$c.presets/ux-eval@1.assessor.yaml" && nothing "$ux_d"
 accepts 'a declaration of ux-eval@1 in both directories, the one of the second without the output steps'
 
 # A comment on a line of its own, a file below the directory of the examples, which is no
-# example, and a declaration that no example names.
+# example, a declaration that no example names, and a measurement of `coverage.executed`, a
+# count that ux-eval@1 lists under `coverage`.
 copy valid-forms
 swap "$ui" 'assessments:' '# The plans.\nassessments:'
+swap "$ui" '      steps:' '      walks-executed:\n        {kind: exact, output: coverage.executed, scope: run, better: higher}\n      steps:'
 mkdir "$c/nested"
 printf 'not: [a ratchet/1 file\n' > "$c/nested/broken.ratchet.yaml"
 printf 'not: [a declaration\n' > "$c/quality/assessors/unnamed@1.assessor.yaml"
-accepts 'a comment on a line of its own, a broken file in a directory below the examples, and a broken declaration that no example names'
+accepts 'a comment on a line of its own, a broken file in a directory below the examples, a broken declaration that no example names, and a measurement of the count executed of the coverage'
 
 # -- one defect per rule ---------------------------------------------------------------------------
 
@@ -805,6 +814,11 @@ refused 'ess-ui-behavior.ratchet.yaml:27: the assessor `ux-eval@1` of the plan `
 copy rule-2-output
 swap "$ui" '        output: task_completed' '        output: task_complete'
 refused 'ess-ui-behavior.ratchet.yaml:20: `assessments.keyboard-task-completion.measurements.task-completes` names the output `task_complete`, which `ess-ui-report@1` does not declare' "a measurement names the output task_complete"
+
+# 2 a count of the coverage that the assessor does not list under `coverage`
+copy rule-2-coverage-count
+swap "$ui" '      steps:' '      walks-passed:\n        {kind: exact, output: coverage.passed, scope: run, better: higher}\n      steps:'
+refused 'ess-ui-behavior.ratchet.yaml:35: `assessments.walks.measurements.walks-passed` names the output `coverage.passed`, which `ux-eval@1` does not declare' "a measurement names the count passed of the coverage, which ux-eval@1 does not list"
 
 # 3 unit_missing
 copy rule-3-unit-missing
@@ -825,6 +839,15 @@ refused 'ess-ui-behavior.ratchet.yaml:41: `assessments.walks.measurements.layout
 copy rule-6-scope
 swap "$ui" '        scope: page' '        scope: screen'
 refused 'ess-ui-behavior.ratchet.yaml:43: `assessments.walks.measurements.findings` has the scope `screen`, and the output `findings` of `ux-eval@1` does not declare the scope `screen`' "the findings have the scope screen"
+
+# 5 and 6 on a count of the coverage, which has no unit and the scope `run` alone
+copy rule-5-coverage-count-unit
+swap "$ui" '      steps:' '      walks-executed:\n        {kind: exact, output: coverage.executed, scope: run, unit: walks, better: higher}\n      steps:'
+refused 'ess-ui-behavior.ratchet.yaml:35: `assessments.walks.measurements.walks-executed` states the unit `walks`, and the coverage count `coverage.executed` of `ux-eval@1` declares none (`unit_not_declared`)' "a count of the coverage states the unit walks"
+
+copy rule-6-coverage-count-scope
+swap "$ui" '      steps:' '      walks-executed:\n        {kind: exact, output: coverage.executed, scope: journey, better: higher}\n      steps:'
+refused 'ess-ui-behavior.ratchet.yaml:35: `assessments.walks.measurements.walks-executed` has the scope `journey`, and the coverage count `coverage.executed` of `ux-eval@1` does not declare the scope `journey`' "a count of the coverage has the scope journey"
 
 # 7 a measurement over `runs_of` that does not keep the unit, or the scope, of its source
 copy rule-7-series-unit

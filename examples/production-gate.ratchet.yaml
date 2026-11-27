@@ -67,14 +67,14 @@ assessments:
         filter: {severity: [critical]}
 
 requirements:
-  no-new-critical-advisory:
+  no-critical-advisory:
     assessment: image-advisories
-    condition: {operator: no_new_items}
-    reference: {kind: accepted_value}
+    condition: {operator: eq, value: 0}
 
 gates:
   production:
     kind: candidate
+    judges: {deployment: staging}
     stage: pre-production
     qualifying_environments: [staging]
     requires:
@@ -84,5 +84,5 @@ gates:
       - probes.requests-without-valid-credential-refused
       - probes.console-not-reachable-through-public-proxy
       - probes.tls-on-every-public-listener
-      - no-new-critical-advisory
+      - no-critical-advisory
       - signatures.every-signature-verifies

@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T23:39:00Z",
+  "actor": "human:operator",
+  "artifact": "story:new-item-without-accepted-value",
+  "kind": "story",
+  "revision": 13,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:adversary-wave-ahead-2-attack-1",
+    "reference": "spec/domains/gate.yaml",
+    "review": "review-result:adversary-wave-ahead-2-attack-1",
+    "outcome": "no-op"
+  }
+}

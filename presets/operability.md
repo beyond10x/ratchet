@@ -6,7 +6,7 @@ it from what a project already collects:
 | Preset | What it judges | Evidence |
 | --- | --- | --- |
 | [`metric-names@1`](metric-names@1.preset.yaml) | The metric names a scrape of the service exposes, against the list the project documents | An imported scrape, [`metrics-scrape@1`](metrics-scrape@1.assessor.yaml) |
-| [`health-readiness@1`](health-readiness@1.preset.yaml) | The health and the readiness answers of the service, against what the project documents | An imported report of the checks, [`probe-report@1`](probe-report@1.assessor.yaml) |
+| [`health-readiness@1`](health-readiness@1.preset.yaml) and [`health-readiness@2`](health-readiness@2.preset.yaml) | The health and the readiness answers of the service, against what the project documents; `@2` with at least one expectation about each endpoint | An imported report of the checks, [`probe-report@1`](probe-report@1.assessor.yaml) |
 
 Every measurement of the family is exact: a set of metric names or an assertion. Its tolerance
 is 0, and no preset of the family has an input for it. The family has no sampled value, so the
@@ -15,7 +15,8 @@ sentence of the other runtime families on a required tolerance does not apply he
 What a release judges, per requirement, is in the tables below. The first release that
 evaluates a gate, 0.1.0, judges exact numbers and identity sets
 ([ROADMAP.md](../ROADMAP.md), "Releases"): that is `metric-names@1`. An assertion is exact and
-is not among them, so `health-readiness@1` is declared here and no release judges it yet.
+is not among them, so `health-readiness@1` and `health-readiness@2` are declared here and no
+release judges them yet.
 
 ## How to read a row
 
@@ -145,6 +146,26 @@ presets:
       min_expectations: 5
 ```
 
+## `health-readiness@2`
+
+`health-readiness@1` with at least one expectation about each endpoint: the measurements
+`health` and `readiness` each state `min_items: 1`. A run whose report holds no expectation
+about one of the two endpoints is insufficient evidence for the requirement on that endpoint,
+with the cause `coverage_below_plan`, and no pass: `holds` over no item checked nothing
+([`docs/design.md`](../docs/design.md) § 3, "Evidence coverage"). The bound `executed` of the
+plan stays and counts the expectations of both endpoints together. The inputs, the
+requirements and the binding are those of `health-readiness@1`, with
+`use: health-readiness@2`. The file `@1` stays as it was released.
+
+| Measurement | Direction | Unit | Tolerance | Evidence |
+| --- | --- | --- | --- | --- |
+| `health-readiness@2/probes/health` | Holds for every expectation, of at least one | None: an assertion | 0, no input | `probe-report@1`, output `health` |
+| `health-readiness@2/probes/readiness` | Holds for every expectation, of at least one | None: an assertion | 0, no input | `probe-report@1`, output `readiness` |
+
+A project that names the expectations that must be there, such as `ready-after-start`, states
+them with `required_items` on the measurement of a plan in its own file. `health-readiness@2`
+names no expectation: the ids are the project's.
+
 ## Candidate against a reference implementation
 
 The documented list is one for both implementations, so `no-undocumented-name` judges the
@@ -166,23 +187,32 @@ key to a format; each point names the place in the specification
 ([`spec/domains/`](../spec/domains/)) that lacks it.
 
 1. **A reference adopted from the evidence of another plan.** The accepted set of the
-   candidate should be the set of the binding for the reference implementation.
-   `ratchet.specification.RatchetPolicy` names no assessment
-   ([functional.md](functional.md), "Not expressible yet", point 1).
+   candidate should be the set of the binding for the reference implementation. Answered in
+   the format: `ratchet.specification.AdoptionSource` has the value `assessment`, and
+   `ratchet.specification.RatchetPolicy` names the plan and the measurement of the same
+   specification that the value is adopted from
+   ([functional.md](functional.md), "Not expressible yet", point 1). No preset of the family
+   holds a plan of the reference implementation, so none adopts from one yet.
 2. **A requirement over two sets.** "Every exposed name is documented" compares the set of the
-   scrape with the set of the list. `ratchet.specification.QualityRequirement` names one
-   measurement, and `ratchet.specification.ComparisonOperator` has no operator between two
-   sets ([functional.md](functional.md), point 2). So the program of `metrics-scrape@1` makes
-   the comparison and returns its two sides as two outputs, and the list is an input of the
-   assessor and no measurement.
+   scrape with the set of the list. The program of `metrics-scrape@1` makes the comparison and
+   returns its two sides as two outputs, and the list is an input of the assessor and no
+   measurement. `subset_of` with `against` states it once the list is a measurement of a plan:
+   `ratchet.specification.Condition.against` names that plan, and every exposed name is in the
+   listed set ([functional.md](functional.md), point 2). `metrics-scrape@1` stays as released;
+   a version of the preset with a plan over the list is not written.
 3. **The items an assertion must have.** An assertion takes no reference
    ([`docs/design.md`](../docs/design.md) § 3, "Comparisons"):
    `ratchet.specification.ReferenceKind` has `generated` and `accepted_value`, and neither
    is for an assertion. So no accepted set names the expectations that must be there, as
-   one does for a set with `no_lost_items`. The plan bounds their number through
-   `ratchet.specification.CoverageBounds`, which does not see one expectation replaced by
-   another. `executed_ids` there names an exact set, which a run with one more expectation
-   no longer is.
+   one does for a set with `no_lost_items`. Up to `health-readiness@1`, the plan bounds their
+   number through `ratchet.specification.CoverageBounds`, which counts both endpoints together
+   and does not see one expectation replaced by another. `executed_ids` there names an exact
+   set, which a run with one more expectation no longer is. Answered from `health-readiness@2`
+   on: `min_items` and `required_items` of `ratchet.specification.Measurement` bound the items
+   of one measurement, and a result below either is insufficient evidence with the cause
+   `coverage_below_plan`. `health-readiness@2` states `min_items: 1` on each endpoint.
 4. **The input that holds the workload.** As for the latency family
-   ([latency.md](latency.md), "Not expressible yet", point 6): `ratchet.assessor.Assessor`
-   has no member that names it.
+   ([latency.md](latency.md), "Not expressible yet", point 6): `ratchet.assessor.Assessor` has
+   `observation_inputs`, which maps the key `workload` of the plan's `observation` to an input
+   of the declaration, and no preset of the family uses it yet: `metrics-scrape@1` takes the
+   workload as an input that the plan passes under `inputs`.

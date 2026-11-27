@@ -49,7 +49,7 @@ Every digest is SHA-256 over bytes as they were written (U9). The format fixes n
 
 The column **From** says where a field comes from. `spec`: the field is in the specification with this meaning, and only its place in the JSON may differ. `changed`: it is in the specification with another name, type, or number. `new`: the specification does not have it. `§` is a section of the design. Specification types are in the domain `ratchet.evidence` unless they say otherwise.
 
-There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
+There are 82 fields: 48 `spec`, 7 `changed`, 27 `new`. The fields of an assessor’s declaration are in § 10 and are not counted here. The column compares with the specification at revision 3. Since 2026-11-24 the specification declares every row of these tables and of § 10 under the name the row gives, and `spec/record-fields.test.sh` checks that in the gate (§ 8).
 
 ### Top level
 
@@ -73,7 +73,7 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `completion` | text | yes | `completed`, `timed_out`, `stopped_by_infrastructure`, `skipped_locally`, or `refused_inputs`. The CLI writes the document of a run whose assessor left none (§ 10). | changed: `RunCompletion`; `refused_inputs` is a new value (E9) |
 | `conditions` | object | yes | The observed conditions. A declared condition that is absent is unknown (§ 6). One that nobody declares does not apply (below, `evidence.conditions`). | spec: `ObservedConditions` |
 | `coverage` | object | yes | How much of the plan the run executed (§ 3) | spec: `EvidenceCoverage` |
-| `results` | list of results | yes | One result per output, scope item, boundary, and aggregation. Empty when nothing ran. | changed: `AssessmentRun.results` is a map keyed by measurement name (E3) |
+| `results` | list of results | yes | One result per output, scope item, cell, boundary, and aggregation. Empty when nothing ran. | changed: `AssessmentRun.results` is a map keyed by measurement name (E3) |
 | `source` | object | exactly for an imported run | Where an imported run came from (§ 6) | spec: `ImportSource` |
 
 ### `evidence.target`
@@ -83,8 +83,8 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `kind` | text | yes | `revision`, `build`, `deployment`, `workflow_run`, `telemetry_population`, or `document` | changed: `ResolvedTarget.kind`; `document` is a new value (E1) |
 | `class` | text | yes | Where the evidence was produced: `local`, `ci`, `ephemeral`, `staging`, or `production` | spec: `ResolvedTarget.class` |
 | `selection` | text | no | `candidate` or `merge_result`. Absent: the evidence is attributable to no candidate (§ 3). Under `merge_result`, `candidate` is the revision under judgement and `revision` the merged tree that was read, two different commits. | spec: `ResolvedTarget.selection` |
-| `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. | spec: `ResolvedTarget.revision` |
-| `identifiers` | map from text to text | for `document` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1). For `workflow_run`: `run_id`, the forge’s id of the run, as text, and `job`, `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two jobs of one run are two records with the same `run_id`. The map stays open (E5). | spec: `ResolvedTarget.identifiers` |
+| `revision` | text | no | The repository revision the target was read at, where there is one. The assessor writes the revision it is given and looks none up (§ 10). Absent for `document`. For `build`: the revision the artifact was built from, which Ratchet passes as `--revision` (§ 10); the record holds it. | spec: `ResolvedTarget.revision` |
+| `identifiers` | map from text to text | for `document` and `build` | The identifiers of § 3 by name: `lockfile`, `environment_id`, `artifact_digest`, `workload_version`, `service`, `region`, `cohort`. For `build`: `artifact_digest`, the digest of the bytes of the artifact, which is `candidate` too. For `document`: `digest`, `digest_form`, and `path` where the document is a file of the tree. A document outside the tree has no `path` (§ 1), and its run cannot be joined to a candidate revision in a gate (`docs/design.md` § 5). For `workflow_run`: `run_id`, the forge’s id of the run, as text, and `job`, `<workflow> / <job>`, the file name of the workflow and the key of the job in it; two jobs of one run are two records with the same `run_id`. The map stays open (E5). | spec: `ResolvedTarget.identifiers` |
 | `window` | object | exactly for a time-window plan | The window that was read (§ 3) | spec: `ResolvedTarget.window` |
 
 ### `evidence.target.window`
@@ -104,6 +104,7 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `value` | text, count, boolean, or a list of these | yes, unless it is a path outside the tree | The value the plan passed, after defaults. A path and a decimal are text. | new: § 4 inputs |
 | `digest` | digest | for a path that was read | The file digest of the file at that path | new: U9 |
 | `digest_form` | text | with `digest` | `bytes` (§ 2) | new: U9 |
+| `revision` | text | no | The revision the file states it was produced from, for an input that the declaration names in `revision_inputs`, such as an imported report (§ 10). The input then has `digest` too. | new: a report of another revision |
 
 ### `evidence.conditions`
 
@@ -120,6 +121,8 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 
 **The cache condition.** A plan and a declaration write the cache condition as `cache_profile`, the key of its row above, and under no other name; a record holds it in `cache_profile` and not under `other`.
 
+**The machine and the build.** The four conditions of a plan that describe the machine and the build of the measured binary, `cpu_model`, `memory`, `accelerator` and `build_profile` (design § 3), have no row of their own: a record holds each under `other` by its name, as `"other": {"cpu_model": "AMD EPYC 7763", "memory": "64 GiB", "accelerator": "none", "build_profile": "release"}`, and the fields above do not change.
+
 **Unknown, or not applicable** (Q13). A condition is read only where it is declared: by the plan, for the class of the run, or by the assessor in its declaration (§ 10). A declared condition that the document does not hold is unknown, and the evidence does not qualify for a gate (design § 6). A condition that neither declares does not apply to the run, and its absence says nothing. `ux-static@1` declares no condition and reads no viewport, so its documents hold `tools` alone and no viewport is unknown. The format has no value for “does not apply”: the declaration says it once, for every run.
 
 ### `evidence.coverage`
@@ -127,12 +130,13 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
 | `unit` | text | yes | The assessor’s coverage unit, such as `walk`, `test`, or `check` | new: § 3 evidence coverage, § 6 (G29) |
-| `executed` | count | yes | Units that ran and gave a result | spec: `EvidenceCoverage.executed` |
-| `skipped` | count | yes | Units that the run left out on purpose | spec: `EvidenceCoverage.skipped` |
-| `not_run` | count | yes | Units that should have run and did not | spec: `EvidenceCoverage.not_run` |
-| `unsupported` | count | yes | Units that the assessor cannot evaluate | spec: `EvidenceCoverage.unsupported` |
-| `passed` | count | yes | Executed units whose own outcome is a pass | spec: `EvidenceCoverage.passed` |
-| `failed` | count | yes | Executed units whose own outcome is a fail | spec: `EvidenceCoverage.failed` |
+| `executed` | count | no | Units that ran and gave a result; absent: not known | spec: `EvidenceCoverage.executed` |
+| `skipped` | count | no | Units that the run left out on purpose; absent: not known | spec: `EvidenceCoverage.skipped` |
+| `not_run` | count | no | Units that should have run and did not; absent: not known | spec: `EvidenceCoverage.not_run` |
+| `unsupported` | count | no | Units that the assessor cannot evaluate; absent: not known | spec: `EvidenceCoverage.unsupported` |
+| `passed` | count | no | Executed units whose own outcome is a pass; absent: not known | spec: `EvidenceCoverage.passed` |
+| `failed` | count | no | Executed units whose own outcome is a fail; absent: not known | spec: `EvidenceCoverage.failed` |
+| `at_least` | list of text | no | The counts whose value is a lower bound, such as `["executed"]`: at least that many units, and more may exist (§ 5, U6). A count named here is present. Absent: every count that is present is exact. | new: U6, an imported report that states a lower bound |
 | `executed_ids` | list of text | no | The ids of the executed units, for a plan that declares `executed_ids` | spec: `EvidenceCoverage.executed_ids` |
 | `not_executed` | list | no | The units that were not executed, each with its state and reason | new: U3 |
 | `not_executed[].id` | text | yes | The id of the unit, in the assessor’s spelling. Unique within the run, and the same for the same unit in every run (rule 4). | new: U3 |
@@ -140,6 +144,8 @@ There are 78 fields: 48 `spec`, 7 `changed`, 23 `new`. The fields of an assessor
 | `not_executed[].reason` | text | no | Why the unit did not execute | new: U3 |
 
 The design names the four counts and does not say what tells `skipped` from `not_run`. The meanings above are a proposal.
+
+A count of the plan's run is also a value: a measurement may read a count from here as `coverage.<count>`; it is no entry of `results`. Such a measurement names a count that its assessor lists under `coverage` and reads it as an exact number at the scope `run`, without a unit (design § 3 "Evidence coverage").
 
 A unit is one piece of work, and it is counted once, however often the inputs name it (Q1). Where the unit is a check, one rule applied to one node for one scope item is one check: a node that a journey lists among its required nodes and as its signal is checked once for that journey. The same node under two scope items is two checks.
 
@@ -151,6 +157,7 @@ A unit is one piece of work, and it is counted once, however often the inputs na
 | `kind` | text | yes | `exact` or `sampled` | spec: `MeasurementResult.kind` |
 | `scope` | text | yes | The scope the result was observed at: `run`, or one the assessor declares | spec: `MeasurementResult.scope` |
 | `item` | text | exactly when `scope` is not `run` | The scope item: the journey, the page, the test. The same spelling in every run, because accepted values are kept per item. | changed: `MeasurementResult.scope_item` |
+| `cell` | map from a condition name to text | exactly when the output declares `cells` | The condition cell the result was observed under, beside its scope item, such as `{"viewport": "narrow"}`: one value per name of the `cells` of its output (§ 10). Two results of one item in two cells are two results (rule 3). | new: a result per condition cell, such as a viewport and a theme |
 | `boundary` | text | no | The part of a duration: `run_time`, `queue_wait`, or one the assessor declares | spec: `MeasurementResult.boundary` |
 | `value_type` | text | yes | `number`, `identity_set`, `digest`, or `assertion`. It decides which of the members below the result has. | spec: the tag of `MeasuredValue` |
 | `incomplete` | object | no | Present when the result has no value, or less than the whole value (U5, U6) | new: U5 |
@@ -166,6 +173,7 @@ A result of the value type `number`:
 | `unit` | text | exactly when the assessor declares a unit for the output | The unit (§ 3) | spec: `NumberValue.unit` |
 | `at_least` | boolean | no | `true`: the value is a lower bound (U6). Absent means `false`. | spec: `NumberValue.at_least` |
 | `samples` | count | with `aggregation`, and for a sampled result | The number of samples or runs behind the value | changed: `AssessmentRun.samples` is one number per run |
+| `runs` | count | no | The number of runs the value was aggregated over, where `samples` counts the samples of all those runs, such as the requests behind a percentile. A result of a plan whose assessor maps `runs` under `observation_inputs` carries it (§ 10) | new: the runs of a plan behind one value |
 | `aggregation` | object | no | The aggregation the value already is, in the plan’s shape: `{kind: percentile, parameter: 95}` (§ 3) | new: § 3 measurement kind, § 6 |
 
 A result of the value type `identity_set`:
@@ -188,8 +196,10 @@ A result of the value type `digest` or `assertion`:
 
 | Field | Type | Required | Meaning | From |
 | --- | --- | --- | --- | --- |
-| `kind` | text | yes | `forge_runs`, `build_pool_log`, or `junit` | spec: `ImportSource.kind` |
-| `location` | text | yes | The forge run, the job log, or the file that was read | spec: `ImportSource.location` |
+| `kind` | text | yes | `forge_runs`, `build_pool_log`, `junit`, or `tree_file`, a file of the tree such as a committed results file | spec: `ImportSource.kind` |
+| `location` | text | yes | The forge run, the job log, or the file that was read. For `tree_file`, a path relative to the root (§ 1). | spec: `ImportSource.location` |
+
+**A file of the tree.** A record whose `source.kind` is `tree_file` holds `target.revision`, the commit the file was read at, and a reader rejects one without it. The results of a run made by hand are kept as such a file and imported from it: they have no kind of their own (§ 6, example 7).
 
 ### `run`
 
@@ -208,8 +218,8 @@ A reader checks these and rejects a document that breaks one.
 
 1. `candidate` is present exactly when `target.selection` is.
 2. `item` is absent exactly when `scope` is `run`.
-3. `results` holds at most one result per `output`, `scope`, `item`, `boundary`, and `aggregation`.
-4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`, and is counted once (§ 3, `evidence.coverage`). `passed` plus `failed` is at most `executed`: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts. The id of a unit is unique within the run: no id is twice in `executed_ids` and `not_executed` taken together. The same unit has the same id in every run.
+3. `results` holds at most one result per `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation`.
+4. Each unit is in one of `executed`, `skipped`, `not_run`, and `unsupported`, and is counted once (§ 3, `evidence.coverage`). A count that a record leaves out is not known, and a count it holds is read as written, 0 included: a record that holds all six counts reads as it did before they became optional. A count that `at_least` names is present and is a lower bound (§ 5, U6). `passed` plus `failed` is at most `executed`, where the counts are present: a unit that is counted and not judged, such as a step, is executed and neither. `not_executed`, where present, has one entry per unit of the other three counts. The id of a unit is unique within the run: no id is twice in `executed_ids` and `not_executed` taken together. The same unit has the same id in every run.
 5. A result is complete or incomplete. A complete result has the value of its type and no `incomplete`. An incomplete result has `incomplete`, and either no value or less than the whole one: a number with `at_least`, or the items of a set that were found.
 6. `at_least: true` appears only on an incomplete result.
 7. When `completion` is not `completed`, every result is incomplete, with the cause of that completion (§ 5, U5).
@@ -218,7 +228,7 @@ A reader checks these and rejects a document that breaks one.
 
 Rules 1 to 7 and 9 can be checked on one document, with two exceptions in rule 4: that a unit is counted once, and that its id is the same in every run. Those two and rule 8 need the inputs or a second run. They bind the assessor, and a reader cannot check them.
 
-A measurement of the plan reads the results whose `output`, `scope`, `boundary`, and `aggregation` are its own. A requirement that reads an incomplete result returns insufficient evidence with the cause of the result, unless a lower bound proves a fail (§ 5, U6).
+A measurement of the plan reads the results whose `output`, `scope`, `boundary`, and `aggregation` are its own, and of one `cell` where the measurement names one: without `cell` it reads one value per item and cell (design § 3, “Scope and aggregation”). A requirement that reads an incomplete result returns insufficient evidence with the cause of the result, unless a lower bound proves a fail (§ 5, U6).
 
 ## 5. Decisions for the consumer’s gaps
 
@@ -292,6 +302,8 @@ The first two hold for every result of the run. `coverage_below_plan` comes befo
 - A result has no bound when the value does not exist on this target. A journey with a step on a missing node cannot be followed on the document. It has no number of actions there, so its result has no value, whichever cause it names.
 
 An incomplete identity set is a bound of the same kind: it holds the items that were found, and more may exist.
+
+**A coverage count.** A count named under `at_least` of `evidence.coverage` is a lower bound of the same kind: `"executed": 472, "at_least": ["executed"]` says that 472 units or more were executed, as an imported report states it that gives no other count (§ 6, example 6). A count that the record leaves out is not known, and the assessor writes no 0 it did not observe (rule 4). A coverage bound of a plan reads both as design § 3 "Evidence coverage" says: a `min` bound that the lower bound reaches is met; any other bound over a lower bound, and every bound over a count that is not known, gives insufficient evidence with the cause `coverage_below_plan`, naming the count.
 
 ### E1. Which target kind is a design variant or a document? (U2)
 
@@ -545,6 +557,96 @@ A run on a pull request under `selection: merge_result`: the plan `regenerated-s
 }
 ```
 
+An imported run whose report states a lower bound: a JUnit file that a CI job wrote, imported for the plan `unit-tests`. The report states that at least 472 tests ran and that none failed, and gives no count of skipped or not run tests. So the coverage holds `executed` as a lower bound, named under `at_least`, and `failed` as written, and it leaves the other four counts out: they are not known, and no 0 stands for them (rule 4, § 5 U6). A coverage bound of the plan over `skipped` gives insufficient evidence for this run, and `executed: {min: 400}` is met. The names, the ids, and the path are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "model-server",
+    "assessment": "unit-tests",
+    "assessor": "junit-report@1",
+    "candidate": "9e2d4c6b8a0f1e3d5c7b9a8f6e4d2c0b1a3f5e7d",
+    "target": {
+      "kind": "revision",
+      "class": "ci",
+      "selection": "candidate",
+      "revision": "9e2d4c6b8a0f1e3d5c7b9a8f6e4d2c0b1a3f5e7d"
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"test","executed":472,"failed":0,"at_least":["executed"]},
+    "results": [
+      {"output":"suite_passed","kind":"exact","scope":"run","value_type":"assertion","holds":true}
+    ],
+    "source": {"kind":"junit","location":"target/nextest/ci/junit.xml"}
+  }
+}
+```
+
+An imported file of the tree: the results of a run made by hand, committed as a results file and imported for the plan `manual-cases`. `source.kind` is `tree_file` and `location` the path of the file relative to the root (§ 1). `target.revision` is the commit the file was read at, which a record of this kind holds (§ 3, `evidence.source`); here it is the candidate too. The names, the ids, the path, and the counts are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "model-server",
+    "assessment": "manual-cases",
+    "assessor": "results-file@1",
+    "candidate": "3c5e7a9b1d2f4e6a8c0b2d4f6e8a0c1b3d5f7e9a",
+    "target": {
+      "kind": "revision",
+      "class": "local",
+      "selection": "candidate",
+      "revision": "3c5e7a9b1d2f4e6a8c0b2d4f6e8a0c1b3d5f7e9a"
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"case","executed":40,"skipped":0,"not_run":0,"unsupported":0,"passed":38,"failed":2},
+    "results": [
+      {"output":"cases_passed","kind":"exact","scope":"run","value_type":"number","value":"38","unit":"cases"}
+    ],
+    "source": {"kind":"tree_file","location":"quality/results/manual-cases.json"}
+  }
+}
+```
+
+Two results of one output and one scope item in two condition cells: the output `actions` declares `cells: [viewport]` (§ 10), and the journey `checkout` is walked once per viewport. Each result names its cell beside its item, so neither part is joined into the item name, and the two are two results under rule 3. A measurement with `cell: {viewport: narrow}` reads the first; one without `cell` reads one value per item and cell (design § 3, “Scope and aggregation”). The values are illustrations.
+
+```json
+[
+  {"output":"actions","kind":"exact","scope":"journey","item":"checkout","cell":{"viewport":"narrow"},"value_type":"number","value":"7","unit":"actions"},
+  {"output":"actions","kind":"exact","scope":"journey","item":"checkout","cell":{"viewport":"wide"},"value_type":"number","value":"5","unit":"actions"}
+]
+```
+
+A run of a target of the kind `build`: the plan `binary` of the preset `binary-size@2`, bound under the name `binary`, whose assessor `file-size@2` names its input `binary` as `target_input` (§ 10, “Invocation”). Ratchet passes `--revision`, the commit the artifact was built from, and the assessor writes it as `target.revision`. `candidate` is the digest of the bytes of the artifact, the same as `target.identifiers.artifact_digest`, and the artifact is not repeated under `inputs`. The names, the ids, the digest, and the size are illustrations. The result is exact, so the document has no `run`.
+
+```json
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "service",
+    "assessment": "binary.binary",
+    "assessor": "file-size@2",
+    "candidate": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+    "target": {
+      "kind": "build",
+      "class": "ci",
+      "selection": "candidate",
+      "revision": "7d1e3a5c9b0f2468ace13579bdf02468ace13579",
+      "identifiers": {"artifact_digest":"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"}
+    },
+    "completion": "completed",
+    "conditions": {},
+    "coverage": {"unit":"file","executed":1},
+    "results": [
+      {"output":"size","kind":"exact","scope":"run","value_type":"number","value":"8421376","unit":"bytes"}
+    ]
+  }
+}
+```
+
 ## 7. Mapping from the uxui draft
 
 The draft is `ratchet-evidence/draft` as `docs/ux-static.md` and `engine/static/src/record.rs` define it on the consumer’s branch `ux-static`. The branch is not pushed, so nothing here links to it. `results[]` is short for `evidence.results[]`.
@@ -608,14 +710,14 @@ The consumer made these seven changes in its commit `edbbc27`. What revision 2 a
 
 The format should later be a projection of the specification and not a second definition. Items 1 to 17 are against revision 3 of [`spec/`](https://github.com/beyond10x/ratchet/blob/main/spec/README.md). Revision 4 has since brought the coverage unit (10, 14), `local_inputs` (3), and the window counts (11, as `WindowItems` on the run, with other names). Items 18 to 25 are from revision 2 of this document, against revision 4.
 
-**Status, 2026-11-24.** The specification now declares both formats. Each item ends with what was done about it: **Done**, with the spelling in the specification, or **Left out of 0.1.0**, with the reason. 19 items are done, 3 are done in part (4, 10, 25), and 3 are left out (15, 17, 24), all three because they are ESS’s to supply. `spec/record-fields.test.sh` reads every field row of § 3 and § 10 and fails the gate when the specification does not declare one under the name the row gives.
+**Status, 2026-11-24.** The specification now declares both formats. Each item ends with what was done about it: **Done**, with the spelling in the specification, or **Left out of 0.1.0**, with the reason. 19 items are done, 3 are done in part (4, 10, 25), and 3 are left out (15, 17, 24), all three because they are ESS’s to supply. `spec/record-fields.test.sh` reads every field row of § 3, § 10 and § 12 and fails the gate when the specification does not declare one under the name the row gives.
 
 In [`spec/domains/evidence.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/evidence.yaml):
 
 1. **Two parts.** `AssessmentRun` holds `evidence` and an optional `run`, each a struct: `started_at`, `ended_at`, `queue_wait`, `run_time`, `artifacts`, and the new `local_inputs` in the second, every other field in the first. The projection then writes the two members, and the evidence digest has one subtree. **Done:** `AssessmentRun` holds `format`, `evidence` (the struct `ratchet.evidence.Evidence`), and an optional `run` (the struct `ratchet.evidence.RunDetails`). The record id is its identity, written `run_id`, because `run` is now a member.
 2. **`candidate`.** Optional, and a candidate identity that is a commit id or a digest, where it is a required `Revision`. An invariant: present exactly when `target.selection` is. **Done:** `Evidence.candidate` is `Optional<ratchet.evidence.CandidateIdentity>`, with two invariants on `Evidence` for rule 1.
 3. **`inputs`.** A map from an input name to `{value, digest, digest_form}`, and `local_inputs` as a map from an input name to text. **Done:** `Evidence.inputs` is `Optional<Map<String, ratchet.evidence.ResolvedInput>>`, and `RunDetails.local_inputs` is `Optional<Map<String, String>>`.
-4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, boundary, and aggregation. **Done in part:** `Evidence.results` is `List<ratchet.evidence.MeasurementResult>`. **Left out of 0.1.0:** the invariant, rule 3. An ESS `distinct` takes one member as its key and not five, so the reader checks the rule.
+4. **`results`.** A list of `MeasurementResult`, where it is a map keyed by measurement name (E3). An invariant: at most one result per output, scope, item, cell, boundary, and aggregation. **Done in part:** `Evidence.results` is `List<ratchet.evidence.MeasurementResult>`. **Left out of 0.1.0:** the invariant, rule 3. An ESS `distinct` takes one member as its key and not six, so the reader checks the rule.
 5. **`MeasurementResult`.** `scope_item` is written `item`. New fields `incomplete` (`{cause, detail}`) and `details` (`Json`). The cause is one of the 13 causes of insufficient evidence, which are part of `ratchet.gate.VerdictCause` today: the list is split into the causes of a fail and the causes of insufficient evidence, so that the evidence domain can name the second. **Done:** `MeasurementResult.item`, `incomplete` (the struct `ratchet.evidence.Incomplete`), and `details`. The list is split into `ratchet.gate.FailCause`, with 7 values, and `ratchet.gate.InsufficientEvidenceCause`, with 14: the 13 and `evidence_missing`, which only a gate names. `VerdictCause` keeps both lists for a row that holds either.
 6. **`MeasuredValue`.** Its members are written in the result, beside `value_type`, and not one level down under `value`. **Done:** `MeasuredValue` and its four structs are gone. `MeasurementResult` holds `value_type` and every value member as an optional field, and invariants say which members a value type has. An ESS union would write its payload one level down.
 7. **`NumberValue`.** `value` is optional, for an incomplete result. `at_least` is optional and absent means false. `samples` moves here from `AssessmentRun`. A new optional `aggregation`, of the type the plan uses. **Done:** `MeasurementResult.value` (`Optional<Decimal>`), `unit`, `at_least` (`Optional<Boolean>`), `samples`, and `aggregation` (`Optional<ratchet.specification.Aggregation>`), with the invariants of rules 5 and 6, and two for `samples` as § 3 has it: present with `aggregation`, and present on a number whose `kind` is `sampled`.
@@ -646,7 +748,7 @@ From revision 2, in [`spec/domains/evidence.yaml`](https://github.com/beyond10x/
 
 From revision 2, in [`assessor.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/domains/assessor.yaml) and the CLI binding:
 
-23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`. **Done:** the specification takes the names of the declaration. `Assessor` has `format`, `name`, `version`, `command`, `targets`, `target_input`, `inputs` (a map from an input name to `ratchet.specification.InputDeclaration`, which no longer has a `name`), `conditions`, `coverage_unit`, `coverage`, `outputs` (a map from an output name to `ratchet.assessor.AssessorOutput`), and `population_fields`. The invariant is on `AssessorOutput`, and one more is on `Assessor`: `target_input` is present exactly when `targets` holds `document`.
+23. **`Assessor`.** New fields `command` and `target_input` (§ 10). `supported_targets` and `configuration_inputs` are written `targets` and `inputs` in the declaration, and `configuration_inputs` and `outputs` are maps keyed by name there, or the declaration takes the names of the specification. An invariant on `AssessorOutput`: `identity_key` is present exactly for the value type `identity_set`. **Done:** the specification takes the names of the declaration. `Assessor` has `format`, `name`, `version`, `command`, `targets`, `target_input`, `inputs` (a map from an input name to `ratchet.specification.InputDeclaration`, which no longer has a `name`), `conditions`, `coverage_unit`, `coverage`, `outputs` (a map from an output name to `ratchet.assessor.AssessorOutput`), and `population_fields`. The invariant is on `AssessorOutput`, and one more is on `Assessor`: `target_input` is present where `targets` holds `document`, and admitted only where it holds `document` or `build` (§ 10, “Invocation”).
 24. **The declaration as a document.** A projection of `Assessor` as one YAML document with the constant `format: ratchet-assessor/1` (E8), as item 15 asks for the run. **Left out of 0.1.0**, as item 15 is: ESS has no such projection. `Assessor.format` is declared with the invariant `format == "ratchet-assessor/1"`.
 25. **`assess` in [`spec/cli.yaml`](https://github.com/beyond10x/ratchet/blob/main/spec/cli.yaml).** Nothing there says how the command starts an assessor. It needs the invocation of § 10 and the completion that each exit status is recorded as. **Done in part:** the six reserved arguments are the enum `ratchet.assessor.ReservedArgument`, and the four meanings of an exit status are `ratchet.assessor.AssessorExit` (`ended`, `refused_inputs`, `wrong_invocation`, `broke`). The comment on `assess` in `spec/cli.yaml` and the comment on `AssessorExit` say which completion each is recorded as. **Left out of 0.1.0:** that table as a declaration. ESS declares no map from the values of one enum to those of another, so the CLI implements it from the comment.
 
@@ -656,7 +758,7 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 | --- | --- | --- |
 | § 3 | `target.window` is present exactly for a time-window plan | The kind of the observation is in the plan, which the document does not hold. The rule joins a run and its plan. |
 | § 3 | `items[].identity` holds exactly the fields that the `key` of its result names | Both are members of one result, but `identity` is free JSON, and no invariant reads the names of the members of a JSON value |
-| 3 | At most one result per `output`, `scope`, `item`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
+| 3 | At most one result for each `output`, `scope`, `item`, `cell`, `boundary`, and `aggregation` | A `distinct` takes one member as its key (item 4) |
 | 4 | `passed` plus `failed` is at most `executed` | A comparison reads no sum of two facts (item 10) |
 | 4 | `not_executed`, where present, has one entry per unit of `skipped`, `not_run`, and `unsupported` | The rule counts the entries of a list by the value of a member and compares the count with a field |
 | 4 | A unit is counted once and has the same id in every run | It needs the inputs or a second run (§ 4) |
@@ -668,11 +770,12 @@ Rules of § 3, § 4, and § 10 that are not invariants, and why. A reader of 0.1
 
 - **A paired run** (design § 3). Its evidence is two values of one run, and the specification has no field for the second.
 - **Raw samples.** A result is one value. An assessor that aggregates names the aggregation and the number of samples.
-- **A result per condition cell**, such as a viewport and a theme. A finding carries its environment in its identity (design § 3). A number has no field for it, and the first assessor runs under no conditions.
-- **The other records** of design § 6: gate decision, reference change, trade-off, and proof. A reference and a trade-off have a format name in the design; none of the four has a field list like this one.
+- **The other records** of design § 6: gate decision, reference change, and trade-off. A reference and a trade-off have a format name in the design; none of the three has a field list like this one. The proof has its format, `ratchet-proof/1`, in § 12.
 - **A list of causes on one result.** A result has one cause, chosen in a fixed order (§ 5, U5).
-- **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision` or `document` and the selection `candidate`. It does not say how an assessor learns the observation of a plan (`scenarios`, `workload`, `command`, `runs`, `min_samples`), a `merge_result` selection, a plan without a selection, or a target of another kind. The first assessor needs none of these.
+- **The rest of the invocation** (§ 10). The contract covers a plan whose target has the kind `revision`, `document` or `build` and the selection `candidate`, and a time-window plan without a selection; an assessor learns the keys of the plan’s observation and its window through `observation_inputs`, and the fields of its population filter as arguments. It does not say how an assessor learns a `merge_result` selection or a target of another kind. The first assessor needs none of these.
+- **A proof that an artifact was built from its revision.** For a target of the kind `build`, that the artifact was built from the revision Ratchet passes is the project’s statement: the plan names a path that its build at that revision writes (§ 10). A record that the build writes, or a digest of the artifact that the plan pins, would let a reader check it; version 1 has neither.
 - **A digest pin on a declaration.** Where a declaration is found is decided (2026-11-24): the file `<name>@<version>.assessor.yaml` in a source of `[catalog] sources` of the local config, and a source without `git` is a directory relative to the root (design § 5, “Local config”). Whether a plan pins the declaration by digest, as a binding pins a preset (design § 4), is not.
+- **The digest of the sources of a report.** A report named in `revision_inputs` states the revision it was produced from (§ 10), and not the digest of the sources it was produced from, which would also tell a report of the same revision made from changed files that are not committed. That needs the list of the sources, which no declaration names.
 
 ## 10. The assessor contract
 
@@ -689,14 +792,19 @@ Ratchet runs the assessor’s command once per run of a plan. The working direct
 | `--root` | The root of the tree that is assessed: the checkout, or the scratch copy that `ratchet prove` makes | Always | Nothing. Paths in `evidence` are relative to it (§ 1). |
 | `--class` | The target class of this run | Always | `evidence.target.class` |
 | `--out` | The file that the document is written to | Always | Nothing |
-| `--revision` | The commit id of the tree | For a target of the kind `revision` | `evidence.candidate` and `evidence.target.revision` |
+| `--revision` | The commit id of the tree; for a target of the kind `build`, the revision the artifact was built from | For a target of the kind `revision` or `build` | `evidence.candidate` and `evidence.target.revision`; for `build`, `evidence.target.revision` alone |
 | `--<input>` | The value of an input that the assessor declares: from the plan after defaults, or from the local config for a local input | For each input that has a value | `evidence.inputs.<input>`, or `run.local_inputs.<input>` for a local input |
 
 - **Values.** Text is passed as it is, and a count or a decimal as decimal text. A boolean is `true` or `false`, and a list is one argument of JSON, as for the `ratchet` commands (design § 5). A path that is not local is passed as the plan wrote it, relative to the root.
+- **The observation of the plan.** Ratchet passes the value of each key named in `observation_inputs` as that input: a declaration maps a key of the plan’s `observation`, one of `scenarios`, `workload`, `command`, `runs`, and `min_samples`, or a key of the window below (`ratchet.assessor.ObservationKey`), to an input it declares, such as `{workload: workload, runs: runs}`. The plan writes the value once, under `observation`, and passes no value to that input under `inputs`; a plan that does is refused. The input is passed and written under `inputs` like every other. An assessor that maps `runs` writes, on each number it aggregates over the runs of the plan, the number of runs as `runs` beside `samples` (§ 3), so a report of one run does not stand for a plan with `runs: 3`.
+- **The window of the plan.** A time-window plan over a population outside the record store (design § 3, “Time windows”) passes its window through three more keys of `observation_inputs`: `window_length` and `window_last` are the `length` and the `last` of the plan’s `window`, each passed where the plan states it, `window_length` as the plan writes it, such as `7d`; `window_ends_at` is the instant the plan is assessed, at which the window ends, as a time in UTC (§ 1). A record’s `target.window` lies inside the window passed: its `ends_at` is not after `window_ends_at`, and its `starts_at` is not before `window_ends_at` less `window_length`.
+- **The population of the plan.** Each field of `population: {filter}` is passed as `--<field> <value>`, under its name in the declaration’s `population_fields`, so an assessor declares no input with such a name. `population: {filter: {service: portal}}` gives `--service portal`.
+- **A plan without a selection.** A time-window plan without a `selection` is passed no `--revision`: its evidence is attributable to no candidate, so the assessor writes no `candidate` and no `target.selection` (§ 4 rule 1).
 - **Reserved names.** An assessor declares no input named `project`, `assessment`, `root`, `class`, `out`, or `revision`.
-- **Nothing else.** Ratchet passes no argument beside these. A new reserved argument is a new version of the declaration format, so an assessor can refuse an argument that it does not know.
+- **Nothing else.** Ratchet passes no argument beside these and the fields of a population filter. A new reserved argument is a new version of the declaration format, so an assessor can refuse an argument that it does not know.
 - **The target of the kind `document`** is an input: the declaration names it as `target_input`. The assessor reads the file, writes the digest of its bytes as `candidate` and under `target.identifiers`, and does not repeat it under `inputs`. The target may lie outside the root, as a generated variant in a scratch directory does. It then has no `path` (§ 1, Q8). The same holds for another input file outside the root: its entry under `inputs` has the digest and no `value`. A plan names its paths relative to the root, so only a caller other than the CLI passes such a file.
-- **The revision** (Q9). The assessor writes the revision it is given and looks none up. For a `document`, Ratchet passes none and `target.revision` is absent: the digests identify the document and the inputs, so the same files give the same document at every commit. The CLI never fills a member of a document that an assessor wrote, because the record id is over the bytes of the file (E4).
+- **The target of the kind `build`** is an input too: a declaration whose `targets` holds `build` may name the input that holds the path of the artifact as `target_input`. Ratchet passes `--revision`, the revision the artifact was built from. The assessor writes it as `target.revision`, writes the digest of the bytes of the artifact as `candidate` and under `target.identifiers.artifact_digest`, and does not repeat the artifact under `inputs` (§ 6, example 9). That the artifact was built from that revision is the project’s statement: the plan names a path its build at that revision writes (§ 9).
+- **The revision** (Q9). The assessor writes the revision it is given and looks none up. A report that an input names is the exception, where the declaration lists that input in `revision_inputs`: the assessor reads the revision from the report and writes it as `inputs.<input>.revision`, and `ratchet assess` refuses a report whose revision is not the candidate’s, with a cause that names both. So a report left from a run of another revision does not count as the candidate’s. For a `document`, Ratchet passes none and `target.revision` is absent: the digests identify the document and the inputs, so the same files give the same document at every commit. The CLI never fills a member of a document that an assessor wrote, because the record id is over the bytes of the file (E4).
 - **Without the CLI.** An assessor may give `--root`, `--class`, and `--out` a default, as the first assessor does (the working directory, `local`, and the standard output), so that it runs by hand.
 
 The first assessor at `edbbc27` takes this call, run in the root, and writes the document of § 6:
@@ -714,7 +822,7 @@ The assessor gives no verdict, and its exit status is not one: a document with 4
 | Exit status | Means | Document | The CLI records |
 | --- | --- | --- | --- |
 | 0 | The run ended, and the document is at `--out` | From the assessor | That document, after it checks the rules of § 4 and the declaration. A missing document or one that breaks a rule is recorded as the last row is. |
-| 1 | The assessor refuses its inputs: a file is unreadable or malformed, or the inputs do not belong together (Q12) | None | A run with `completion: refused_inputs` (E9) |
+| 1 | The assessor refuses its inputs: a file is unreadable or malformed, the inputs do not belong together (Q12), or a report named in `revision_inputs` that states no revision is passed | None | A run with `completion: refused_inputs` (E9) |
 | 2 | The invocation is wrong: an argument the assessor does not know, a required one missing, a value that a reserved argument cannot have | None | A run with `completion: stopped_by_infrastructure`. The declaration and the program do not match. |
 | Any other, or a signal | The assessor or a tool under it broke | None | A run with `completion: stopped_by_infrastructure` |
 
@@ -737,11 +845,13 @@ One YAML document per assessor and version (E8). `ratchet validate` checks a pla
 | `version` | text | yes | The part after the `@` | spec: `Assessor.version` |
 | `command` | text | for an assessor that Ratchet runs | The program. `[tools]` of the local config says how it is started on one machine (design § 5). | new: § 4, a project command |
 | `targets` | list of text | yes | The target kinds it supports | changed: `Assessor.supported_targets` |
-| `target_input` | text | exactly when `targets` holds `document` | The input that holds the path of the target document | new: Q10 |
+| `target_input` | text | when `targets` holds `document`; may when it holds `build`, and with no other kind | The input that holds the path of the target document, or of the artifact of a target of the kind `build` | new: Q10 |
 | `inputs` | map from an input name to an input | no | Each input: `type` (`string`, `integer`, `decimal`, `boolean`, or `path`), `list`, `required`, `default`, and `local` (design § 4) | changed: `Assessor.configuration_inputs` is a list |
+| `observation_inputs` | map from an observation key to text | no | For a key of the plan’s `observation`, the input of `inputs` that Ratchet passes its value as. A key is `scenarios`, `workload`, `command`, `runs`, or `min_samples`, and for a time window `window_length`, `window_last`, or `window_ends_at` (Invocation above). Absent: the assessor is passed nothing of the observation. | new: the observation of a plan |
+| `revision_inputs` | list of text | no | The inputs whose file states the revision it was produced from, such as an imported report. The assessor reads that revision and writes it as `inputs.<input>.revision` (§ 3); a file named here that states no revision is refused (Invocation, Exit status above). | new: a report of another revision |
 | `conditions` | list of text | no | The conditions it declares beside `host_load_per_cpu`, `tools`, and `runner`. Absent or empty: it declares none (§ 3, Q13). | spec: `Assessor.conditions` |
 | `coverage_unit` | text | yes | The one unit its coverage counts count | spec: `Assessor.coverage_unit` |
-| `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. A count it does not report is 0 in its documents. | spec: `Assessor.coverage` |
+| `coverage` | list of text | yes | The counts it reports, of `executed`, `skipped`, `not_run`, `unsupported`, `passed`, and `failed`. It leaves a count it does not report out of its documents, where that count is not known (rule 4); a count it reports may be a lower bound under `at_least` (§ 5, U6). | spec: `Assessor.coverage` |
 | `outputs` | map from an output name to an output | yes | The outputs a measurement can read | changed: `Assessor.outputs` is a list |
 | `population_fields` | list of text | no | The fields a time-window plan’s `population: {filter}` may name | spec: `Assessor.population_fields` |
 
@@ -754,6 +864,7 @@ An output, `outputs.<name>`:
 | `scopes` | list of text | yes | The scopes its results can have, beside `run`, which every assessor has (design § 3). The scope items are not declared: they come from the inputs of a run. The list may be empty: `scopes: []` declares an output whose results have the scope `run` alone, and the member stays required. | spec: `AssessorOutput.scopes` |
 | `unit` | text | no | The unit of its values. Absent: the output has no unit, as the number of items of a set has none. | spec: `AssessorOutput.unit` |
 | `boundaries` | list of text | no | For a duration, the parts it reports | spec: `AssessorOutput.boundaries` |
+| `cells` | list of text | no | The conditions its results are split by, such as `[viewport, theme]`. A result of the output has a `cell` exactly when the output declares `cells`, with those names. | spec: `AssessorOutput.cells` |
 | `identity_key` | list of text | exactly for `identity_set` | The fields of an item’s `identity` | spec: `AssessorOutput.identity_key` |
 | `item_fields` | list of text | no | The names an item may have under `fields`, which a `filter` may read | spec: `AssessorOutput.item_fields` |
 | `item_values` | map from an item field to its values | no | The closed list of values of a field of `item_fields`, such as `{class: [equal, allowed, different]}`. A `filter` on that field names only these values, and an item has one of them under it. A field without a list is open: any value is read. | spec: `AssessorOutput.item_values` |
@@ -811,6 +922,57 @@ assessments:
         {kind: exact, output: findings, scope: page, identity: [rule, node_path]}
 ```
 
+An assessor of a population outside the record store, such as production telemetry (design § 3, “Time windows”), learns its window and its population as Invocation above says. Its declaration maps the three keys of the window and `min_samples` to inputs of its own and lists the fields a plan may filter its population by. The names and the values are illustrations.
+
+```yaml
+format: ratchet-assessor/1
+name: telemetry-latency
+version: "1"
+command: telemetry-latency
+targets: [telemetry_population]
+inputs:
+  source: {type: string, required: true}
+  window_length: {type: string, required: false}
+  window_last: {type: integer, required: false}
+  window_ends_at: {type: string, required: true}
+  min_samples: {type: integer, required: true}
+observation_inputs:
+  {window_length: window_length, window_last: window_last, window_ends_at: window_ends_at, min_samples: min_samples}
+conditions: [collector]
+coverage_unit: request
+coverage: [executed]
+outputs:
+  duration:
+    {value_type: number, kind: sampled, scopes: [route], unit: ms}
+population_fields: [service, region]
+```
+
+A time-window plan reads it over the requests of the last seven days to one service in one region. It has no `selection`, so it is passed no `--revision`, and its records hold no `candidate` (§ 4 rule 1). Assessed at `2026-11-26T08:00:00Z`, it calls the assessor with `--source telemetry/eu.yaml --window_length 7d --window_ends_at 2026-11-26T08:00:00Z --min_samples 1000 --service portal --region eu` beside the reserved arguments, and no `--window_last`, because the window states no `last`.
+
+```yaml
+assessments:
+  portal-latency:
+    subject: portal
+    assessor: telemetry-latency@1
+    inputs:
+      source: telemetry/eu.yaml
+    target: {kind: telemetry_population, environments: [production]}
+    observation:
+      kind: time_window
+      window: {length: 7d}
+      population: {filter: {service: portal, region: eu}}
+      min_samples: 1000
+      conditions: {production: {collector: otel-0.110}}
+    measurements:
+      p95:
+        kind: sampled
+        output: duration
+        scope: route
+        aggregation: {kind: percentile, parameter: 95}
+        unit: ms
+        better: lower
+```
+
 ## 11. Revision 2 (answers to the first implementation)
 
 The 13 questions of the consumer, from its implementation at `edbbc27`, and where each answer is written. The last column says what the answer asks of the first assessor.
@@ -830,3 +992,37 @@ The 13 questions of the consumer, from its implementation at `edbbc27`, and wher
 | Q11 | How does an assessor declare its outputs, units, scopes, coverage unit, and item fields? | In a document `ratchet-assessor/1` | § 10 Declaration; E8 | Adds the file `ux-static@1.assessor.yaml`: E8 is taken as A |
 | Q12 | Inputs that do not belong together: exit 1 and no document? | Yes. The CLI records the run as `refused_inputs`. | § 10 Exit status; E9 | No change. An unknown `--class` and an empty `--project` or `--assessment` are exit 2, where they are exit 1 today. |
 | Q13 | Does an absent condition read as unknown for a static run? | No. Only a declared condition can be unknown, and the assessor declares none. | § 3 `evidence.conditions` | No change |
+
+## 12. The proof record `ratchet-proof/1`
+
+A requirement can declare planted defects, and `ratchet prove` runs its assessment once per defect, never in the working tree, and expects the verdict fail (design § 4). It writes what it found as one record of design § 6, the proof: one JSON object of the format `ratchet-proof/1`, UTF-8 without a byte order mark, written by the CLI and not by an assessor. The types are those of § 1. The id of the record is `proof:` and the SHA-256 of its bytes, as the id of a run is `run:` and the digest of its file (design § 6); the id is no member. The command is not built yet: `ratchet prove` answers `cli_handler_unavailable`, and this section is the form it writes.
+
+A defect is in `refused` when its run returned fail, in `accepted` when its run returned pass, and in neither when its run returned insufficient evidence, which is not a refusal. `refused` and `accepted` hold only ids of `planted`, and no id is in both: the invariants of `ratchet.evidence.ProofRecord`. No list holds an id twice, which a reader checks (an invariant of the entity cannot say it). A reader of version 1 rejects a member it does not know, as it does for `evidence` (§ 1).
+
+### Fields of `ratchet-proof/1`
+
+| Field | Type | Required | Meaning | From |
+| --- | --- | --- | --- | --- |
+| `format` | text | yes | `ratchet-proof/1` | new: a record is versioned JSON (design § 6) |
+| `requirement` | text | yes | The name of the requirement whose planted defects were run | spec: `ProofRecord.requirement` |
+| `revision` | text | yes | The revision the defects were planted into, each in a scratch copy | spec: `ProofRecord.revision` |
+| `planted` | list of text | yes | The ids of the planted defects run, each an `id` of the requirement's `planted_defects` | spec: `ProofRecord.planted` |
+| `refused` | list of text | yes | The ids whose run returned fail | spec: `ProofRecord.refused` |
+| `accepted` | list of text | yes | The ids whose run returned pass: the check did not refuse them | spec: `ProofRecord.accepted` |
+| `recorded_at` | time | yes | When the record was written | spec: `ProofRecord.recorded_at` |
+
+### Example
+
+The requirement `no-new-search-findings` of design § 4 with three planted defects: the check refused one, passed one, and the run of the third returned insufficient evidence, so it is in neither list.
+
+```json
+{
+  "format": "ratchet-proof/1",
+  "requirement": "no-new-search-findings",
+  "revision": "4f2a9c1",
+  "planted": ["unlabelled-button", "contrast-below-minimum", "missing-landmark"],
+  "refused": ["unlabelled-button"],
+  "accepted": ["contrast-below-minimum"],
+  "recorded_at": "2026-11-26T09:14:02Z"
+}
+```

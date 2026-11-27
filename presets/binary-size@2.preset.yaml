@@ -1,0 +1,39 @@
+format: ratchet/1
+
+preset:
+  name: binary-size
+  version: "2"
+  inputs:
+    subject: {type: string, required: true}
+    binary: {type: path, required: true}
+    environments: {type: string, list: true, required: true}
+    tolerance_bytes: {type: integer, required: false, default: 0}
+
+assessments:
+  binary:
+    subject: ${inputs.subject}
+    assessor: file-size@2
+    inputs:
+      binary: ${inputs.binary}
+    target:
+      kind: build
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: snapshot
+    measurements:
+      size:
+        kind: exact
+        output: size
+        scope: run
+        unit: bytes
+        better: lower
+
+requirements:
+  size-does-not-rise:
+    meaning: The size of the binary is not above the accepted size by more than the tolerance of the binding.
+    assessment: binary
+    measurement: size
+    reference:
+      kind: accepted_value
+      tolerance: {absolute: "${inputs.tolerance_bytes}"}

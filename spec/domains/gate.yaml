@@ -43,7 +43,8 @@ types:
       - generated_reference_differs
       - stale_reference_not_adopted
 
-  # `too_few_samples` covers a window with fewer items than `min_samples` (§ 3).
+  # `too_few_samples` covers a window with fewer items than `min_samples` (§ 3),
+  # and a scope item whose result carries fewer samples than `min_samples_per_item` (§ 5).
   # `incompatible_target` also covers a run whose assessor refused its inputs
   # (docs/evidence-format.md E9). `reference_missing` also covers a scope item the evidence
   # holds and the reference does not, and `coverage_below_plan` a scope item the reference holds
@@ -128,6 +129,21 @@ types:
         type: ratchet.specification.OwnerRef
       - name: expires
         type: ratchet.specification.CalendarDate
+
+  - name: ratchet.gate.JoinedDocument
+    kind: struct
+    naming:
+      summary: >-
+        The document a candidate gate joined with the candidate revision (§ 5 "A document run
+        joins the candidate revision"): the path of the file in the tree that the run's
+        `target.identifiers.path` names, and the digest that is the run's `candidate`. The run
+        belongs to the candidate revision when that digest is the SHA-256 of the file at the
+        candidate revision.
+    fields:
+      - name: path
+        type: String
+      - name: digest
+        type: ratchet.evidence.Digest
 
 entities:
   - name: ratchet.gate.GateDecision
@@ -236,6 +252,15 @@ entities:
         summary: >-
           In an operational gate, the bounds of the window this requirement was judged over,
           in place of a candidate (§ 5, § 6). Absent in a candidate gate.
+      - name: document
+        type: Optional<ratchet.gate.JoinedDocument>
+        summary: >-
+          The document whose run the requirement read, by path and digest, in a candidate gate.
+          Present exactly when the plan of the requirement has a target of the kind `document`
+          and the run names the `path` of a file of the tree, also when its digest is not that
+          of the file at the candidate revision and the verdict is insufficient evidence with
+          the cause `not_attributable_to_candidate` (§ 5). The rule reads the plan, which a
+          verdict does not hold, so no invariant states it and the command keeps it.
       - name: observed
         type: List<ratchet.evidence.MeasurementResult>
       - name: allowed
@@ -249,6 +274,12 @@ entities:
         summary: >-
           The candidate's evidence is better than the reference by more than the tolerance
           (§ 5 rule 4).
+      - name: items_not_judged
+        type: List<String>
+        summary: >-
+          The scope items left out of the comparison because the reference holds no value for
+          them and declares `new_items: not_judged`; the requirement is judged over the other
+          items (§ 5 "Verdicts"). Empty when none.
       - name: coverage
         type: Optional<ratchet.evidence.EvidenceCoverage>
       - name: conditions

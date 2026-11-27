@@ -1,0 +1,54 @@
+format: ratchet/1
+
+preset:
+  name: event-time
+  version: "2"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    runner: {type: string, required: true}
+    runs: {type: integer, required: true}
+    min_samples: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    tolerance_percent: {type: decimal, required: true}
+
+assessments:
+  events:
+    subject: ${inputs.subject}
+    assessor: timing-report@2
+    inputs:
+      report: ${inputs.report}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+      runs: ${inputs.runs}
+      min_samples: ${inputs.min_samples}
+      conditions:
+        all:
+          runner: ${inputs.runner}
+      coverage: {not_run: {max: 0}}
+    measurements:
+      delay:
+        kind: sampled
+        output: duration
+        boundary: request_start_to_event_observed
+        scope: operation
+        aggregation: {kind: percentile, parameter: 95}
+        unit: ms
+        better: lower
+
+requirements:
+  delay-does-not-rise:
+    meaning: The time from a request of each operation to the event it causes is not above its accepted value by more than the tolerance of the binding.
+    assessment: events
+    measurement: delay
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

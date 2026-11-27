@@ -1,20 +1,21 @@
 #!/bin/sh
-# Every field row of docs/evidence-format.md § 3 (`ratchet-evidence/1`) and § 10
-# (`ratchet-assessor/1`) is declared in spec/domains/evidence.yaml or spec/domains/assessor.yaml,
-# under the name the row gives, in the type § 8 of that document maps its table to.
+# Every field row of docs/evidence-format.md § 3 (`ratchet-evidence/1`), § 10
+# (`ratchet-assessor/1`) and § 12 (`ratchet-proof/1`) is declared in spec/domains/evidence.yaml
+# or spec/domains/assessor.yaml, under the name the row gives, in the type § 8 of that document
+# maps its table to (§ 12 names its type itself).
 #
 # Exit 0: every row is declared; the last line is `record-fields: <n> of <n> field rows declared`.
-# Exit 1: a row is not declared (each is named), a table has no mapping here, § 3 or § 10 is not
-# found, a table named below is not found or holds another number of rows than its line states,
-# or § 3 holds another number of rows than its own sentence "There are <n> fields" says.
+# Exit 1: a row is not declared (each is named), a table has no mapping here, § 3, § 10 or § 12
+# is not found, a table named below is not found or holds another number of rows than its line
+# states, or § 3 holds another number of rows than its own sentence "There are <n> fields" says.
 #
 # A field table is a table whose header starts `| Field | Type | Required |`. Its label is the
 # nearest heading, or line ending in a colon, above it. A new table needs a line in `map` below
 # and its type in the specification; without the line this script fails. A `map` line states the
-# number of rows of its table: 78 in the 13 tables of § 3 and 20 in the 2 tables of § 10. A
-# section that moves to another number, a header that changes, or a row that is added, deleted
-# or written without its backticks changes a count, and the script fails until the line here
-# says the new number.
+# number of rows of its table: 82 in the 13 tables of § 3, 23 in the 2 tables of § 10 and 7 in
+# the 1 table of § 12. A section that moves to another number, a header that changes, or a row
+# that is added, deleted or written without its backticks changes a count, and the script fails
+# until the line here says the new number.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -35,27 +36,29 @@ awk '
   function nested(label, prefix, type) { nested_of[label SUBSEP prefix] = type; prefixes[prefix] = 1 }
 
   BEGIN {
-    # docs/evidence-format.md § 3: 78 rows in 13 tables
+    # docs/evidence-format.md § 3: 82 rows in 13 tables
     map(3, "### Top level", "ratchet.evidence.AssessmentRun", 3)
     map(3, "### `evidence`", "ratchet.evidence.Evidence", 12)
     map(3, "### `evidence.target`", "ratchet.evidence.ResolvedTarget", 6)
     map(3, "### `evidence.target.window`", "ratchet.evidence.Window", 5)
-    map(3, "### `evidence.inputs.<name>`", "ratchet.evidence.ResolvedInput", 3)
+    map(3, "### `evidence.inputs.<name>`", "ratchet.evidence.ResolvedInput", 4)
     map(3, "### `evidence.conditions`", "ratchet.evidence.ObservedConditions", 8)
     nested("### `evidence.conditions`", "host_load_per_cpu.", "ratchet.evidence.HostLoad")
-    map(3, "### `evidence.coverage`", "ratchet.evidence.EvidenceCoverage", 12)
+    map(3, "### `evidence.coverage`", "ratchet.evidence.EvidenceCoverage", 13)
     nested("### `evidence.coverage`", "not_executed[].", "ratchet.evidence.NotExecutedUnit")
-    map(3, "### `evidence.results[]`", "ratchet.evidence.MeasurementResult", 10)
+    map(3, "### `evidence.results[]`", "ratchet.evidence.MeasurementResult", 11)
     nested("### `evidence.results[]`", "incomplete.", "ratchet.evidence.Incomplete")
-    map(3, "A result of the value type `number`:", "ratchet.evidence.MeasurementResult", 5)
+    map(3, "A result of the value type `number`:", "ratchet.evidence.MeasurementResult", 6)
     map(3, "A result of the value type `identity_set`:", "ratchet.evidence.MeasurementResult", 4)
     nested("A result of the value type `identity_set`:", "items[].", "ratchet.evidence.IdentityItem")
     map(3, "A result of the value type `digest` or `assertion`:", "ratchet.evidence.MeasurementResult", 2)
     map(3, "### `evidence.source`", "ratchet.evidence.ImportSource", 2)
     map(3, "### `run`", "ratchet.evidence.RunDetails", 6)
-    # docs/evidence-format.md § 10: 20 rows in 2 tables
-    map(10, "### Declaration `ratchet-assessor/1`", "ratchet.assessor.Assessor", 12)
-    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 8)
+    # docs/evidence-format.md § 10: 23 rows in 2 tables
+    map(10, "### Declaration `ratchet-assessor/1`", "ratchet.assessor.Assessor", 14)
+    map(10, "An output, `outputs.<name>`:", "ratchet.assessor.AssessorOutput", 9)
+    # docs/evidence-format.md § 12: 7 rows in 1 table
+    map(12, "### Fields of `ratchet-proof/1`", "ratchet.evidence.ProofRecord", 7)
     section = 0; rows = 0; missing = 0; broken = 0; stated = -1; counted3 = 0
   }
 
@@ -68,11 +71,12 @@ awk '
     next
   }
 
-  # The document: § 3 and § 10 only.
+  # The document: § 3, § 10 and § 12 only.
   /^## / {
     section = 0
     if ($0 ~ /^## 3\. /) section = 3
     if ($0 ~ /^## 10\. /) section = 10
+    if ($0 ~ /^## 12\. /) section = 12
     if (section) found[section] = 1
     in_table = 0
   }
@@ -115,6 +119,7 @@ awk '
   END {
     if (!(3 in found)) { print "not found: docs/evidence-format.md has no section \"## 3. \", which holds the fields of `ratchet-evidence/1`"; broken = 1 }
     if (!(10 in found)) { print "not found: docs/evidence-format.md has no section \"## 10. \", which holds the fields of `ratchet-assessor/1`"; broken = 1 }
+    if (!(12 in found)) { print "not found: docs/evidence-format.md has no section \"## 12. \", which holds the fields of `ratchet-proof/1`"; broken = 1 }
     for (i = 1; i <= nlabels; i++) {
       l = labels[i]
       if (!(section_of[l] in found)) continue

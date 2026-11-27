@@ -1,0 +1,88 @@
+format: ratchet/1
+
+preset:
+  name: operation-time
+  version: "2"
+  inputs:
+    subject: {type: string, required: true}
+    report: {type: path, required: true}
+    workload: {type: string, required: true}
+    environments: {type: string, list: true, required: true}
+    conditions: {type: conditions, required: true}
+    runs: {type: integer, required: true}
+    min_samples: {type: integer, required: true}
+    adoption_runs: {type: integer, required: true}
+    p50_tolerance_percent: {type: decimal, required: true}
+    p95_tolerance_percent: {type: decimal, required: true}
+    p99_tolerance_percent: {type: decimal, required: true}
+    failed_requests_max: {type: integer, required: true}
+
+assessments:
+  operations:
+    subject: ${inputs.subject}
+    assessor: timing-report@1
+    inputs:
+      report: ${inputs.report}
+      workload: ${inputs.workload}
+    target:
+      kind: revision
+      environments: ${inputs.environments}
+      selection: candidate
+    observation:
+      kind: controlled_run
+      workload: ${inputs.workload}
+      runs: ${inputs.runs}
+      min_samples: ${inputs.min_samples}
+      conditions: ${inputs.conditions}
+      coverage: {not_run: {max: 0}, failed: {max: "${inputs.failed_requests_max}"}}
+    measurements:
+      p50:
+        kind: sampled
+        output: duration
+        boundary: request_start_to_response_complete
+        scope: operation
+        aggregation: {kind: percentile, parameter: 50}
+        unit: ms
+        better: lower
+      p95:
+        kind: sampled
+        output: duration
+        boundary: request_start_to_response_complete
+        scope: operation
+        aggregation: {kind: percentile, parameter: 95}
+        unit: ms
+        better: lower
+      p99:
+        kind: sampled
+        output: duration
+        boundary: request_start_to_response_complete
+        scope: operation
+        aggregation: {kind: percentile, parameter: 99}
+        unit: ms
+        better: lower
+
+requirements:
+  p50-does-not-rise:
+    meaning: The median time of each operation is not above its accepted value by more than the tolerance of the binding.
+    assessment: operations
+    measurement: p50
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.p50_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  p95-does-not-rise:
+    meaning: The time within which 95 of 100 requests of each operation are answered is not above its accepted value by more than the tolerance of the binding.
+    assessment: operations
+    measurement: p95
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.p95_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}
+  p99-does-not-rise:
+    meaning: The time within which 99 of 100 requests of each operation are answered is not above its accepted value by more than the tolerance of the binding.
+    assessment: operations
+    measurement: p99
+    reference:
+      kind: accepted_value
+      tolerance: {percent: "${inputs.p99_tolerance_percent}"}
+      adoption: {from: trusted_revision, runs: "${inputs.adoption_runs}", aggregation: {kind: median}}

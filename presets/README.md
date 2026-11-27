@@ -58,8 +58,13 @@ A preset file holds `format: ratchet/1`, a `preset` block, and the maps `stateme
 [`spec/domains/specification.yaml`](../spec/domains/specification.yaml)).
 
 - The `preset` block has a `name`, a `version` and the declared `inputs`. An input has a type
-  (`string`, `integer`, `decimal`, `boolean` or `path`), may be a list, is required or has a
-  default, and is never local.
+  (`string`, `integer`, `decimal`, `boolean`, `path` or `conditions`), may be a list, is
+  required or has a default, and is never local. An input of the type `conditions` is the
+  conditions of a plan, a map from a target class to its conditions: it stands as the whole
+  value of `observation.conditions`, is no list and has no default, and a declaration of an
+  assessor declares none. An input of the type `string` may list the `values` it may have, such
+  as `[lower, higher]`: its default is one of them, and it stands at the place of a closed
+  list of the format only where each of them is a value of that list.
 - An entry refers to an input as `${inputs.<name>}`. The reference is the whole of a value. Inside
   `{...}` or `[...]` it is quoted, `"${inputs.<name>}"`. The spelling is the only one: a value
   that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as
@@ -102,7 +107,8 @@ A file in another form is refused, also where a YAML reader would accept it:
   because the format ships none: its preset declares the tolerance as a required input, and the
   page says so.
 - **A value against a reference implementation.** A requirement compares a measurement with a
-  fixed limit or with a protected reference, and not with another measurement. The catalog
+  fixed limit, with a protected reference, or through `against` with another measurement of
+  the same preset, and a preset names no measurement of another binding. The catalog
   expresses a candidate against a reference implementation with what `ratchet/1` has. What that
   cannot say is named on the page of the family under "Not expressible yet". The catalog adds no
   key to the format.
@@ -135,7 +141,8 @@ A file in another form is refused, also where a YAML reader would accept it:
   assertion and nothing else; the measurement of such a rate may be `sampled` and is compared
   as a number. An assessment passes every input its assessor requires, with the declared type,
   also for each item of a list, and names a target kind the assessor takes. A condition of an
-  observation is `host_load_per_cpu`, `tools`, `runner` or one the assessor declares, and a
+  observation is one of the seven of Ratchet, `host_load_per_cpu`, `tools`, `runner`,
+  `cpu_model`, `memory`, `accelerator` and `build_profile`, or one the assessor declares, and a
   field of a population filter is one of its `population_fields`. The cache condition is
   `cache_profile`, and a plan that states `cache` and a declaration that lists `cache` are
   refused, also where the two agree. A value that an input gives is not checked against the

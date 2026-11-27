@@ -1,0 +1,26 @@
+format: ratchet-assessor/1
+name: conformance-report
+version: "2"
+command: conformance-report
+targets: [revision]
+inputs:
+  report: {type: path, required: true}
+revision_inputs: [report]
+conditions: []
+coverage_unit: case
+coverage: [executed, skipped, not_run, unsupported, passed, failed]
+outputs:
+  passing_cases:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [case_id]
+  failing_cases:
+    value_type: identity_set
+    kind: exact
+    scopes: []
+    identity_key: [case_id]
+  passed: {value_type: number, kind: exact, scopes: [], unit: cases}
+  failed: {value_type: number, kind: exact, scopes: [], unit: cases}
+  skipped: {value_type: number, kind: exact, scopes: [], unit: cases}
+  refused: {value_type: number, kind: exact, scopes: [], unit: cases}

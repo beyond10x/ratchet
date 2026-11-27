@@ -9,8 +9,8 @@ marks a question the design does not answer yet.
 
 | File | Declares |
 |---|---|
-| `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, unit, boundary, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window` as `{length, last}`, `population` as `{runs_of, from}` or `{filter}`, `min_samples`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, input declarations with `local`, preset (its block, the three maps it holds, the reference to an input) and preset binding |
-| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, identity key, item fields and the closed list of values of an item field), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
+| `domains/specification.yaml` | what a `ratchet/1` document holds: quality specification, quality statement, subject, audience, assessment plan with its map of measurements (kind, value type, scope, unit, boundary, `cell`, `better`, `filter`), target with `selection`, observation plan (scenarios, `paired`, `window` as `{length, last}`, `population` as `{runs_of, from}` or `{filter}`, `min_samples`, conditions per target class, coverage bounds), quality requirement (`meaning`, `serves`, condition, reference with `paths`, tolerance and `adoption`, planted defects), gate (kind, `evidence`) and gate entry (mode, `since`, `when`), exception keyed by its id, input declarations with `local`, preset (its block, the three maps it holds, the reference to an input) and preset binding |
+| `domains/assessor.yaml` | the assessor declaration `ratchet-assessor/1`: `format`, name and version, `command`, `targets` and `target_input`, the typed `inputs` by name, the declared conditions, the coverage unit and coverage counts, the `outputs` by name (value type, kind, scopes, unit or none, boundaries, the condition `cells`, identity key, item fields and the closed list of values of an item field), the population fields; the reserved arguments of the invocation and what an exit status means; the built-in `record-series@1` |
 | `domains/evidence.yaml` | the assessment run `ratchet-evidence/1` in two parts. `evidence`: project, assessment, assessor, candidate, resolved target with the window (bounds, items, newest item, runs left out), resolved inputs, completion, observed conditions (host load as mean, min and max; tools), coverage with its unit and the units not executed, the list of results (complete or incomplete, the value members beside `value_type`), import source. `run`: start and end, queue wait and run time, resolved local inputs, artifacts. Proof record with the defect ids refused and accepted |
 | `domains/reference.yaml` | reference record (generated or accepted value; `values`, or `items` as `{identity, reason, owner}`), reference change, trade-off with `gains` and `loosens` |
 | `domains/gate.yaml` | gate decision (a candidate, or for an operational gate none) and each entry's result: evaluated or not applicable; pass, fail or insufficient evidence, with its cause from the list of its verdict (`FailCause`, `InsufficientEvidenceCause`), its next step (`candidate`, `assessment`, `system`) and in an operational gate its window |
@@ -37,12 +37,12 @@ ess generate cli --path spec --binding spec/cli.yaml --out <directory>
 ```
 
 `task check:spec` needs `ess` and `jq`, and fails with a named message when `jq` is missing. It
-runs twelve steps, and `task check` calls it:
+runs thirteen steps, and `task check` calls it:
 
 1. `ess specify validate --path spec --strict-requires`;
 2. `ess specify cli --path spec --binding spec/cli.yaml --strict-requires`;
 3. `sh spec/record-fields.test.sh`, which reads every field row of `docs/evidence-format.md`
-   § 3 and § 10 and fails when one is not declared in `domains/evidence.yaml` or
+   § 3, § 10 and § 12 and fails when one is not declared in `domains/evidence.yaml` or
    `domains/assessor.yaml` under the name the row gives. Its last line is
    `record-fields: <n> of <n> field rows declared`;
 4. `sh spec/record-types.test.sh`, which compares the same rows with the declarations in both
@@ -50,10 +50,11 @@ runs twelve steps, and `task check` calls it:
    declared field of a struct that the two documents hold has a row. Its last line is
    `record-types: <n> of <n> field rows as declared, <m> of <m> declared fields have a row`;
 5. `sh spec/record-examples.test.sh`, which reads the JSON examples of
-   `docs/evidence-format.md` § 6 with `jq` and fails when a member is not declared, a required
+   `docs/evidence-format.md` § 6 and § 12 with `jq`, each against the root type its shape or
+   the value of its `format` gives, and fails when a member is not declared, a required
    member is absent, or a value does not have the declared type. Its last line is
    `record-examples: <n> of <n> members of <b> example(s) decode under the specification`;
-6. `sh spec/contract-examples.test.sh`, which reads the two YAML examples of
+6. `sh spec/contract-examples.test.sh`, which reads the YAML examples of
    `docs/evidence-format.md` § 10 and fails when a key is no declared field of the type it
    stands in. Its last line is
    `contract-examples: <k> of <k> keys of <n> example(s) are declared fields`;
@@ -67,7 +68,8 @@ runs twelve steps, and `task check` calls it:
 9. `sh spec/gate-inputs.test.sh`, which copies `spec/` and the two documents into the ignored
    `target/gate-inputs/`, hides one defect per copy behind a change of form, and fails when
    the six scripts above accept a copy, or when `spec/record-examples.test.sh` does not refuse
-   with its digest message a copy whose `evidence` of § 6 example 1 has one byte changed. Its
+   with its digest message a copy whose `evidence` of § 6 example 1 has one byte changed, or
+   with its message a copy whose example of § 12 holds a member that is not declared. Its
    last line is
    `gate-inputs: <n> of <n> broken inputs refused`;
 10. `sh spec/presets.test.sh`, which reads every file of the preset catalog `presets/`: a file
@@ -78,11 +80,18 @@ runs twelve steps, and `task check` calls it:
     preset holds no gate, no exception, no local input and no reference to an input it does not
     declare, and a requirement writes out the names of its assessment, its measurement and its
     statements; an assessment passes the inputs its assessor requires, with the declared types,
-    also for each item of a list, and names a target kind the assessor takes; a measurement
+    also for each item of a list, and names a target kind the assessor takes; an input that the
+    declaration names in `observation_inputs` is passed by that key of the plan's
+    `observation` (`window_length` and `window_last` by the `length` and the `last` of its
+    `window`, `window_ends_at` on a time-window plan alone) and not under `inputs`, and a key
+    of `observation_inputs` is one of
+    `ratchet.assessor.ObservationKey` and names a declared input, as an entry of
+    `revision_inputs` does; a measurement
     names an output, its kind, a unit, a scope, a boundary, an identity key and filter fields
     that the declaration of its assessor declares, and a plan a condition and a population
     field that it declares; the cache condition is `cache_profile` and never `cache`, in a plan
-    and in a declaration, an input of a declaration has no reserved name such as `out`, a key
+    and in a declaration, an input of a declaration has no reserved name such as `out` and
+    not the name of one of its population fields, a key
     of `item_values` is a field of `item_fields` of its output and a value of a `filter` one
     the output lists there, an exact measurement aggregates with `sum` or not at all, and a
     sampled measurement of a plan whose `runs` is a literal above 1 states an `aggregation` or
@@ -121,16 +130,24 @@ runs twelve steps, and `task check` calls it:
     without the message of its rule. The line of its check is
     `example-declarations: <e> example file(s), <d> declaration(s) read, <m> of <m> measurement(s) as declared`,
     and its last line is `example-declarations: <c> of <c> broken copies refused`;
-12. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
+12. `sh spec/design-drift.test.sh`, which fails when `docs/design.md` or a page of `presets/`
+    states a sentence that calls inexpressible a form the specification declares: a reference
+    adopted from another plan (`ratchet.specification.AdoptionSource` `assessment`) and a
+    requirement over two measurements (`ratchet.specification.Condition.against`). It reads
+    each sentence while the specification declares its form, and names each one that
+    disagrees with its file. Its last line is
+    `design-drift: <n> of <n> sentences agree with the specification`;
+13. `ess generate synthesize --path spec --target rust --layout crate` into the ignored
     `target/check-spec/`, which fails when the Rust target refuses a declaration. Its line
     `<n> capabilities: <n> generated, 0 obligation(s), 0 refused` is printed.
 
 Each script states how much it reads and fails on another number, so that a section, a table
-or an example which an edit moves out of the form the script looks for is not skipped: 78 field
-rows in 13 tables of § 3 and 20 in 2 tables of § 10 (`record-fields`, `record-types`, a number
-per table), 5 examples in § 6 (`record-examples`), 2 examples in § 10 (`contract-examples`), 2
-places that report coverage (`cli-coverage-row`), and 3 named errors (`cli-errors`). A row, a
-table or an example that is added or removed needs the new number in the script.
+or an example which an edit moves out of the form the script looks for is not skipped: 82 field
+rows in 13 tables of § 3, 23 in 2 tables of § 10 and 7 in 1 table of § 12 (`record-fields`,
+`record-types`, a number per table), 9 examples in § 6 and 1 in § 12 (`record-examples`), 4
+examples in § 10 (`contract-examples`), 2 places that report coverage (`cli-coverage-row`), and
+3 named errors (`cli-errors`). A row, a table or an example that is added or removed needs the
+new number in the script.
 `presets.test.sh` states no number of the catalog, because the catalog grows by a family at a
 time. The one line of counts it states, in the case `file-last-line-of-one-file-alone`, counts
 the files and the measurements of the set of its copies, which a new family does not change.
@@ -146,8 +163,9 @@ the run in a tree whose `presets/` lacks a file of the set; a refusal
 counts only with the message of the rule of its case, also for a case that shares its copy
 with a case that is refused rightly; and an accepted copy gives exit 1. Its
 header lists what it does not check, each with the reason: the invariants of the types beside
-the four of a plan over `runs_of`, a value that an input gives where a rule reads the value
-(only the kind of a target is read from the default of its input), a measurement of a plan of
+the four of a plan over `runs_of` and those of a condition that the rule `compare` reads, a
+value that an input gives where a rule reads the value (only the kind of a target is read from
+the default of its input), a measurement of a plan of
 `record-series@1` against the measurement of the source plan, the plan that `runs_of` names,
 the class a condition is declared for, the value of a `Json` other than a passed input and a
 default, the values of a `filter`, the prose of the four cells, whether an input is referred
@@ -194,7 +212,8 @@ And these rules of `docs/evidence-format.md` § 4 and § 10. The Rust types that
   `ratchet-assessor/1`;
 - rule 1: `candidate` is present exactly when `target.selection` is;
 - rule 2: a result has `item` exactly when its `scope` is not `run`;
-- rule 4, in part: `passed` and `failed` are each at most `executed`, and no id is twice in
+- rule 4, in part: `passed` and `failed` are each at most `executed` where both are present, a
+  count named under `at_least` is present, and no id is twice in
   `executed_ids` and `not_executed`, within one list or across the two;
 - rule 5: a complete result has the value of its type, an incomplete one has none or a number
   with `at_least`, and a result has only the value members of its `value_type`;
@@ -242,8 +261,8 @@ in the domain files, and is the implementation's to check.
   `via:` cannot name a member of a struct (`evidence.project`), so the three links of an
   assessment run have no relation entry.
 
-Rules of `docs/evidence-format.md` § 3, § 4 and § 10 that stay the reader's to check; § 8 of
-that document lists the same rules:
+Rules of `docs/evidence-format.md` § 3, § 4, § 10 and § 12 that stay the reader's to check; § 8
+of that document lists those of § 3, § 4 and § 10:
 
 - **§ 3, a window exactly for a time-window plan.** `evidence.target.window` is present exactly
   on a run of a time-window plan. The kind of the observation is in the plan, and
@@ -252,8 +271,8 @@ that document lists the same rules:
   the fields that the `key` of the same result names. Both are members of one result, but
   `identity` is a `Json`, and an invariant selects no member of one (`defined(i.identity.rule)`
   is refused: "cannot select `rule` from `Json`").
-- **Rule 3, one result per output, scope, item, boundary and aggregation.** `distinct` takes one
-  member as its key and no combination of five.
+- **Rule 3, one result per output, scope, item, cell, boundary and aggregation.** `distinct`
+  takes one member as its key and no combination of six.
 - **Rule 4, the sum.** `passed` plus `failed` is at most `executed`: a comparison reads one fact
   on each side and a constant, not the sum of two facts
   (`passed + failed <= executed` is refused). The two single comparisons are declared.
@@ -267,6 +286,10 @@ that document lists the same rules:
 - **§ 10, a result against its declaration.** Output, kind, scope, value type, unit, boundary,
   identity key and item fields of a result against the assessor's declaration: each joins a
   run and an assessor.
+- **§ 12, no id twice in a proof record.** `planted`, `refused` and `accepted` of
+  `ratchet.evidence.ProofRecord` each hold an id once. `ess generate synthesize` evaluates
+  `distinct` only in the invariants of a struct and refuses it in those of an entity; that the
+  two lists hold only ids of `planted`, and no id in both, is declared.
 - **The exit status of an assessor.** Which completion the CLI records for which exit is a
   comment on `ratchet.assessor.AssessorExit` and on `assess` in `cli.yaml`: ESS declares no
   map from an enum value to another.
@@ -284,28 +307,30 @@ Two limits of the generators shape the declarations:
 ## How a `ratchet/1` file differs from the declared entities
 
 A `ratchet/1` file is not the entities of `domains/specification.yaml` written out. What reads
-the file applies the rules below and infers no other. Each row names the line of
-`docs/design.md` that states the rule; where no sentence states it, the line is that of the
-illustrative YAML of § 3 which shows it, marked "YAML". Three rules were taken on 2026-11-24
-and one on 2026-11-26, and they are stated in § 12 of the design alone; their row names that
-section. The example member is
-from `examples/`, or from the design where no example file uses the form.
+the file applies the rules below and infers no other.
+Each row cites the section of the design that states the rule, by its number and heading;
+where the section holds several rules, it quotes a phrase of the sentence that states the rule,
+and where no sentence states it, it names the key of the illustrative YAML of § 3 which shows
+it. Three rules were taken on 2026-11-24 and one on 2026-11-26, and they are stated in § 12 of
+the design alone; their row names that section. The example member is from `examples/`, cited
+by file and key path, or from the design where no example file uses the form. No citation
+names a line, so an insertion into either file moves none.
 
 | Rule | `docs/design.md` | Example member |
 | --- | --- | --- |
-| **The root.** A file holds `format`, `project`, and one map per kind of entity: `statements`, `subjects`, `assessments`, `requirements`, `gates`, `exceptions` and `presets`. `project` is the identity of the `QualitySpecification` and `format` its field. The maps are no field of it. | 690; YAML 218, 219 | `format: ratchet/1` (`examples/analyzer-findings.ratchet.yaml:1`) |
-| **An entity is an entry of the map of its kind, and its identity is the key.** `statements.<statement>` is a `QualityStatement`, `subjects.<subject>` a `Subject`, `assessments.<assessment>` an `AssessmentPlan`, `requirements.<requirement>` a `QualityRequirement`, `gates.<gate>` a `Gate`, `exceptions.<exception>` an `Exception`, and `presets.<binding>` a `PresetBinding`. The identity is not a member of the entry. | YAML 222, 227, 241, 340, 377, 398, 510 | `subjects.source-tree` (`examples/analyzer-findings.ratchet.yaml:5`) |
-| **`project` is written once.** Every one of these entities declares the field `project`. The file states it at the root, and no entry repeats it. | 690; YAML 219 | `project: workflow-driver` (`examples/analyzer-findings.ratchet.yaml:2`) |
-| **Several files form one specification.** The files of `[spec] paths` declare one `format` and one `project`, and an id is unique across them. | 690 | `paths = ["ratchet.yaml", "quality/*.ratchet.yaml"]` (design, line 658; each example is one file) |
-| **A gate holds its entries.** `requires` is a list under the gate, and `Gate` declares no such field: each element is a `GateRequirement`. Its `gate` is the gate that holds the list, and its identity is `<gate>/<requirement>`. | 603; YAML 380 | `gates.merge.requires` (`examples/analyzer-findings.ratchet.yaml:97`) |
-| **A bare requirement name is an entry.** It stands for `{requirement: <name>, mode: enforce}`. | 603 | `- no-lint-findings` (`examples/analyzer-findings.ratchet.yaml:98`) |
-| **An entry written as a map may leave `mode` out.** It then means `enforce`; `GateRequirement.mode` is required in the entity. | 603; YAML 385 | `{requirement: scenario-files-current, when: {changed: [...]}}` (`examples/generated-artifact.ratchet.yaml:52`) |
-| **A decimal is written as a YAML number.** `condition.value`, `tolerance.percent`, `tolerance.absolute` and `host_load_per_cpu.max` are `Decimal`, which the record formats write as text. | YAML 344, 297 | `condition: {operator: lte, value: 0}` (`examples/analyzer-findings.ratchet.yaml:79`) |
-| **A number is the decimal of its text as written.** `max: 2.125` is `2.125`; the number never passes through a binary float. A scalar in exponent form or with a sign `+` is refused. A quoted decimal text is accepted and means the same. | § 12 | `max: 2.125` (`examples/host-caused-limit.ratchet.yaml:21`) |
-| **A requirement may leave `serves` out.** An absent `serves` is the empty list; `QualityRequirement.serves` is a required list in the entity. | § 12 | `requirements.no-lint-findings` (`examples/analyzer-findings.ratchet.yaml:77`) |
-| **A date is the text of its scalar.** A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created` and `expires` are the text of the scalar, quoted or plain. | § 12 | `expires: 2026-11-30` (`examples/analyzer-findings.ratchet.yaml:113`) |
-| **A comment carries nothing.** A `ratchet/1` file may hold YAML comments, and a reader of the format skips them: no rule, value or entity is read from a comment. A preset is bound by the digest of its bytes, so a comment changes that digest, and the catalog `presets/` writes none (`presets/README.md`). What the scripts of the gate skip or refuse of a comment is their own reading, not the format. | § 12 | `# Checks 1 to 5 and 7 bind presets of presets/; ...` (`examples/production-gate.ratchet.yaml:12`) |
-| **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`, named `<name>@<version>.preset.yaml` in a catalog source (`ratchet.config.CatalogFileKind`). Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | § 4, "Presets"; § 5, "Local config" | `presets/conformance-cases@1.preset.yaml`; `presets.served-operations.use: conformance-cases@1` (`examples/production-gate.ratchet.yaml:16`) |
+| **The root.** A file holds `format`, `project`, and one map per kind of entity: `statements`, `subjects`, `assessments`, `requirements`, `gates`, `exceptions` and `presets`. `project` is the identity of the `QualitySpecification` and `format` its field. The maps are no field of it. | § 3 "Illustrative project YAML", the keys `format` and `project` | `format: ratchet/1` (`format` of `examples/analyzer-findings.ratchet.yaml`) |
+| **An entity is an entry of the map of its kind, and its identity is the key.** `statements.<statement>` is a `QualityStatement`, `subjects.<subject>` a `Subject`, `assessments.<assessment>` an `AssessmentPlan`, `requirements.<requirement>` a `QualityRequirement`, `gates.<gate>` a `Gate`, `exceptions.<exception>` an `Exception`, and `presets.<binding>` a `PresetBinding`. The identity is not a member of the entry. | § 3 "Illustrative project YAML", the keys `statements`, `subjects`, `assessments`, `requirements`, `gates` and `exceptions`; § 4 "Presets and custom assessors", the key `presets` | `subjects.source-tree` (of `examples/analyzer-findings.ratchet.yaml`) |
+| **`project` is written once.** Every one of these entities declares the field `project`. The file states it at the root, and no entry repeats it. | § 3 "Illustrative project YAML", the key `project` | `project: workflow-driver` (`project` of `examples/analyzer-findings.ratchet.yaml`) |
+| **Several files form one specification.** The files of `[spec] paths` declare one `format` and one `project`, and an id is unique across them. | § 5 "Local config", rule 5: "Several paths form one specification" | `paths = ["ratchet.yaml", "quality/*.ratchet.yaml"]` (`[spec] paths` of the `ratchet.toml` of design § 5 "Local config"; each example is one file) |
+| **A gate holds its entries.** `requires` is a list under the gate, and `Gate` declares no such field: each element is a `GateRequirement`. Its `gate` is the gate that holds the list, and its identity is `<gate>/<requirement>`. | § 5 "Gate entries, deciding evidence, and gate kinds": "An entry of `requires` is a requirement name"; § 3 "Illustrative project YAML", the key `gates.merge.requires` | `gates.merge.requires` (of `examples/analyzer-findings.ratchet.yaml`) |
+| **A bare requirement name is an entry.** It stands for `{requirement: <name>, mode: enforce}`. | § 5 "Gate entries, deciding evidence, and gate kinds": "An entry of `requires` is a requirement name, which means enforce" | `- no-lint-findings` (an item of `gates.merge.requires` of `examples/analyzer-findings.ratchet.yaml`) |
+| **An entry written as a map may leave `mode` out.** It then means `enforce`; `GateRequirement.mode` is required in the entity. Its `when` holds `changed` or `not_only`, one of the two. | § 5 "Gate entries, deciding evidence, and gate kinds": "An entry of `requires` is a requirement name [...], or a map"; "A map without `mode` means enforce too"; "An entry holds `changed` or `not_only`, not both"; § 3 "Illustrative project YAML", the entry of `generated-docs-current` in `gates.merge.requires` | `{requirement: scenario-files-current, when: {changed: [...]}}` (an item of `gates.merge.requires` of `examples/generated-artifact.ratchet.yaml`) |
+| **A decimal is written as a YAML number.** `condition.value`, `tolerance.percent`, `tolerance.absolute` and `host_load_per_cpu.max` are `Decimal`, which the record formats write as text. | § 3 "Illustrative project YAML", the keys `condition.value` and `host_load_per_cpu.max` | `condition: {operator: lte, value: 0}` (`requirements.no-lint-findings.condition` of `examples/analyzer-findings.ratchet.yaml`) |
+| **A number is the decimal of its text as written.** `max: 2.125` is `2.125`; the number never passes through a binary float. A scalar in exponent form or with a sign `+` is refused. A quoted decimal text is accepted and means the same. | § 12 | `max: 2.125` (`assessments.test-steps.observation.conditions.local.host_load_per_cpu.max` of `examples/host-caused-limit.ratchet.yaml`) |
+| **A requirement may leave `serves` out.** An absent `serves` is the empty list; `QualityRequirement.serves` is a required list in the entity. | § 12 | `requirements.no-lint-findings` (of `examples/analyzer-findings.ratchet.yaml`) |
+| **A date is the text of its scalar.** A `ratchet/1` file is read by the YAML 1.2 core schema, which has no date type. `since`, `created` and `expires` are the text of the scalar, quoted or plain. | § 12 | `expires: 2026-11-30` (`exceptions.known-failing-a.expires` of `examples/analyzer-findings.ratchet.yaml`) |
+| **A comment carries nothing.** A `ratchet/1` file may hold YAML comments, and a reader of the format skips them: no rule, value or entity is read from a comment. A preset is bound by the digest of its bytes, so a comment changes that digest, and the catalog `presets/` writes none (`presets/README.md`). What the scripts of the gate skip or refuse of a comment is their own reading, not the format. | § 12 | `# Checks 1 to 5 and 7 bind presets of presets/; ...` (the comment above the key `presets` of `examples/production-gate.ratchet.yaml`) |
+| **A preset is a file of its own.** It is a `ratchet/1` document with a `preset` block in place of `project`, named `<name>@<version>.preset.yaml` in a catalog source (`ratchet.config.CatalogFileKind`). Its entries refer to an input as `${inputs.<name>}` and join the project under the name of the binding, as `ux.steps-do-not-rise`. | § 4, "Presets"; § 5, "Local config" | `presets/conformance-cases@1.preset.yaml`; `use: conformance-cases@1` (`presets.served-operations.use` of `examples/production-gate.ratchet.yaml`) |
 | **A preset holds three of the seven maps.** Beside `format` and `preset` its root holds `statements`, `assessments` and `requirements` (`ratchet.specification.PresetMember`), each a map of the entity that the relation of that name of `QualitySpecification` targets. An entry states no `project`. `subjects`, `gates`, `exceptions` and `presets` are refused. | § 4, "Presets" | `assessments.conformance` (`presets/conformance-cases@1.preset.yaml`) |
 | **A reference to an input is the whole of a value.** `${inputs.<name>}` stands where a scalar or a list stands, with no text beside it, and the type of the input fits the place (`ratchet.specification.InputReference`). Inside a flow collection it is quoted. No key is a reference, and neither is a name by which a requirement names another entry of its preset: `assessment`, `measurement` and the items of `serves` are written out. `<name>` is the key of the input, which is text and may hold a `.`. The spelling is the only one: a scalar of a preset that holds `${` or `{inputs.` and is not `${inputs.<name>}` alone, such as `${ inputs.report }` and `${{inputs.report}}`, is an error and no text. | § 4, "Presets" | `environments: ${inputs.environments}` (`presets/conformance-cases@1.preset.yaml`) |
 

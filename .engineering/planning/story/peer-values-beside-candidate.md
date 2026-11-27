@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:peer-values-beside-candidate
 kind: story
-status: draft
+status: rejected
 title: Values of other implementations stand beside the candidate's
 summary: A measurement carries values of named other implementations with version and method; no gate reads them. Or the boundary excludes it, in writing.
 relations:
@@ -16,7 +16,10 @@ scope:
   path: docs/design.md
 - confidence: inferred
   path: spec/domains/specification.yaml
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T23:39:05Z", actor: "human:operator", revision: 7}
+- {from: "proposed", to: "rejected", at: "2026-11-26T23:39:05Z", actor: "human:operator", revision: 8}
 ---
 ## Context
 
@@ -59,3 +62,14 @@ the keys are refused and the design is silent.
 - A new value or field of a released format is an addition: a file written for the format
   before the change stays valid.
 - The story is a draft. It was there before the planned waves to 0.1.0 and waits for them.
+
+## Decision
+
+Decided on 2026-11-26 by the operator session acting for the owner (D89 A): a comparison of
+implementations is outside the boundary of Ratchet, and the story is rejected with that reason.
+B (a measurement carries values of other implementations that no gate reads) and C (leave the
+story a draft) were not taken.
+
+The second half of the acceptance, `docs/design.md` saying what a consumer does instead, is a
+unit of `.engineering/waves/0.1.0-ahead-2.md`. The story moves to `rejected` with the commit
+that writes that paragraph.

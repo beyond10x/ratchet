@@ -57,8 +57,21 @@ types:
         type: ratchet.specification.ComparisonOperator
       - name: value
         type: Optional<String>
+      - name: min
+        type: Optional<String>
+        summary: >-
+          The lower bound of a range with the operator `within`, the exact decimal text as
+          `value` is, so a range is one limit.
+      - name: max
+        type: Optional<String>
+        summary: The upper bound of a range with the operator `within`, as `min`.
       - name: unit
         type: Optional<ratchet.specification.Unit>
+      - name: source
+        type: Optional<ratchet.specification.NumberSource>
+        summary: >-
+          The source of the limit as the condition states it, printed beside the allowed value;
+          absent where the condition states none.
 
   - name: ratchet.cli.CoverageRow
     kind: struct
@@ -71,17 +84,21 @@ types:
       - name: unit
         type: ratchet.assessor.CoverageUnit
       - name: executed
-        type: Integer
+        type: Optional<Integer>
       - name: skipped
-        type: Integer
+        type: Optional<Integer>
       - name: not_run
-        type: Integer
+        type: Optional<Integer>
       - name: unsupported
-        type: Integer
+        type: Optional<Integer>
       - name: passed
-        type: Integer
+        type: Optional<Integer>
       - name: failed
-        type: Integer
+        type: Optional<Integer>
+      - name: at_least
+        type: Optional<List<ratchet.assessor.CoverageCount>>
+        summary: >-
+          The counts whose value is a lower bound. A count that is absent above is not known.
       - name: executed_ids
         type: Optional<List<String>>
         summary: The ids of the executed units, where the plan declares `executed_ids`.
@@ -325,8 +342,25 @@ types:
         summary: >-
           In an operational gate, the window this requirement was judged over, in place of a
           candidate (§ 5, § 6).
+      - name: document
+        type: Optional<ratchet.gate.JoinedDocument>
+        summary: >-
+          The document whose run was joined with the candidate revision, by path and digest,
+          when the plan of the requirement has a target of the kind `document` (§ 5 "A
+          document run joins the candidate revision").
       - name: observed
         type: Optional<ratchet.cli.ValueRow>
+      - name: meanings
+        type: Optional<Map<String, String>>
+        summary: >-
+          The statements of the scope items of the requirement's measurement, by item name, as
+          its `meanings` states them; each is shown beside the result of its item (§ 3 "Scope
+          and aggregation").
+      - name: meanings_without_result
+        type: Optional<List<String>>
+        summary: >-
+          The items of `meanings` that no result of the run holds. A statement whose item the
+          run lacks says nothing about the run, and the report names it.
       - name: allowed
         type: Optional<ratchet.cli.LimitRow>
         summary: The absolute limit.
@@ -336,6 +370,12 @@ types:
         type: Optional<ratchet.cli.ValueRow>
       - name: reference_stale
         type: Boolean
+      - name: items_not_judged
+        type: List<String>
+        summary: >-
+          The scope items the reference holds no value for and leaves unjudged
+          (`new_items: not_judged`), each until its value is adopted; empty when none (§ 5
+          "Verdicts").
       - name: coverage
         type: Optional<ratchet.cli.CoverageRow>
       - name: conditions
@@ -581,19 +621,32 @@ types:
         type: Optional<ratchet.specification.GateName>
         summary: Only the requirements this gate lists.
 
+  # design § 5 "Gate modes": `assessed`, the record store holds a run of the plan;
+  # `never_assessed`, it holds none; `no_run_expected`, it holds none and the file states
+  # `no_run_expected` with a reason. A plan that ran before and has no run for this revision is
+  # `assessed` with no `verdict`, and a gate gives it `evidence_missing` (§ 5 "Verdicts").
+  - name: ratchet.cli.PlanRunState
+    kind: enum
+    variants: [assessed, never_assessed, no_run_expected]
+
   - name: ratchet.cli.StatusRow
     kind: struct
     naming:
       summary: >-
         One requirement as `ratchet status` shows it (design § 5): verdict, value against limit
-        or reference, when last checked, by which run, in which environment, and whether it is
-        skipped locally.
+        or reference, when last checked, by which run, in which environment, whether its
+        plan was ever assessed, and whether it is skipped locally.
     fields:
       - name: requirement
         type: ratchet.specification.RequirementName
       - name: verdict
         type: Optional<ratchet.gate.Verdict>
         summary: The last verdict; absent when no run qualifies yet.
+      - name: plan_state
+        type: ratchet.cli.PlanRunState
+        summary: >-
+          Whether the requirement's plan was ever assessed: a plan never assessed, a plan whose
+          file states that no run is expected yet, and a plan that ran (§ 5 "Gate modes").
       - name: skipped_locally
         type: Boolean
         summary: >-
@@ -680,6 +733,11 @@ types:
         type: ratchet.specification.MeasurementKind
       - name: scope
         type: ratchet.specification.Scope
+      - name: meanings
+        type: Optional<Map<String, String>>
+        summary: >-
+          The statements of the scope items of the measurement, by item name, as its
+          `meanings` states them (§ 3 "Scope and aggregation").
       - name: unit
         type: Optional<ratchet.specification.Unit>
       - name: condition

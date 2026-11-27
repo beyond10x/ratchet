@@ -9,6 +9,7 @@ sources = [
 
 [records]
 store = "git:refs/ratchet/records"
+tracked = ["quality/baseline"]
 
 [environment]
 class = "local"

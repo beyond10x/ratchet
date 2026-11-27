@@ -79,10 +79,20 @@ types:
       summary: >-
         `[records]`: where records are kept (§ 5, § 6). The local record directory holds the
         records this machine writes. Without the section, or with a `store` that names no
-        path, it is `.ratchet/records` under the root.
+        path, it is `.ratchet/records` under the root. `tracked` names directories of the tree
+        that hold records committed to it, such as baseline records a clone needs.
     fields:
       - name: store
         type: Optional<ratchet.config.RecordStoreLocation>
+      - name: tracked
+        type: Optional<List<String>>
+        summary: >-
+          Directories relative to the root, such as `["quality/baseline"]`, that hold
+          `ratchet-evidence/1` files committed to the tree. A command reads records there and
+          writes none, beside the local record directory and the ref: a run writes its records
+          to the local record directory and hands them over (§ 6). A record there is no
+          reference: references stay `ratchet/references/<requirement>.json` (§ 5 "Reference
+          records"), and a tracked record is evidence an adoption can read.
 
   - name: ratchet.config.EnvironmentSection
     kind: struct
@@ -175,8 +185,10 @@ entities:
         `refs/ratchet/records`; it is the only writer, and gates, views and `ratchet history`
         read the ref. Records of a local run stay on the machine that produced them, in the
         local record directory: `.ratchet/records` under the root unless `[records] store`
-        names a path. The push right of the writer, the author of its commits and any retention
-        are the owner's to set outside this specification.
+        names a path. A third source, beside the ref and the local record directory, is a
+        tracked directory, read and never written: each directory that `[records] tracked`
+        names holds records committed to the tree. The push right of the writer, the author of
+        its commits and any retention are the owner's to set outside this specification.
     provided: true
     identity:
       name: store

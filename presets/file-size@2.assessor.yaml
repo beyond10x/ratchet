@@ -1,0 +1,13 @@
+format: ratchet-assessor/1
+name: file-size
+version: "2"
+command: file-size
+targets: [build]
+target_input: binary
+inputs:
+  binary: {type: path, required: true}
+conditions: []
+coverage_unit: file
+coverage: [executed]
+outputs:
+  size: {value_type: number, kind: exact, scopes: [], unit: bytes}

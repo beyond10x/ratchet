@@ -116,15 +116,24 @@ key to a format; each point names the place in the specification
 ([`spec/domains/`](../spec/domains/)) that lacks it. The points are those of
 [latency.md](latency.md), "Not expressible yet", and the family adds none:
 
-1. **A reference adopted from the evidence of another plan** (point 1 there):
-   `ratchet.specification.RatchetPolicy` names no assessment, so the start time of the
-   reference implementation cannot be the accepted value of the candidate.
+1. **A reference adopted from the evidence of another plan** (point 1 there): answered in the
+   format by the adoption `from: assessment` of `ratchet.specification.RatchetPolicy`, and
+   `start-time@1` holds no plan of the reference implementation, so the start time of the
+   reference implementation is not the accepted value of the candidate yet.
 2. **A requirement over two measurements** (point 2 there):
-   `ratchet.specification.QualityRequirement` names one measurement.
-3. **The conditions of a plan as an input** (point 3 there): `ratchet.specification.InputType`
-   has no type for the map `conditions` of `ratchet.specification.ObservationPlan`.
+   `ratchet.specification.Condition.against` names the second measurement and compares the two
+   with no tolerance, so a band over the reference implementation waits for an adoption from
+   its plan (point 1).
+3. **The conditions of a plan as an input** (point 3 there): the input type `conditions` of
+   `ratchet.specification.InputType` answers it from `operation-time@2` on, as the whole value
+   of the map `conditions` of `ratchet.specification.ObservationPlan`. `start-time@1` still
+   fixes a `runner` in every class until a version of its own takes the input.
 4. **A member that is there for some values of an input** (point 4 there): the two
-   measurements always declare the median of the starts, also for `runs: 1`, where
-   `ratchet.specification.Measurement` says that `aggregation` is absent.
-5. **The inputs that hold the observation** (point 6 there): `ratchet.assessor.Assessor` has no
-   member that names the input of the workload, and the program is not passed `runs`.
+   measurements always declare the median of the starts, also for `runs: 1`. This point is
+   answered without a new form ([`docs/design.md`](../docs/design.md) § 3, "One run per
+   candidate is valid"): an aggregation of one value is that value, so at `runs: 1` the
+   result carries `samples: 1` and is judged as observed. The preset stays as it is.
+5. **The inputs that hold the observation** (point 6 there): `ratchet.assessor.Assessor` has
+   `observation_inputs`, which maps a key of the plan's `observation` such as `workload` or
+   `runs` to an input of the declaration, and no preset of the family uses it yet: its
+   declaration names no input of the workload, and the program is not passed `runs`.

@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-26T21:04:14Z",
+  "actor": "human:operator",
+  "artifact": "story:gate-entry-unless-only-paths",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:critics-acceptance-wave-ahead-2-round-1",
+    "reference": ".engineering/waves/0.1.0-ahead-2.md",
+    "review": "review-result:critics-acceptance-wave-ahead-2-round-1",
+    "outcome": "fixed"
+  }
+}
